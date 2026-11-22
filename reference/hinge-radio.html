@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hinge Radio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a dark stage with a half-open phone standing on a round teak table; the controls and the station list sit quietly around it. */
+:root{
+  --page:#ECEAE5; --ink:#141414; --muted:#5F5C56; --line:#D2CEC6; --card:#FFFFFF;
+  --stage:#17181A; --on-stage:#F2F0EA; --stage-muted:#9C9A94; --stage-line:#303236; --stage-chip:#222427;
+  --table:#B8743A; --table-edge:#8E5626;
+  --device:#D8DADD; --device-edge:#A5A8AE;
+  --face:#F3F1EA; --face-2:#E4E1D8; --face-ink:#161616; --face-muted:#6A675F;
+  --needle:#FF5B1F; --lamp:#2FBF6B; --warn:#C8372D;
+  --sans:"Hanken Grotesk","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --mono:"DM Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --page:#0E0E0F; --ink:#EFEDE8; --muted:#A09D96; --line:#2C2C2E; --card:#18191B;
+    --stage:#1B1C1F; --stage-line:#34363B; --stage-chip:#26282C;
+    --warn:#FF6A5C;
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.page{max-width:1120px;margin:0 auto;padding:28px max(16px,env(safe-area-inset-right,0px)) 64px max(16px,env(safe-area-inset-left,0px));display:grid;gap:28px}
+.page>*{min-width:0}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--needle);outline-offset:2px}
+a{color:inherit;text-underline-offset:3px}
+p{margin:0}
+
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 32px}
+h1{margin:0;font-size:clamp(40px,7vw,76px);font-weight:800;line-height:.9;letter-spacing:-.04em}
+h1 span{color:var(--needle)}
+.lede{max-width:44ch;font-size:17px;color:var(--muted)}
+h2{margin:0 0 10px;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* Stage */
+.stage{background:var(--stage);color:var(--on-stage);border-radius:28px;overflow:hidden;display:grid}
+.scene{--w:clamp(150px,34vw,236px);--h:calc(var(--w)*1.414);--t:11px;--b:6px;position:relative;height:calc(var(--w)*1.75 + 170px);perspective:1500px;overflow:hidden}
+.tilt,.world,.half{transform-style:preserve-3d}
+.tilt{position:absolute;left:50%;top:52%;width:0;height:0;transform:rotateX(calc(var(--py,0)*-3deg)) rotateY(calc(var(--px,0)*6deg));transition:transform .3s ease-out}
+.world{position:absolute;left:0;top:0;width:0;height:0;transform:rotateX(-26deg) rotateY(-24deg)}
+.floor{position:absolute;width:calc(var(--h)*2.3);height:calc(var(--h)*2.3);left:calc(var(--h)*-1.15);top:calc(var(--h)*-1.15);border-radius:50%;background:var(--table);box-shadow:inset 0 0 0 6px var(--table-edge);transform:translateY(calc(var(--t) + 1px)) translateZ(calc(var(--w)*.45)) rotateX(90deg)}
+.floor::after{content:"";position:absolute;left:50%;top:50%;width:66%;height:44%;transform:translate(-50%,-62%);background:radial-gradient(closest-side,rgb(0 0 0 / .35),transparent)}
+.half{position:absolute;width:var(--h);height:var(--w);left:calc(var(--h)/-2)}
+.base{top:0;transform-origin:50% 0 calc(var(--t)/2);transform:rotateX(90deg)}
+.lid{top:calc(var(--w)*-1);transform-origin:50% 100% calc(var(--t)/2);transform:rotateX(calc(var(--theta,112deg) - 90deg));transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.scene.drag .lid{transition:none}
+.f{position:absolute;background:var(--device)}
+.front{inset:0;transform:translateZ(calc(var(--t)/2));backface-visibility:hidden}
+.back{inset:0;transform:rotateY(180deg) translateZ(calc(var(--t)/2));backface-visibility:hidden}
+.base .front,.base .back{border-radius:0 0 18px 18px}
+.lid .front,.lid .back{border-radius:18px 18px 0 0}
+.et,.eb,.el,.er{background:var(--device-edge)}
+.et,.eb{left:9px;right:9px;height:var(--t);top:calc(50% - var(--t)/2)}
+.et{transform:rotateX(90deg) translateZ(calc(var(--w)/2))}
+.eb{transform:rotateX(-90deg) translateZ(calc(var(--w)/2))}
+.el,.er{top:9px;bottom:9px;width:var(--t);left:calc(50% - var(--t)/2)}
+.el{transform:rotateY(-90deg) translateZ(calc(var(--h)/2))}
+.er{transform:rotateY(90deg) translateZ(calc(var(--h)/2))}
+.cam{position:absolute;top:10%;right:7%;height:38%;aspect-ratio:1;border-radius:24%;background:var(--device-edge)}
+
+/* The radio, drawn on the two halves of the inner display. Sizes are in em so it scales with the phone. */
+.scr{position:absolute;inset:var(--b);overflow:hidden;background:var(--face);color:var(--face-ink);font-family:var(--sans);font-size:calc(var(--w)*.058);line-height:1.2}
+.lid .scr{bottom:0;border-radius:12px 12px 0 0}
+.base .scr{top:0;border-radius:0 0 12px 12px}
+.scr::after{content:"";position:absolute;left:0;right:0;height:10px;pointer-events:none}
+.lid .scr::after{bottom:0;background:linear-gradient(to top,rgb(0 0 0 / .12),transparent)}
+.base .scr::after{top:0;background:linear-gradient(to bottom,rgb(0 0 0 / .12),transparent)}
+.scr button{font:inherit;color:inherit;cursor:pointer}
+.off .glass,.off .window{opacity:.35}
+
+.dial{position:absolute;inset:0;display:flex;flex-direction:column;padding:.9em 1.1em .8em;gap:.6em}
+.d-top{display:flex;align-items:center;gap:.6em;font-size:.72em;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.d-top .sp{flex:1}
+.lamp{width:.75em;height:.75em;border-radius:50%;background:var(--face-2);box-shadow:inset 0 0 0 1px rgb(0 0 0 / .2)}
+.lamp.on{background:var(--lamp);box-shadow:0 0 .6em var(--lamp)}
+.lamp.seek{background:var(--needle);box-shadow:0 0 .6em var(--needle)}
+.bars{display:flex;align-items:flex-end;gap:.16em;height:1em}
+.bars i{width:.22em;background:var(--face-2);border-radius:1px}
+.bars i.on{background:var(--face-ink)}
+.bars i:nth-child(1){height:30%}.bars i:nth-child(2){height:48%}.bars i:nth-child(3){height:66%}.bars i:nth-child(4){height:84%}.bars i:nth-child(5){height:100%}
+.glass{position:relative;flex:1;min-height:0;border-radius:.7em;background:var(--face-2);overflow:hidden;transition:opacity .3s}
+.tick{position:absolute;bottom:34%;width:1px;height:14%;background:var(--face-ink);opacity:.45}
+.tick.maj{height:26%;opacity:.9}
+.num{position:absolute;bottom:8%;transform:translateX(-50%);font-family:var(--mono);font-size:.62em;color:var(--face-muted)}
+.mark{position:absolute;top:10%;transform:translateX(-50%);display:grid;justify-items:center;gap:.2em;padding:0;border:0;background:none;font-size:.6em;font-weight:700;letter-spacing:.04em}
+.mark i{width:.55em;height:.55em;border-radius:50%;background:var(--face-ink)}
+.mark.dead{opacity:.3;text-decoration:line-through}
+.mark.cur i{background:var(--needle)}
+.needle{position:absolute;top:4%;bottom:4%;width:2px;margin-left:-1px;background:var(--needle);border-radius:2px;transition:left .5s cubic-bezier(.2,.8,.2,1)}
+.scene.drag .needle{transition:none}
+.window{min-height:3.2em;transition:opacity .3s}
+.w-name{font-size:1.25em;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.w-sub{font-size:.74em;color:var(--face-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.plate{position:absolute;inset:0;display:grid;grid-template-columns:auto 1fr;gap:1.1em;align-items:center;padding:1em 1.1em}
+.grille{height:62%;aspect-ratio:1;align-self:center;border-radius:50%;background-image:radial-gradient(circle,var(--face-ink) .085em,transparent .1em);background-size:.5em .5em;background-position:center;opacity:.8}
+.ctl{display:grid;gap:.7em;min-width:0}
+.keys{display:grid;grid-template-columns:repeat(2,1fr);gap:.4em .3em}
+.keys button{padding:.75em 0 .55em;border:0;border-radius:.35em;background:var(--face-2);font-size:.56em;font-weight:700;letter-spacing:.06em;text-transform:uppercase;box-shadow:0 .2em 0 rgb(0 0 0 / .18)}
+.keys button[aria-pressed="true"]{background:var(--face-ink);color:var(--face);box-shadow:none;transform:translateY(.15em)}
+.frow{display:flex;align-items:baseline;gap:.4em}
+.freq{font-family:var(--mono);font-size:1.7em;font-weight:500;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.unit{font-size:.66em;font-weight:700;letter-spacing:.1em;color:var(--face-muted)}
+.pwr{margin-left:auto;width:2.1em;height:2.1em;border-radius:50%;border:0;background:var(--face-2);box-shadow:0 .16em 0 rgb(0 0 0 / .2);position:relative}
+.pwr::after{content:"";position:absolute;inset:32%;border-radius:50%;background:var(--face-muted)}
+.pwr[aria-pressed="true"]::after{background:var(--lamp)}
+
+/* Controls under the scene */
+.deck{display:grid;gap:16px;padding:18px 24px 24px;position:relative;z-index:2;background:var(--stage)}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px}
+.lbl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--stage-muted)}
+.power{display:inline-flex;align-items:center;gap:10px;border:0;border-radius:99px;padding:12px 20px;background:var(--needle);color:#1A0B04;font-size:15px;font-weight:700;cursor:pointer}
+.power[aria-pressed="true"]{background:var(--stage-chip);color:var(--on-stage);box-shadow:inset 0 0 0 1px var(--stage-line)}
+.power i{width:9px;height:9px;border-radius:50%;background:currentColor}
+.power[aria-pressed="true"] i{background:var(--lamp)}
+.hinge{flex:1 1 320px;display:grid;gap:6px;min-width:0}
+.hinge-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.hinge output{font-family:var(--mono);font-size:13px;color:var(--on-stage);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;margin:0;accent-color:var(--needle)}
+.seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:99px;background:var(--stage-chip);box-shadow:inset 0 0 0 1px var(--stage-line)}
+.seg button,.nb{border:0;border-radius:99px;padding:8px 14px;background:transparent;color:var(--stage-muted);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--on-stage);color:var(--stage)}
+.nb{background:var(--stage-chip);color:var(--on-stage);box-shadow:inset 0 0 0 1px var(--stage-line)}
+.vol{display:flex;align-items:center;gap:10px;flex:0 1 200px}
+
+/* Below the stage */
+.cols{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:28px 40px;align-items:start}
+.now{background:var(--card);border-radius:22px;padding:22px;display:grid;gap:8px}
+.state{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.state::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.state.locked::before{background:var(--lamp)}
+.state.seeking::before,.state.static::before{background:var(--needle)}
+.state.dead::before{background:var(--warn)}
+.n-name{font-size:clamp(24px,3.4vw,36px);font-weight:800;line-height:1.05;letter-spacing:-.02em;overflow-wrap:anywhere}
+.n-sub{color:var(--muted);font-size:15px;overflow-wrap:anywhere}
+.hint{font-size:14px;color:var(--warn)}
+.src{font-size:13px;color:var(--muted)}
+.list{list-style:none;margin:0;padding:0;border-top:2px solid var(--ink)}
+.list button{display:grid;grid-template-columns:5.2ch minmax(0,1fr) auto;gap:14px;align-items:baseline;width:100%;padding:11px 0;border:0;border-bottom:1px solid var(--line);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.list .f1{font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.list .f2{font-weight:600;overflow-wrap:anywhere}
+.list .f3{font-size:14px;color:var(--muted);white-space:nowrap}
+.list .cur .f1{color:var(--needle)}
+.list .dead .f2{text-decoration:line-through;color:var(--muted)}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px 36px;border-top:1px solid var(--line);padding-top:24px}
+.notes p{font-size:15px;color:var(--muted);max-width:62ch}
+@media (max-width:820px){ .cols{grid-template-columns:minmax(0,1fr)} .deck{padding:6px 16px 18px} }
+@media (prefers-reduced-motion:reduce){ .tilt,.lid,.needle{transition:none} }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>Hinge Radio<span>.</span></h1>
+    <p class="lede">A tabletop radio for a folding phone. Switch it on, then bend the hinge to sweep the dial through live stations, with static in between.</p>
+  </header>
+
+  <section class="stage" aria-label="Radio prototype">
+    <div class="scene" id="scene">
+      <div class="tilt" id="tilt"><div class="world" id="world">
+        <div class="floor"></div>
+        <div class="half base">
+          <div class="f front"><div class="scr" id="baseScr">
+            <div class="plate">
+              <div class="grille"></div>
+              <div class="ctl">
+                <div class="keys" id="keys"></div>
+                <div class="frow"><span class="freq" id="pFreq">98.4</span><span class="unit">MHz</span>
+                  <button class="pwr" id="pwr2" data-act="power" aria-pressed="false" aria-label="Power"></button></div>
+              </div>
+            </div>
+          </div></div>
+          <div class="f back"></div><div class="f et"></div><div class="f eb"></div><div class="f el"></div><div class="f er"></div>
+        </div>
+        <div class="half lid">
+          <div class="f front"><div class="scr off" id="lidScr">
+            <div class="dial">
+              <div class="d-top"><span>Hinge Radio</span><span class="sp"></span><span id="dBand">World</span>
+                <span class="bars" id="bars"><i></i><i></i><i></i><i></i><i></i></span><span class="lamp" id="lamp"></span></div>
+              <div class="glass" id="glass"></div>
+              <div class="window"><div class="w-name" id="dName">Off</div><div class="w-sub" id="dSub">Switch on to listen</div></div>
+            </div>
+          </div></div>
+          <div class="f back"><div class="cam"></div></div><div class="f et"></div><div class="f eb"></div><div class="f el"></div><div class="f er"></div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="deck">
+      <div class="row">
+        <button class="power" id="power" data-act="power" aria-pressed="false"><i></i><span id="powerTxt">Switch on</span></button>
+        <div class="hinge">
+          <div class="hinge-top"><label class="lbl" for="hinge">Bend the hinge</label><output id="hingeOut" for="hinge">112° · 98.5 MHz</output></div>
+          <input type="range" id="hinge" min="24" max="160" step="0.5" value="112">
+        </div>
+      </div>
+      <div class="row">
+        <div class="seg" id="bands" role="group" aria-label="Band"></div>
+        <button class="nb" id="prev" data-act="prev">Previous station</button>
+        <button class="nb" id="next" data-act="next">Next station</button>
+        <label class="vol"><span class="lbl">Volume</span><input type="range" id="vol" min="0" max="1" step="0.01" value="0.8"></label>
+      </div>
+    </div>
+  </section>
+
+  <section class="cols">
+    <div class="now" aria-live="polite">
+      <span class="state" id="state">Off</span>
+      <div class="n-name" id="nName">Switch the radio on</div>
+      <div class="n-sub" id="nSub">Nothing plays until you do.</div>
+      <p class="hint" id="hint" hidden></p>
+      <p class="src" id="nLink" hidden></p>
+      <p class="src" id="srcLine">Stations: built-in list. Looking for the live directory…</p>
+    </div>
+    <div>
+      <h2 id="listTitle">On this band</h2>
+      <ol class="list" id="list"></ol>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div><h2>On the real phone</h2><p>The hinge angle would set the frequency directly, read through Apple's hinge API, with a haptic tick as a station locks. Closing the phone switches the radio off. Here the slider stands in for your hands.</p></div>
+    <div><h2>Where stations come from</h2><p>The dial fills from Radio Browser, a community-run open directory of internet radio. If it cannot be reached, a short built-in list is used. Your browser connects straight to each broadcaster, and a station that does not answer is crossed out.</p></div>
+    <div><h2>What is simulated</h2><p>The phone, the frequencies and the static. Internet stations have no real frequency, so each band spreads its stations along an FM-style scale.</p></div>
+  </section>
+</div>
+
+<audio id="player" preload="none"></audio>
+
+<script>
+(function () {
+'use strict';
+var $ = function (id) { return document.getElementById(id); };
+var FMIN = 87.5, FMAX = 108.5, TMIN = 70, TMAX = 150, CLOSED = 45;
+var soma = function (id) { return 'https://ice1.somafm.com/' + id + '-128-mp3'; };
+
+/* Built-in list, used until (or unless) the live directory answers. */
+var BANDS = {
+  world: { label: 'World', st: [
+    { cc: 'US', name: 'KEXP', place: 'Seattle', url: 'https://kexp-mp3-128.streamguys1.com/kexp128.mp3', home: 'https://www.kexp.org' },
+    { cc: 'US', name: 'WFMU', place: 'Jersey City', url: 'https://stream0.wfmu.org/freeform-128k', home: 'https://wfmu.org' },
+    { cc: 'US', name: 'Radio Paradise', place: 'California', url: 'https://stream.radioparadise.com/mp3-128', home: 'https://radioparadise.com' },
+    { cc: 'GB', name: 'BBC World Service', place: 'London', url: 'https://stream.live.vc.bbcmedia.co.uk/bbc_world_service', home: 'https://www.bbc.co.uk/worldserviceradio' },
+    { cc: 'GB', name: 'NTS 1', place: 'London', url: 'https://stream-relay-geo.ntslive.net/stream', home: 'https://www.nts.live' },
+    { cc: 'FR', name: 'FIP', place: 'Paris', url: 'https://icecast.radiofrance.fr/fip-midfi.mp3', home: 'https://www.radiofrance.fr/fip' },
+    { cc: 'CH', name: 'Radio Swiss Pop', place: 'Bern', url: 'https://stream.srg-ssr.ch/m/rsp/mp3_128', home: 'https://www.radioswisspop.ch' }
+  ] },
+  jazz: { label: 'Jazz', st: [
+    { cc: 'CH', name: 'Radio Swiss Jazz', place: 'Bern', url: 'https://stream.srg-ssr.ch/m/rsj/mp3_128', home: 'https://www.radioswissjazz.ch' },
+    { cc: 'FR', name: 'FIP Jazz', place: 'Paris', url: 'https://icecast.radiofrance.fr/fipjazz-midfi.mp3', home: 'https://www.radiofrance.fr/fip' },
+    { cc: 'US', name: 'SomaFM Sonic Universe', place: 'San Francisco', url: soma('sonicuniverse'), home: 'https://somafm.com' },
+    { cc: 'US', name: 'SomaFM Secret Agent', place: 'San Francisco', url: soma('secretagent'), home: 'https://somafm.com' },
+    { cc: 'US', name: 'SomaFM Illinois Street Lounge', place: 'San Francisco', url: soma('illstreet'), home: 'https://somafm.com' }
+  ] },
+  classical: { label: 'Classical', st: [
+    { cc: 'CH', name: 'Radio Swiss Classic', place: 'Bern', url: 'https://stream.srg-ssr.ch/m/rsc_de/mp3_128', home: 'https://www.radioswissclassic.ch' },
+    { cc: 'FR', name: 'France Musique', place: 'Paris', url: 'https://icecast.radiofrance.fr/francemusique-midfi.mp3', home: 'https://www.radiofrance.fr/francemusique' },
+    { cc: 'US', name: 'WQXR', place: 'New York', url: 'https://stream.wqxr.org/wqxr', home: 'https://www.wqxr.org' }
+  ] },
+  ambient: { label: 'Ambient', st: [
+    { cc: 'US', name: 'SomaFM Drone Zone', place: 'San Francisco', url: soma('dronezone'), home: 'https://somafm.com' },
+    { cc: 'US', name: 'SomaFM Groove Salad', place: 'San Francisco', url: soma('groovesalad'), home: 'https://somafm.com' },
+    { cc: 'US', name: 'SomaFM Deep Space One', place: 'San Francisco', url: soma('deepspaceone'), home: 'https://somafm.com' },
+    { cc: 'US', name: 'SomaFM Space Station', place: 'San Francisco', url: soma('spacestation'), home: 'https://somafm.com' },
+    { cc: 'US', name: 'SomaFM Lush', place: 'San Francisco', url: soma('lush'), home: 'https://somafm.com' },
+    { cc: 'US', name: 'SomaFM Mission Control', place: 'San Francisco', url: soma('missioncontrol'), home: 'https://somafm.com' }
+  ] }
+};
+var ORDER = ['world', 'jazz', 'classical', 'ambient'];
+var S = { on: false, theta: 112, band: 'world', vol: 0.8 };
+var player = $('player');
+var ac = null, master, staticGain, whistleGain, osc;
+var loaded = null, playing = false, tSettle = null, tDrop = null, tFail = null;
+var fails = 0, oks = 0, apiBase = null, counted = {};
+var volOK = true;
+try { player.volume = 0.5; volOK = Math.abs(player.volume - 0.5) < 0.01; player.volume = 1; } catch (e) { volOK = false; }
+
+var fOf = function (th) { return FMIN + (Math.min(TMAX, Math.max(TMIN, th)) - TMIN) / (TMAX - TMIN) * (FMAX - FMIN); };
+var thOf = function (f) { return TMIN + (f - FMIN) / (FMAX - FMIN) * (TMAX - TMIN); };
+var xOf = function (f) { return (f - FMIN) / (FMAX - FMIN) * 100; };
+var cur = function () { return BANDS[S.band].st; };
+var isOn = function () { return S.on && S.theta >= CLOSED; };
+var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); };
+
+/* Spread a band's stations along the scale, like an FM dial. */
+function place(list) {
+  var n = list.length;
+  list.forEach(function (s, i) {
+    var h = 0; for (var k = 0; k < s.name.length; k++) h = (h * 31 + s.name.charCodeAt(k)) % 997;
+    var f = n === 1 ? 98 : 89.2 + i * (17.6 / (n - 1)) + ((h % 5) - 2) * 0.1;
+    s.f = Math.round(f * 10) / 10;
+  });
+  return list;
+}
+ORDER.forEach(function (b) { place(BANDS[b].st); });
+
+function nearest() {
+  var f = fOf(S.theta), best = null, bd = 1e9;
+  cur().forEach(function (s) { var d = Math.abs(s.f - f); if (d < bd) { bd = d; best = s; } });
+  return { st: best, d: bd, f: f };
+}
+function strength(d) { return d <= 0.15 ? 1 : d >= 0.55 ? 0 : 1 - (d - 0.15) / 0.4; }
+
+/* ---- Sound: static and a tuning whistle are made here; stations play through the audio element. ---- */
+function buildAudio() {
+  var AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  ac = new AC();
+  master = ac.createGain(); master.gain.value = S.vol; master.connect(ac.destination);
+  var buf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate), ch = buf.getChannelData(0);
+  for (var i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+  var noise = ac.createBufferSource(); noise.buffer = buf; noise.loop = true;
+  var bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1700; bp.Q.value = 0.5;
+  staticGain = ac.createGain(); staticGain.gain.value = 0;
+  noise.connect(bp); bp.connect(staticGain); staticGain.connect(master);
+  osc = ac.createOscillator(); osc.type = 'sine'; osc.frequency.value = 900;
+  whistleGain = ac.createGain(); whistleGain.gain.value = 0;
+  osc.connect(whistleGain); whistleGain.connect(master);
+  noise.start(); osc.start();
+}
+function setLevels() {
+  var n = nearest(), on = isOn(), s = on && n.st ? strength(n.d) : 0;
+  var live = on && playing && loaded === n.st ? s : 0;
+  if (ac) {
+    var t = ac.currentTime;
+    master.gain.setTargetAtTime(S.vol, t, 0.03);
+    staticGain.gain.setTargetAtTime(on ? 0.015 + 0.24 * Math.pow(1 - live, 1.6) : 0, t, 0.05);
+    var w = on && n.d > 0.15 && n.d < 0.9 ? Math.sin(Math.PI * (n.d - 0.15) / 0.75) : 0;
+    whistleGain.gain.setTargetAtTime(0.012 * w, t, 0.04);
+    osc.frequency.setTargetAtTime(180 + n.d * 2600, t, 0.03);
+  }
+  var v = Math.max(0, Math.min(1, S.vol * Math.pow(live, 1.3)));
+  if (volOK) player.volume = v; else player.muted = live < 0.5;
+}
+function silentUrl() {
+  var n = 800, b = new Uint8Array(44 + n), v = new DataView(b.buffer), w = function (o, s) { for (var i = 0; i < s.length; i++) b[o + i] = s.charCodeAt(i); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+  for (var i = 44; i < b.length; i++) b[i] = 128;
+  return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+}
+
+/* ---- Tuning: connect to the station under the needle, drop it a few seconds after leaving. ---- */
+function unload() {
+  clearTimeout(tFail); clearTimeout(tDrop); tDrop = null;
+  if (loaded) { loaded = null; playing = false; try { player.pause(); player.removeAttribute('src'); player.load(); } catch (e) {} }
+}
+function load(st) {
+  unload();
+  loaded = st; playing = false;
+  player.src = st.url;
+  var p = player.play(); if (p && p.catch) p.catch(function () {});
+  tFail = setTimeout(function () { if (loaded === st && !playing) fail(st); }, 12000);
+}
+function fail(st) {
+  st.dead = true; fails++;
+  if (loaded === st) unload();
+  drawBand(); retune();
+}
+function retune(now) {
+  var n = nearest(), cand = isOn() && n.st && !n.st.dead && strength(n.d) > 0 ? n.st : null;
+  clearTimeout(tSettle);
+  if (cand && cand === loaded) { clearTimeout(tDrop); tDrop = null; }
+  else if (cand) { if (now) load(cand); else tSettle = setTimeout(function () { load(cand); setLevels(); draw(); }, 240); }
+  else if (loaded && !isOn()) unload();
+  else if (loaded && !tDrop) tDrop = setTimeout(function () { unload(); draw(); }, 6000);
+  setLevels(); draw();
+}
+player.addEventListener('playing', function () {
+  if (!loaded) return;
+  playing = true; oks++; clearTimeout(tFail);
+  if (apiBase && loaded.uuid && !counted[loaded.uuid]) { counted[loaded.uuid] = 1; fetch(apiBase + '/json/url/' + loaded.uuid).catch(function () {}); }
+  if (navigator.mediaSession && window.MediaMetadata) { try { navigator.mediaSession.metadata = new MediaMetadata({ title: loaded.name, artist: loaded.place || 'Hinge Radio' }); } catch (e) {} }
+  setLevels(); draw();
+});
+player.addEventListener('error', function () { if (loaded && player.error) fail(loaded); });
+
+/* ---- Drawing ---- */
+function drawBand() {
+  var h = '';
+  for (var f = 88; f <= 108; f++) h += '<i class="tick' + (f % 4 === 0 ? ' maj' : '') + '" style="left:' + xOf(f) + '%"></i>' + (f % 4 === 0 ? '<span class="num" style="left:' + xOf(f) + '%">' + f + '</span>' : '');
+  cur().forEach(function (s, i) {
+    h += '<button class="mark' + (s.dead ? ' dead' : '') + '" data-tune="' + i + '" style="left:' + xOf(s.f) + '%" aria-label="Tune to ' + esc(s.name) + '"><span>' + esc(S.band === 'world' ? s.cc : i + 1) + '</span><i></i></button>';
+  });
+  $('glass').innerHTML = h + '<i class="needle" id="needle"></i>';
+  $('list').innerHTML = cur().map(function (s, i) {
+    return '<li><button data-tune="' + i + '" class="' + (s.dead ? 'dead' : '') + '"><span class="f1">' + s.f.toFixed(1) + '</span><span class="f2">' + esc(s.name) + '</span><span class="f3">' + esc(s.dead ? 'no signal' : s.place || s.cc || '') + '</span></button></li>';
+  }).join('');
+  $('listTitle').textContent = BANDS[S.band].label + ' band';
+  $('dBand').textContent = BANDS[S.band].label;
+  [].forEach.call(document.querySelectorAll('[data-band]'), function (b) { b.setAttribute('aria-pressed', String(b.dataset.band === S.band)); });
+  draw();
+}
+function draw() {
+  var n = nearest(), on = isOn(), s = on && n.st ? strength(n.d) : 0, st = n.st;
+  var locked = on && s > 0 && playing && loaded === st, seeking = on && s > 0 && !locked && st && !st.dead, dead = on && s > 0 && st && st.dead;
+  $('world').style.setProperty('--theta', S.theta + 'deg');
+  var nd = $('needle'); if (nd) nd.style.left = xOf(n.f) + '%';
+  $('pFreq').textContent = n.f.toFixed(1);
+  $('hingeOut').textContent = S.theta < CLOSED ? Math.round(S.theta) + '° · closed' : Math.round(S.theta) + '° · ' + n.f.toFixed(1) + ' MHz';
+  $('lidScr').classList.toggle('off', !on);
+  $('lamp').className = 'lamp' + (locked ? ' on' : seeking ? ' seek' : '');
+  var lit = locked ? Math.max(1, Math.round(s * 5)) : 0;
+  [].forEach.call($('bars').children, function (b, i) { b.className = i < lit ? 'on' : ''; });
+  [].forEach.call(document.querySelectorAll('.mark'), function (m, i) { m.classList.toggle('cur', on && s > 0 && cur()[i] === st); });
+  [].forEach.call(document.querySelectorAll('#list button'), function (m, i) { m.classList.toggle('cur', on && s > 0 && cur()[i] === st); });
+  [].forEach.call(document.querySelectorAll('[data-act="power"]'), function (b) { b.setAttribute('aria-pressed', String(S.on)); });
+  $('powerTxt').textContent = S.on ? 'Switch off' : 'Switch on';
+
+  var state, name, sub, cls;
+  if (!S.on) { cls = ''; state = 'Off'; name = 'Switch the radio on'; sub = 'Nothing plays until you do.'; }
+  else if (!on) { cls = ''; state = 'Closed'; name = 'Closed'; sub = 'Open the phone to listen again.'; }
+  else if (locked) { cls = 'locked'; state = 'Locked'; name = st.name; sub = [st.place, st.codec && st.br ? st.codec + ' ' + st.br + ' kbps' : ''].filter(Boolean).join(' · '); }
+  else if (seeking) { cls = 'seeking'; state = 'Tuning in'; name = st.name; sub = 'Connecting to the station…'; }
+  else if (dead) { cls = 'dead'; state = 'No signal'; name = st.name; sub = 'This station did not answer. Keep turning.'; }
+  else { cls = 'static'; state = 'Static'; name = n.f.toFixed(1) + ' MHz'; sub = 'Between stations. Keep bending.'; }
+  $('state').className = 'state ' + cls; $('state').textContent = state;
+  $('nName').textContent = name; $('nSub').textContent = sub;
+  $('dName').textContent = !S.on ? 'Off' : !on ? 'Closed' : (locked || seeking || dead) ? st.name : '· · ·';
+  $('dSub').textContent = !S.on ? 'Switch on to listen' : !on ? '' : locked ? (st.place || '') : seeking ? 'Tuning in' : dead ? 'No signal' : 'Static';
+  var link = $('nLink');
+  if (locked && st.home && /^https?:\/\//.test(st.home)) { link.hidden = false; link.innerHTML = '<a href="' + esc(st.home) + '" target="_blank" rel="noopener noreferrer">Station website</a>'; } else link.hidden = true;
+  var hint = $('hint');
+  if (S.on && fails >= 3 && oks === 0) { hint.hidden = false; hint.textContent = 'No station has answered yet. If this page is open inside a preview, save the file and open it in a normal browser, and check that you are online.'; } else hint.hidden = true;
+}
+
+/* ---- Controls ---- */
+function setTheta(v, now) { S.theta = v; $('hinge').value = v; retune(now); }
+function power() {
+  S.on = !S.on;
+  if (S.on) {
+    if (!ac) buildAudio();
+    if (ac && ac.state === 'suspended') ac.resume();
+    var n = nearest();
+    if (isOn() && n.st && !n.st.dead && strength(n.d) > 0) load(n.st);
+    else { try { player.src = silentUrl(); var p = player.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {} }
+  } else unload();
+  retune();
+}
+function step(dir) {
+  var f = fOf(S.theta), list = cur().filter(function (s) { return !s.dead; }).sort(function (a, b) { return a.f - b.f; });
+  if (!list.length) return;
+  var pick = dir > 0 ? list.filter(function (s) { return s.f > f + 0.2; })[0] || list[0] : list.filter(function (s) { return s.f < f - 0.2; }).pop() || list[list.length - 1];
+  setTheta(Math.round(thOf(pick.f) * 2) / 2, true);
+}
+function setBand(b) {
+  if (!BANDS[b] || !BANDS[b].st.length) return;
+  S.band = b; unload(); drawBand(); retune();
+}
+document.addEventListener('click', function (e) {
+  var t = e.target.closest ? e.target.closest('button') : null; if (!t) return;
+  if (t.dataset.act === 'power') power();
+  else if (t.dataset.act === 'next') step(1);
+  else if (t.dataset.act === 'prev') step(-1);
+  else if (t.dataset.band) setBand(t.dataset.band);
+  else if (t.dataset.tune != null) { var s = cur()[Number(t.dataset.tune)]; if (s) setTheta(Math.round(thOf(s.f) * 2) / 2, true); }
+});
+var scene = $('scene'), hinge = $('hinge');
+hinge.addEventListener('input', function () { scene.classList.add('drag'); S.theta = Number(hinge.value); retune(); });
+hinge.addEventListener('change', function () { scene.classList.remove('drag'); });
+$('vol').addEventListener('input', function () { S.vol = Number(this.value); setLevels(); });
+if (!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+  scene.addEventListener('pointermove', function (e) {
+    if (e.pointerType === 'touch') return;
+    var r = scene.getBoundingClientRect(), tl = $('tilt');
+    tl.style.setProperty('--px', ((e.clientX - r.left) / r.width * 2 - 1).toFixed(3));
+    tl.style.setProperty('--py', ((e.clientY - r.top) / r.height * 2 - 1).toFixed(3));
+  });
+  scene.addEventListener('pointerleave', function () { var tl = $('tilt'); tl.style.setProperty('--px', 0); tl.style.setProperty('--py', 0); });
+}
+var keysHtml = ORDER.map(function (b) { return '<button data-band="' + b + '" aria-pressed="false">' + BANDS[b].label + '</button>'; }).join('');
+$('keys').innerHTML = keysHtml; $('bands').innerHTML = keysHtml;
+
+/* ---- Live directory: Radio Browser ---- */
+function jget(url, ms) {
+  var c = new AbortController(), t = setTimeout(function () { c.abort(); }, ms || 7000);
+  return fetch(url, { signal: c.signal }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).finally(function () { clearTimeout(t); });
+}
+function playable(s) {
+  return s && s.url_resolved && /^https:\/\//.test(s.url_resolved) && !Number(s.hls) && /^(mp3|aac|aac\+)$/i.test(s.codec || '') && s.lastcheckok !== 0 && (s.name || '').trim().length > 1;
+}
+function clean(s, place) {
+  return { uuid: s.stationuuid, name: s.name.trim().replace(/\s+/g, ' ').slice(0, 44), cc: (s.countrycode || '').toUpperCase(), place: place || s.country || '', url: s.url_resolved,
+    home: s.homepage || '', codec: (s.codec || '').toUpperCase(), br: Number(s.bitrate) || 0 };
+}
+function pickTop(arr, n) {
+  var out = [], seen = {};
+  (arr || []).filter(playable).forEach(function (s) {
+    var k = s.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10);
+    if (out.length < n && k && !seen[k]) { seen[k] = 1; out.push(clean(s)); }
+  });
+  return out;
+}
+function findServer() {
+  var fallback = ['de1', 'de2', 'fi1', 'nl1', 'at1'].map(function (x) { return x + '.api.radio-browser.info'; });
+  return jget('https://all.api.radio-browser.info/json/servers', 5000).then(function (list) {
+    return list.map(function (x) { return x.name; }).filter(Boolean);
+  }).catch(function () { return []; }).then(function (names) {
+    var hosts = names.concat(fallback).filter(function (h, i, a) { return a.indexOf(h) === i; });
+    var tryAt = function (i) {
+      if (i >= hosts.length) return Promise.resolve(null);
+      return jget('https://' + hosts[i] + '/json/stations/search?limit=1&hidebroken=true', 6000).then(function (a) {
+        if (!Array.isArray(a)) throw new Error('unexpected reply');
+        return 'https://' + hosts[i];
+      }).catch(function () { return tryAt(i + 1); });
+    };
+    return tryAt(0);
+  });
+}
+var WORLD = [['MX', 'Mexico'], ['US', 'USA'], ['BR', 'Brazil'], ['GB', 'UK'], ['FR', 'France'], ['DE', 'Germany'], ['IT', 'Italy'], ['NG', 'Nigeria'], ['ZA', 'South Africa'], ['IN', 'India'], ['JP', 'Japan'], ['AU', 'Australia']];
+function loadDirectory() {
+  var q = '/json/stations/search?order=clickcount&reverse=true&hidebroken=true&is_https=true';
+  return findServer().then(function (base) {
+    if (!base) throw new Error('no server');
+    apiBase = base;
+    var jobs = [
+      Promise.all(WORLD.map(function (c) { return jget(base + q + '&limit=8&countrycode=' + c[0]).then(function (a) { var s = (a || []).filter(playable)[0]; return s ? clean(s, c[1]) : null; }).catch(function () { return null; }); })),
+      jget(base + q + '&limit=40&tag=jazz').catch(function () { return []; }),
+      jget(base + q + '&limit=40&tag=classical').catch(function () { return []; }),
+      jget(base + q + '&limit=40&tag=ambient').catch(function () { return []; })
+    ];
+    return Promise.all(jobs);
+  }).then(function (r) {
+    var got = { world: r[0].filter(Boolean), jazz: pickTop(r[1], 10), classical: pickTop(r[2], 10), ambient: pickTop(r[3], 10) }, n = 0;
+    var keepName = (nearest().st || {}).name;
+    ORDER.forEach(function (b) { if (got[b].length >= 3) { BANDS[b].st = place(got[b]); n += got[b].length; } });
+    if (!n) throw new Error('empty');
+    $('srcLine').textContent = 'Stations: ' + n + ' from Radio Browser, the open community directory, ranked by listeners.';
+    if (!S.on) { var mid = cur()[Math.floor(cur().length / 2)]; S.theta = Math.round(thOf(mid.f) * 2) / 2; $('hinge').value = S.theta; }
+    else if (!cur().some(function (s) { return s.name === keepName; })) unload();
+    drawBand(); retune();
+  }).catch(function () {
+    $('srcLine').textContent = 'Stations: built-in list. The live directory could not be reached from here.';
+  });
+}
+
+/* Start with the needle resting on a station, so switching on plays at once. */
+(function () { var mid = cur()[Math.floor(cur().length / 2)]; S.theta = Math.round(thOf(mid.f) * 2) / 2; $('hinge').value = S.theta; })();
+drawBand();
+loadDirectory();
+})();
+</script>
+</body>
+</html>
