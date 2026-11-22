@@ -101,3 +101,19 @@ private func r(_ angle: Double, closed: Bool = false) -> HingeReading {
     #expect(radio.display(playback: .idle).title == "· · ·")
     #expect(radio.cityID == "")
 }
+
+@Test func nanReadingIsIgnored() {
+    var radio = Radio(file: file)
+    radio.togglePower()
+    radio.hinge(r(110))
+    radio.hinge(r(.nan))
+    #expect(abs(radio.tuning.needle - 0.5) < 1e-9)
+    #expect(radio.station?.frequency == 98.0)
+    radio.selectCity("chicago")
+    #expect(abs(radio.tuning.needle - 0.5) < 1e-9)
+
+    radio.hinge(r(110, closed: true))
+    #expect(radio.isClosed)
+    radio.hinge(r(.nan))
+    #expect(radio.isClosed)
+}

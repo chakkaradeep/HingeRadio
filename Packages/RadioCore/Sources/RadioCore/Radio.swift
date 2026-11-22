@@ -56,6 +56,7 @@ public struct Radio: Sendable {
     }
 
     public mutating func hinge(_ reading: HingeReading) {
+        guard !reading.angle.isNaN else { return }
         lastReading = reading
         isClosed = reading.isClosed || reading.angle < config.closedBelow
         tuning = tuner.update(reading)
