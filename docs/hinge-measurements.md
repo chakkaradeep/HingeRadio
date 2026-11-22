@@ -1,6 +1,6 @@
 # Hinge measurements
 
-Device: iPhone Duo simulator (iOS 27.1, UDID 6FBE2E12-829F-4E36-AACD-4F03F4E0638E). Probe: `App/HingeProbeView.swift`, reading `onHingeChange`. All values below were read from probe screenshots taken after each `set_posture` call. Screenshots are 1398x2034 px for the outer screen and 2853x2007 px for the inner screen (landscape).
+Device: iPhone Duo simulator (iOS 27.1, UDID 6FBE2E12-829F-4E36-AACD-4F03F4E0638E). Probe: `App/HingeProbeView.swift`, reading `onHingeChange`. Reported angles and statuses below were read from probe screenshots taken after a `set_posture` call; rows marked "text only" took the lit screen from the `set_posture` result and have no screenshot. Screenshots are 1398x2034 px for the outer screen and 2853x2007 px for the inner screen (landscape).
 
 ## Table: ascending sweep from closed
 
@@ -42,13 +42,13 @@ One call from closed to the commanded angle (closed was set again before each ro
 | 110 | inner | 109.17 partiallyOpen |
 | 111 | inner | 110.12 partiallyOpen |
 
-Result: a jump from closed first lights the inner screen at 85 commanded (85.56 reported) and not at 84.
+Result: among the angles tried (70, 75, 80, 82, 83, 84, 85, 90, 100, 110, 111), a jump from closed first lights the inner screen at 85 commanded (85.56 reported) and not at 84.
 
 The controller sequence "closed, then 111, 112, 113, 114, 115" is also a jump from closed followed by 1 degree steps: 111 lit, and 112 to 115 stayed lit (text only). 116 to 120 were not run in that sequence.
 
 ### (ii) Stepped from closed
 
-Result: stepping up from closed, the inner screen first lights at 170 commanded with 10 degree steps, and at 172 commanded with 10 degree steps up to 160 and then 1 degree steps. It stays dark through 160 in both.
+Result: this depends on the step size. In run A (10 degree steps) the inner screen first lights at 170 commanded, and stays dark through 160. In run B (10 degree steps to 160, then 1 degree steps) it first lights at 172 commanded (text only), and stays dark through 171. In the first sweep, a single 40 degree step from 110 to 150 lit the inner screen (146.95 partiallyOpen, row 150 of the table at the top). The two later 1 degree stepped runs below stayed outer through 120.
 
 Run A, 10 degree steps (closed, then 10, 20 ... 170, then open), run twice:
 
@@ -87,7 +87,7 @@ First sweep (table at the top): outer and `closed` through 110 (108.85), then a 
 
 ### (iii) Stepped down from open
 
-Result: stepping down from open, the inner screen stays lit down to 16 commanded and goes dark at 15 commanded (19.37 reported, closed).
+Result: stepping down from open, the inner screen stays lit down to 16 commanded (text only) and goes dark at 15 commanded (19.37 reported, closed).
 
 Run (open, then 150, 120, 90, 60, 40, 30, then 29, 28 ... 15):
 
@@ -107,7 +107,7 @@ Earlier descending run (open, 130, 120, 110, 100, 90, 70, 50, 30, 10): inner (te
 
 ### (iv) Jump down from open
 
-Result: a jump from open down to 30 or lower goes dark; a jump from open to 110 stays lit.
+Result: a jump from open down to 30, 29, 28, 27 or 20 goes dark; a jump from open to 110 stays lit.
 
 | Commanded | Lit screen | Reported |
 |---|---|---|
@@ -132,6 +132,6 @@ The reported angle is not the commanded angle: +4.17 at 20, +2.78 at 45, +1.39 a
 
 ## Decisions
 
-1. **End angles.** The end angles stay at 70 and 150 by controller decision. Reason, from the tables: with the hinge stepped down from open, the inner screen is lit at 150 (text only), 120, 110 and 100 (text only), 90 (90.21 partiallyOpen), 70 (71.31 partiallyOpen), and down to 16; so 70 to 150 is covered on that path. On a jump from open to 110 it is also lit (109.02). It is not covered on a jump from closed below 85 (70 to 84 outer, 85 lit), nor when stepping up from closed: the inner screen stays dark through 160 (156.07 closed) and first lights at 170 (165.84 partiallyOpen, 10 degree steps) or 172 (1 degree steps after 160), so 70 to 150 is entirely dark on that path. A jump from open to 30 or 20 is also dark (33.61 and 24.37 closed). Consequence: when opening from closed in steps, the first lit angle measured is 170, so the inner screen does not light anywhere in 70 to 150 on the way up; the way to reach those angles with the inner screen lit is to open past 170 first and bend back. When jumping from closed the first lit angle is 85. Rule for later tasks: to reach any angle between 70 and 150 with the inner screen lit, set `open` first and then move to the angle, staying at or above 20 (stepped down from open, 20 is lit at 24.09 and 15 is dark at 19.37). Jumping from open to 30 or 20 is dark, so move there in steps. A jump from open to 70 or to 150 was not measured on its own; 70 and 150 were reached lit by steps. App rule, not a measurement: the app treats status `.closed` as closed and silent.
+1. **End angles.** The end angles stay at 70 and 150 by controller decision. Reason, from the tables: with the hinge stepped down from open, the inner screen is lit at 150, 120, 110 and 100 (all text only), 90 (90.21 partiallyOpen) and 70 (71.31 partiallyOpen), and down to 16 (text only); so 70 to 150 is covered on that path. A jump from open to 110 is also lit (109.02 partiallyOpen). It is not covered on a jump from closed to 70, 75, 80, 82, 83 or 84 (outer; 85 lit at 85.56 partiallyOpen). Stepping up from closed, the angle at which the inner screen lights depends on the step size: with 10 degree steps the first lit command was 170 (165.84 partiallyOpen; 160 was outer at 156.07 closed); with 1 degree steps after 160 it was 172 (text only); and in the first sweep a single 40 degree step from 110 lit the screen at 150 (146.95 partiallyOpen). So no single rising threshold exists in these measurements. A jump from open to 30, 29, 28, 27 or 20 is dark (30 reads 33.61 closed, 20 reads 24.37 closed). Consequence: when opening from closed the lit angle depends on how large the step is; with 10 and 1 degree steps nothing inside 70 to 150 was lit, and with the 40 degree step 150 was. Rule for later tasks: to reach any angle between 70 and 150 with the inner screen lit, set `open` first and then move to the angle, staying at or above 20 (stepped down from open, 20 is lit at 24.09 partiallyOpen and 15 is dark at 19.37 closed). Jumping from open to 30 or 20 is dark, so move there in steps. A jump from open to 70 or to 150 was not measured on its own; 70 and 150 were reached lit by steps. App rule, not a measurement: the app treats status `.closed` as closed and silent.
 2. **Fold direction.** Lock the app to **portrait**. The inner screen is 951x669 pt in its default landscape orientation, which is two 466x678 outer-size panels side by side with a vertical fold. Rotating a quarter turn left gives 669x951 pt, the probe reports interface orientation "portrait", and the two panels are then stacked, so the fold runs left to right across the middle of the app. Evidence is the screen geometry; the simulator draws no fold line, so this was not seen directly.
 3. **Reading quality.** A reading arrives before the hinge first moves: 1 update at launch, reporting 0.00 closed (and 118.62 partiallyOpen when launched with the hinge already at that angle). Direct test with the inner screen lit, from open then 110: setting 110, 109, 108 ... 100 in 1 degree steps gave a reading each time, so 10 of 10 steps produced a new reading (109 to 100; 110 itself is the start). Readings: 110 gave 109.02, then 108.05, 107.10, 106.16, 105.21, 104.17, 103.22, 102.28, 101.33, 100.39, 99.44 (the last is commanded 100). Differences between consecutive readings: smallest 0.94, largest 1.04 degrees. Then 100.0, 100.25, 100.5, 100.75, 101.0 in that order: 99.44, 99.96, 99.96, 99.96, 99.96; only 100.25 gave a new reading (a 0.52 degree change); the 100.5, 100.75 and 101.0 steps (rising) gave none. The tool's result text rounded the commanded angles to 100.3 and 100.8, so the quarter degree steps were not exact. Result by this test: readings arrive at about 1 degree in a descending run, which is finer than 1.5 degrees, so no "tune with the debug slider" is needed. Caveat: after reversing direction, rising 100 to 101 in 0.25 degree steps gave one new reading, 99.96, and then nothing, while the same commanded 101 reached while descending read 100.39; the reading lags by about 0.4 degrees after a reversal. Simulator only; real hardware not measured.
