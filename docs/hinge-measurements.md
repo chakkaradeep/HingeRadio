@@ -1,6 +1,6 @@
 # Hinge measurements
 
-Device: iPhone Duo simulator (iOS 27.1, UDID 6FBE2E12-829F-4E36-AACD-4F03F4E0638E). Probe: `App/HingeProbeView.swift`, reading `onHingeChange`. Reported angles and statuses below were read from probe screenshots taken after a `set_posture` call; rows marked "text only" took the lit screen from the `set_posture` result and have no screenshot. Screenshots are 1398x2034 px for the outer screen and 2853x2007 px for the inner screen (landscape).
+Device: iPhone Duo simulator (iOS 27.1, UDID 6FBE2E12-829F-4E36-AACD-4F03F4E0638E). Probe: a probe view reading `onHingeChange` (`App/HingeProbeView.swift`, which a later change removed). Reported angles and statuses below were read from probe screenshots taken after a `set_posture` call; rows marked "text only" took the lit screen from the `set_posture` result and have no screenshot. Screenshots are 1398x2034 px for the outer screen and 2853x2007 px for the inner screen (landscape).
 
 ## Table: ascending sweep from closed
 

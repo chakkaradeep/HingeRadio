@@ -6,28 +6,37 @@ Hinge Radio is a small SwiftUI app for the iPhone Duo, a folding iPhone. The pho
 
 You need Xcode 27.2 and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`). The Xcode project file is generated, not stored.
 
+A Mac can have more than one simulator named "iPhone Duo" (the one this was built on has three), so use the device id rather than the name. List them and pick one:
+
+```
+xcrun simctl list devices | grep Duo
+```
+
+Then, with `<id>` standing for the chosen device id:
+
 ```
 xcodegen generate
 xcodebuild -project HingeRadio.xcodeproj -scheme HingeRadio \
-  -destination 'platform=iOS Simulator,name=iPhone Duo' \
+  -destination 'platform=iOS Simulator,id=<id>' \
   -derivedDataPath build/DerivedData build
 ```
 
-To launch it, either open `HingeRadio.xcodeproj` in Xcode, choose the "iPhone Duo" simulator and press Run, or from the command line:
+To launch it, either open `HingeRadio.xcodeproj` in Xcode, choose that simulator and press Run, or from the command line:
 
 ```
-xcrun simctl boot "iPhone Duo"          # skip if it is already running
-xcrun simctl install "iPhone Duo" build/DerivedData/Build/Products/Debug-iphonesimulator/HingeRadio.app
-xcrun simctl launch "iPhone Duo" com.example.HingeRadio
+xcrun simctl boot <id>          # skip if it is already running
+xcrun simctl install <id> build/DerivedData/Build/Products/Debug-iphonesimulator/HingeRadio.app
+xcrun simctl launch <id> com.example.HingeRadio
 ```
 
 ## How to use it on the simulator
 
-1. Open the phone flat first (Simulator menu, Device, or the hinge controls), then bend it back to an angle between 70 and 150 degrees. The inner screen lights up and the dial follows the hinge. 70 is the bottom of the dial (88 MHz) and 150 is the top (108 MHz).
+1. Open the phone flat first (Simulator menu, Device, or the hinge controls), then bend it back to an angle between 70 and 150 degrees. The inner screen lights up and the dial follows the hinge. 70 is the bottom of the dial (87.5 MHz) and 150 is the top (108.5 MHz).
 2. Press the round power button at the bottom right to switch the radio on. The lamp at the top right goes green when a station is playing.
 3. Bend the hinge to move the needle. Near a station the dial locks onto it and the name and its city of licence appear. Between stations the screen says "Static".
 4. The four keys (SEA, NYC, CHI, LA) switch city. The dial redraws with that city's stations and the old city goes quiet at once.
-5. Closing the phone silences the radio and shows a "Closed" screen on the outer display. Opening it again shows the dial again with the power button still on (checked at flat).
+5. Closing the phone silences the radio and shows a "Closed" screen on the outer display. Opening it again shows the dial again with the power button still on. (Reopening was checked by opening the phone all the way flat.) If the hinge goes below 45 degrees while the inner screen is still lit, the "Closed" screen sits above the fold.
+6. Leaving the app (for example with the Home button) pauses the radio; coming back reconnects to the station under the needle.
 
 One thing to know about the simulator: if you open the phone slowly from closed, the outer screen stays lit until the hinge is at about 170 degrees. To get the inner screen at an angle between 70 and 150, set the hinge to flat first and then bend back. The measurements are in `docs/hinge-measurements.md`.
 
@@ -40,7 +49,7 @@ Long-press the "HINGE RADIO" title. A slider appears and replaces the hinge, inc
 Launch with the argument `-HingeRadioMuted YES` and the app plays nothing: stations still connect, and the lamp, text and log lines behave the same. In Xcode, add it under the scheme's Run, Arguments. From the command line:
 
 ```
-xcrun simctl launch "iPhone Duo" com.example.HingeRadio -HingeRadioMuted YES
+xcrun simctl launch <id> com.example.HingeRadio -HingeRadioMuted YES
 ```
 
 ## The stations
@@ -57,18 +66,22 @@ python3 tools/build_stations.py build               # check the streams and writ
 
 Each city has a corrections file in `tools/corrections/` (`seattle.json`, `new-york.json`, `chicago.json`, `los-angeles.json`). All keys are optional:
 
-- `pick`: the call signs to use, in the order wanted.
+- `pick`: the call signs to use. Their order does not matter: the station list is sorted by frequency.
 - `stations`: per call sign, `name` (what the dial shows), `stream` (use this stream address), `exclude` (drop this station), and `note`.
 - `note` is free text for the next person, for example why a stream was chosen. The build ignores it.
+
+Any other key (a misspelling, say) prints a warning naming the file, the key and where it was found, and is otherwise ignored; the build carries on.
+
+At the end of `build`, the hosts of the plain-`http://` streams are compared with the hosts the app allows (see "Stations on plain http"). If they differ, it prints which hosts to add to or remove from `project.yml`.
 
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 41 tests
-python3 -m unittest discover -s tools -p 'test_*.py'  # 13 tests
+swift test --package-path Packages/RadioCore          # 56 tests
+python3 -m unittest discover -s tools -p 'test_*.py'  # 19 tests
 ```
 
-On 2026-11-22 the Swift suite passed (41 of 41). The Python suite passed 11 of 11 on the original build, and 13 of 13 after the last change (the builder fix added two tests).
+On 2026-11-22, after the review fixes, the Swift suite passed 56 of 56 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
 
 ## What was checked in the acceptance pass (2026-11-22)
 
@@ -111,7 +124,7 @@ Most streams are `https://`. Seven stations only offer plain `http://`, and iOS 
 - `wdcb-ice.streamguys.org` (WDCB)
 - `stations.pacifica.org` (KPFK)
 
-If a rebuild of the station list adds a station on a new plain-`http://` host, add that host to the same list in `project.yml`, run `xcodegen generate` and rebuild. Otherwise that station shows "No signal". This is acceptable for a prototype and would need a second look before shipping. All seven played in the second pass.
+If a rebuild of the station list adds a station on a new plain-`http://` host, add that host to the same list in `project.yml`, run `xcodegen generate` and rebuild. Otherwise that station shows "No signal". The builder prints which hosts to add or remove, and a test fails until the two lists match. This is acceptable for a prototype and would need a second look before shipping. All seven played in the second pass.
 
 ## What has not been verified
 
@@ -125,7 +138,6 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 ## Known rough edges
 
 - The needle glides for about half a second while the name changes at once. (This comes from reading the code during review, not from watching the screen.)
-- For about a quarter of a second after landing on a new station, the screen can show it as playing before it is. (This also comes from reading the code during review, not from watching the screen.)
-- A station that has not produced sound within 12 seconds is marked "No signal" until the app is relaunched. This was seen once with a station (KING-FM) that played on the next launch.
+- When the player reports an error for a station, the app loads it once more; a second error before any sound, or 12 seconds without sound, marks it "No signal" until the app is relaunched. Before this retry existed, KING-FM was marked "No signal" after a player error 1.6 seconds after connecting, and played on the next launch.
 - Seattle has only 10 stations.
 - On the iPhone 17 simulator (not the intended device) the layout is rough: the Dynamic Island covers part of the title and the frequency number is cut off.
