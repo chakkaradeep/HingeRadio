@@ -153,8 +153,6 @@ def apply_corrections(candidates, corrections):
             cand["name"] = o["name"]
         if "stream" in o:
             cand["stream"] = o["stream"]
-            cand.pop("stationuuid", None)
-            cand.pop("homepage", None)
         adjusted.append(cand)
 
     picks = corrections.get("pick")
@@ -290,9 +288,8 @@ def load_corrections(city_id):
 
 
 def _station_json(cand, directory):
-    if not cand.get("stationuuid"):
-        match = next((d for d in directory if d.get("url_resolved") == cand["stream"]), {})
-        cand = dict(cand, stationuuid=match.get("stationuuid"), homepage=match.get("homepage"))
+    # homepage and id come from the station's own matched candidate, never from looking the
+    # address up in the directory (another entry can list the same address).
     out = {"callSign": cand["call"], "name": cand["name"], "licenceCity": cand["city"].title(),
            "frequency": cand["frequency"], "streamURL": cand["stream"]}
     homepage = cand.get("homepage") or ""

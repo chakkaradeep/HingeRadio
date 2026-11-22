@@ -6,7 +6,6 @@
     "WNYU-FM",
     "WSOU",
     "WKCR-FM",
-    "WHCR-FM",
     "WBJB-FM",
     "WFUV",
     "WFMU",
@@ -43,8 +42,8 @@
       "name": "Lite FM"
     },
     "WHCR-FM": {
-      "stream": "https://n05.radiojar.com/aafrqsmpyxquv",
-      "note": "https form of the directory address; the app blocks plain http"
+      "exclude": true,
+      "note": "Left out 2026-11-22: fails in the app's player over https ('The operation could not be completed'); plain http is blocked by the app."
     }
   }
 }

@@ -105,6 +105,29 @@ class BuildStationsTests(unittest.TestCase):
         out = bs.apply_corrections(cands, {})
         self.assertEqual([c["call"] for c in out], ["KAAA-FM", "KCCC-FM"])
 
+    def _z100(self):
+        c = cand("WHTZ", 100.3, clicks=5, stream="http://stream.example.com/z100")
+        c["homepage"] = "https://z100.iheart.com/"
+        c["stationuuid"] = "35d36481-own"
+        return c
+
+    def test_stream_override_keeps_matched_metadata(self):
+        corrections = {"stations": {"WHTZ": {"stream": "https://stream.example.com/z100"}}}
+        chosen = bs.apply_corrections([self._z100()], corrections)
+        out = bs._station_json(chosen[0], [])
+        self.assertEqual(out["streamURL"], "https://stream.example.com/z100")
+        self.assertEqual(out["homepage"], "https://z100.iheart.com/")
+        self.assertEqual(out["radioBrowserID"], "35d36481-own")
+
+    def test_override_ignores_other_entry_with_same_address(self):
+        corrections = {"stations": {"WHTZ": {"stream": "https://stream.example.com/z100"}}}
+        other = {"name": "The Blaze", "url_resolved": "https://stream.example.com/z100",
+                 "homepage": "https://www.kibz.com/", "stationuuid": "dbaa5a33-other"}
+        chosen = bs.apply_corrections([self._z100()], corrections)
+        out = bs._station_json(chosen[0], [other])
+        self.assertEqual(out["homepage"], "https://z100.iheart.com/")
+        self.assertEqual(out["radioBrowserID"], "35d36481-own")
+
 
 if __name__ == "__main__":
     unittest.main()

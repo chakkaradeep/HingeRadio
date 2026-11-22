@@ -45,7 +45,7 @@ xcrun simctl launch "iPhone Duo" com.example.HingeRadio -HingeRadioMuted YES
 
 ## The stations
 
-There are 56 stations: 10 in Seattle, 16 in New York, 16 in Chicago and 14 in Los Angeles. Frequencies and licence cities come from the FCC's public FM list. The stream addresses come from the Radio Browser directory. The finished list is `App/Resources/Stations.json`.
+There are 55 stations: 10 in Seattle, 15 in New York, 16 in Chicago and 14 in Los Angeles. Frequencies and licence cities come from the FCC's public FM list. The stream addresses come from the Radio Browser directory. The finished list is `App/Resources/Stations.json`.
 
 To rebuild it (needs the internet; the Python tools use only the standard library):
 
@@ -77,12 +77,12 @@ Run on the iPhone Duo simulator (iOS 27.1), muted. For every station the hinge w
 | City | Stations | Played | Failed | Failed stations |
 |---|---|---|---|---|
 | Seattle | 10 | 10 | 0 | |
-| New York | 16 | 15 | 1 | WHCR-FM |
+| New York | 15 | 15 | 0 | |
 | Chicago | 16 | 16 | 0 | |
 | Los Angeles | 14 | 14 | 0 | |
-| Total | 56 | 55 | 1 | |
+| Total | 55 | 55 | 0 | |
 
-The first pass found 15 stations blocked because their stream addresses were plain `http://`. They were fixed the same day: eight were moved to the `https://` form of the same address (through the corrections files) and seven are allowed by host name (see "Stations on plain http"). All 15 were then run again from a fresh launch: 14 reached `PLAYING` and WHCR-FM failed on both tries over https, with the message "The operation could not be completed". The other 41 stations played in the first pass and their addresses did not change. KING-FM failed its first connect in the first pass (`unknown error`) and played on its next two tries.
+The first pass found 15 stations blocked because their stream addresses were plain `http://`. They were fixed the same day: eight were moved to the `https://` form of the same address (through the corrections files) and seven are allowed by host name (see "Stations on plain http"). All 15 were then run again from a fresh launch: 14 reached `PLAYING`. The fifteenth, WHCR-FM (New York 90.3), failed on both tries over https with "The operation could not be completed", and was left out of the station list on 2026-11-22; plain http is blocked by the app. The other 41 stations played in the first pass and their addresses did not change. KING-FM failed its first connect in the first pass (`unknown error`) and played on its next two tries.
 
 Played stations reached `PLAYING` between 0.6 and 8.1 seconds after `CONNECT`.
 
@@ -108,10 +108,6 @@ Most streams are `https://`. Seven stations only offer plain `http://`, and iOS 
 - `stations.pacifica.org` (KPFK)
 
 If a rebuild of the station list adds a station on a new plain-`http://` host, add that host to the same list in `project.yml`, run `xcodegen generate` and rebuild. Otherwise that station shows "No signal". This is acceptable for a prototype and would need a second look before shipping. All seven played in the second pass.
-
-## Known problems
-
-- WHCR-FM (New York, 90.3) does not play: it failed on both tries over https with "The operation could not be completed". Its address is `https://n05.radiojar.com/aafrqsmpyxquv`.
 
 ## What has not been verified
 
