@@ -8,15 +8,20 @@ Usage:
 
 Corrections files (tools/corrections/<city>.json): {"pick": [call signs], "stations": {call:
 {"name", "stream", "exclude", "note"}}}, every key optional. "note" is free text recording why a
-pairing was chosen; the build ignores it.
+pairing was chosen; the build ignores it. Any other key prints a warning and is ignored.
+
+Only http and https stream addresses are ever used. At the end of `build`, the hosts of plain
+http streams are compared with the hosts App/Info.plist allows, and any difference is printed.
 
 Downloaded data is untrusted: it is only ever parsed, never executed.
 """
 import json
 import math
+import plistlib
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
@@ -27,6 +32,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / "tools" / "cache"
 CORRECTIONS = ROOT / "tools" / "corrections"
 OUTPUT = ROOT / "App" / "Resources" / "Stations.json"
+INFO_PLIST = ROOT / "App" / "Info.plist"
 MAX_PER_CITY = 16
 MIN_PER_CITY = 8
 FCC_URL = "https://transition.fcc.gov/fcc-bin/fmq?state={ST}&serv=FM&list=4&size=9"
@@ -82,6 +88,14 @@ def distance_km(a, b):
     return 2 * 6371.0088 * math.asin(math.sqrt(h))
 
 
+def usable_stream(url):
+    """True for an http or https address with a host; nothing else is ever used as a stream."""
+    if not url:
+        return False
+    parts = urllib.parse.urlsplit(url)
+    return parts.scheme.lower() in ("http", "https") and bool(parts.hostname)
+
+
 def base_call(call):
     """KEXP-FM -> KEXP; drops a -FM, -LP, -HD1... suffix."""
     return call.split("-")[0].upper()
@@ -109,7 +123,7 @@ def stream_candidates(station, directory):
     found = []
     for item in directory:
         name = item.get("name") or ""
-        if not item.get("url_resolved") or not word.search(name):
+        if not usable_stream(item.get("url_resolved")) or not word.search(name):
             continue
         fm, am = _frequencies(name)
         matches_fm = any(_near(f, station["frequency"]) for f in fm)
@@ -152,7 +166,11 @@ def apply_corrections(candidates, corrections):
         if "name" in o:
             cand["name"] = o["name"]
         if "stream" in o:
-            cand["stream"] = o["stream"]
+            if usable_stream(o["stream"]):
+                cand["stream"] = o["stream"]
+            else:
+                print("warning: %s: stream %r is not http or https; not used"
+                      % (cand["call"], o["stream"]), file=sys.stderr)
         adjusted.append(cand)
 
     picks = corrections.get("pick")
@@ -282,12 +300,63 @@ def proposals(city, fcc, directory):
     return sorted(out, key=lambda p: p["frequency"])
 
 
+TOP_LEVEL_KEYS = {"pick", "stations"}
+STATION_KEYS = {"name", "stream", "exclude", "note"}
+
+
+def warn_unknown_keys(corrections, name):
+    """Prints a warning for each key a corrections file does not know; returns the warnings."""
+    warnings = ['%s: unknown key "%s" at the top level' % (name, key)
+                for key in corrections if key not in TOP_LEVEL_KEYS]
+    for call, entry in (corrections.get("stations") or {}).items():
+        if isinstance(entry, dict):
+            warnings += ['%s: unknown key "%s" in stations.%s' % (name, key, call)
+                         for key in entry if key not in STATION_KEYS]
+    for warning in warnings:
+        print("warning: %s (ignored)" % warning, file=sys.stderr)
+    return warnings
+
+
 def load_corrections(city_id):
     path = CORRECTIONS / ("%s.json" % city_id)
-    return json.loads(path.read_text()) if path.exists() else {}
+    if not path.exists():
+        return {}
+    corrections = json.loads(path.read_text())
+    warn_unknown_keys(corrections, path.name)
+    return corrections
 
 
-def _station_json(cand, directory):
+# ---------------------------------------------------------------- plain-http hosts
+
+def http_host_differences(doc, allowed_hosts):
+    """Compares the hosts of a station file's plain http streams with the hosts the app allows.
+    Returns (hosts to add, hosts to remove), each sorted."""
+    used = {urllib.parse.urlsplit(s["streamURL"]).hostname
+            for city in doc["cities"] for s in city["stations"]
+            if urllib.parse.urlsplit(s["streamURL"]).scheme.lower() == "http"}
+    allowed = set(allowed_hosts)
+    return sorted(used - allowed), sorted(allowed - used)
+
+
+def allowed_http_hosts(plist_path=INFO_PLIST):
+    with open(plist_path, "rb") as f:
+        plist = plistlib.load(f)
+    return set(plist.get("NSAppTransportSecurity", {}).get("NSExceptionDomains", {}))
+
+
+def print_http_host_advice(to_add, to_remove):
+    """Says how to bring project.yml in step with the station file; prints nothing when it is."""
+    if not to_add and not to_remove:
+        return
+    print("The plain-http hosts allowed by the app do not match the station file.")
+    if to_add:
+        print("  add to NSExceptionDomains in project.yml: %s" % ", ".join(to_add))
+    if to_remove:
+        print("  remove from NSExceptionDomains in project.yml: %s" % ", ".join(to_remove))
+    print("then run xcodegen generate and rebuild the app")
+
+
+def _station_json(cand):
     # homepage and id come from the station's own matched candidate, never from looking the
     # address up in the directory (another entry can list the same address).
     out = {"callSign": cand["call"], "name": cand["name"], "licenceCity": cand["city"].title(),
@@ -336,13 +405,14 @@ def cmd_build(verify):
         return 1
     doc = {"generated": date.today().isoformat(),
            "cities": [{"id": cid, "name": c["name"], "key": c["key"],
-                       "stations": [_station_json(s, directory) for s in chosen]}
+                       "stations": [_station_json(s) for s in chosen]}
                       for cid, c, chosen in cities]}
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n")
     for _, c, chosen in cities:
         print("%s: %d stations" % (c["name"], len(chosen)))
     print("%d cities, %d stations, 0 failed" % (len(cities), len(all_chosen)))
+    print_http_host_advice(*http_host_differences(doc, allowed_http_hosts()))
     return 0
 
 

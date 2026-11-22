@@ -1,4 +1,8 @@
+import contextlib
+import io
+import json
 import os
+import plistlib
 import sys
 import unittest
 
@@ -114,7 +118,7 @@ class BuildStationsTests(unittest.TestCase):
     def test_stream_override_keeps_matched_metadata(self):
         corrections = {"stations": {"WHTZ": {"stream": "https://stream.example.com/z100"}}}
         chosen = bs.apply_corrections([self._z100()], corrections)
-        out = bs._station_json(chosen[0], [])
+        out = bs._station_json(chosen[0])
         self.assertEqual(out["streamURL"], "https://stream.example.com/z100")
         self.assertEqual(out["homepage"], "https://z100.iheart.com/")
         self.assertEqual(out["radioBrowserID"], "35d36481-own")
@@ -124,9 +128,96 @@ class BuildStationsTests(unittest.TestCase):
         other = {"name": "The Blaze", "url_resolved": "https://stream.example.com/z100",
                  "homepage": "https://www.kibz.com/", "stationuuid": "dbaa5a33-other"}
         chosen = bs.apply_corrections([self._z100()], corrections)
-        out = bs._station_json(chosen[0], [other])
+        out = bs._station_json(chosen[0])
         self.assertEqual(out["homepage"], "https://z100.iheart.com/")
         self.assertEqual(out["radioBrowserID"], "35d36481-own")
+        self.assertNotIn(other["stationuuid"], out.values())
+
+    # ------------------------------------------------ stream schemes
+
+    def test_only_http_and_https_streams_are_used(self):
+        station = {"call": "KAAA-FM", "frequency": 99.9}
+        directory = [entry("KAAA-FM 99.9", url="rtsp://example.com/a", clicks=9),
+                     entry("KAAA-FM 99.9", url="ftp://example.com/b", clicks=8),
+                     entry("KAAA-FM 99.9", url="https://example.com/c", clicks=1)]
+        found = bs.stream_candidates(station, directory)
+        self.assertEqual([c["url_resolved"] for c in found], ["https://example.com/c"])
+
+        cands = [cand("KAAA-FM", 99.9, stream="https://example.com/c")]
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            out = bs.apply_corrections(cands, {"stations": {"KAAA-FM": {"stream": "file:///etc/x"}}})
+        self.assertEqual(out[0]["stream"], "https://example.com/c")
+        self.assertIn("file:///etc/x", err.getvalue())
+
+        bare = [cand("KBBB-FM", 88.1, stream=None)]
+        with contextlib.redirect_stderr(io.StringIO()):
+            out = bs.apply_corrections(bare, {"stations": {"KBBB-FM": {"stream": "mms://example.com/x"}}})
+        self.assertEqual(out, [])   # no usable stream, so the station is not chosen
+
+    # ------------------------------------------------ corrections keys
+
+    def test_unknown_corrections_keys_warn(self):
+        corrections = {"pick": [], "picks": [], "stations": {
+            "KAAA-FM": {"name": "A", "steam": "https://example.com/a", "note": "n"},
+            "KBBB-FM": {"exclude": True}}}
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            warnings = bs.warn_unknown_keys(corrections, "seattle.json")
+        text = err.getvalue()
+        self.assertEqual(len(warnings), 2)
+        self.assertIn("seattle.json", text)
+        self.assertIn('"picks"', text)
+        self.assertIn("top level", text)
+        self.assertIn('"steam"', text)
+        self.assertIn("KAAA-FM", text)
+        self.assertNotIn("KBBB-FM", text)
+
+    def test_known_corrections_keys_are_quiet(self):
+        corrections = {"pick": ["KAAA-FM"], "stations": {
+            "KAAA-FM": {"name": "A", "stream": "https://e/a", "exclude": False, "note": "n"}}}
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(bs.warn_unknown_keys(corrections, "x.json"), [])
+        self.assertEqual(err.getvalue(), "")
+
+    # ------------------------------------------------ plain-http hosts
+
+    def test_http_host_differences(self):
+        doc = {"cities": [{"stations": [
+            {"streamURL": "http://a.example.com/s"},
+            {"streamURL": "https://b.example.com/s"},
+            {"streamURL": "http://c.example.com:8000/s"}]}]}
+        to_add, to_remove = bs.http_host_differences(doc, {"a.example.com", "old.example.com"})
+        self.assertEqual(to_add, ["c.example.com"])
+        self.assertEqual(to_remove, ["old.example.com"])
+        self.assertEqual(bs.http_host_differences(doc, {"a.example.com", "c.example.com"}), ([], []))
+
+    def test_http_host_advice(self):
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            bs.print_http_host_advice(["c.example.com"], ["old.example.com"])
+        text = out.getvalue()
+        self.assertIn("add", text)
+        self.assertIn("c.example.com", text)
+        self.assertIn("remove", text)
+        self.assertIn("old.example.com", text)
+        self.assertIn("then run xcodegen generate and rebuild the app", text)
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            bs.print_http_host_advice([], [])
+        self.assertEqual(out.getvalue(), "")
+
+    def test_bundled_plain_http_hosts_match_the_app(self):
+        doc = json.loads(bs.OUTPUT.read_text())
+        with open(bs.INFO_PLIST, "rb") as f:
+            plist = plistlib.load(f)
+        ats = plist.get("NSAppTransportSecurity", {})
+        for key in ("NSAllowsArbitraryLoads", "NSAllowsArbitraryLoadsForMedia",
+                    "NSAllowsArbitraryLoadsInWebContent"):
+            self.assertNotIn(key, ats, "App/Info.plist must not set %s" % key)
+        allowed = set(ats.get("NSExceptionDomains", {}))
+        to_add, to_remove = bs.http_host_differences(doc, allowed)
+        self.assertEqual(to_add, [], "plain-http hosts missing from App/Info.plist: %s" % to_add)
+        self.assertEqual(to_remove, [], "App/Info.plist allows unused hosts: %s" % to_remove)
+        project = (bs.ROOT / "project.yml").read_text()
+        missing = sorted(h for h in allowed if (h + ":") not in project)
+        self.assertEqual(missing, [], "hosts missing from project.yml: %s" % missing)
 
 
 if __name__ == "__main__":
