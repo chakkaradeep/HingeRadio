@@ -91,6 +91,14 @@ class BuildStationsTests(unittest.TestCase):
         self.assertEqual(out[0]["name"], "Bee")
         self.assertEqual(out[0]["stream"], "http://example.com/new")
 
+    def test_note_key_is_ignored(self):
+        cands = [cand("KAAA-FM", 99.9, clicks=5), cand("KBBB-FM", 88.1, clicks=3)]
+        plain = bs.apply_corrections(cands, {"pick": ["KAAA-FM", "KBBB-FM"]})
+        noted = bs.apply_corrections(
+            cands, {"pick": ["KAAA-FM", "KBBB-FM"],
+                    "stations": {"KAAA-FM": {"note": "checked by hand"}}})
+        self.assertEqual(noted, plain)
+
     def test_default_selection_skips_shared_frequency(self):
         cands = [cand("KAAA-FM", 89.9, clicks=9), cand("KBBB-FM", 89.9, clicks=5),
                  cand("KCCC-FM", 91.1, clicks=1)]

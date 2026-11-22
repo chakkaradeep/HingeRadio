@@ -6,6 +6,10 @@ Usage:
     build_stations.py candidates <city>     show proposed stream pairings for a city
     build_stations.py build [--no-verify]   check streams and write the station file
 
+Corrections files (tools/corrections/<city>.json): {"pick": [call signs], "stations": {call:
+{"name", "stream", "exclude", "note"}}}, every key optional. "note" is free text recording why a
+pairing was chosen; the build ignores it.
+
 Downloaded data is untrusted: it is only ever parsed, never executed.
 """
 import json

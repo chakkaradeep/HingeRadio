@@ -1,8 +1,31 @@
 {
-  "pick": ["KNKX", "KUPS", "KEXP-FM", "KBCS", "KYFQ", "KJR-FM", "KUOW-FM", "KIRO-FM", "KING-FM", "KZOK-FM"],
+  "pick": [
+    "KNKX",
+    "KUPS",
+    "KEXP-FM",
+    "KBCS",
+    "KYFQ",
+    "KJR-FM",
+    "KUOW-FM",
+    "KIRO-FM",
+    "KING-FM",
+    "KZOK-FM"
+  ],
   "stations": {
-    "KEXP-FM": {"name": "KEXP", "stream": "https://kexp.streamguys1.com/kexp160.aac"},
-    "KING-FM": {"name": "Classical KING FM", "stream": "https://classicalking.streamguys1.com/king-fm-aac-128k"},
-    "KZOK-FM": {"name": "102.5 KZOK"}
+    "KEXP-FM": {
+      "name": "KEXP",
+      "stream": "https://kexp.streamguys1.com/kexp160.aac"
+    },
+    "KING-FM": {
+      "name": "Classical KING FM",
+      "stream": "https://classicalking.streamguys1.com/king-fm-aac-128k"
+    },
+    "KZOK-FM": {
+      "name": "102.5 KZOK"
+    },
+    "KJR-FM": {
+      "stream": "https://stream.revma.ihrhls.com/zc2565",
+      "note": "Directory entry 'Sports Radio KJR' (tags sports, Seattle WA, uuid 67cf514b-0881-4338-8262-9a046c401a27); its homepage sportsradiokjr.iheart.com is titled 'Sports Radio 93.3 KJR' and says '93.3 KJR FM'. The AM namesake is the separate entry '1090 KJR' on a different stream (zc7747)."
+    }
   }
 }

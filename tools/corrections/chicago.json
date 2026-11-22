@@ -33,6 +33,12 @@
     },
     "WDCB": {
       "name": "WDCB Jazz & Blues"
+    },
+    "WCPY": {
+      "note": "Directory entry 'WCPY 92.7 Chicago' (homepage polski.fm); its name carries the matching frequency."
+    },
+    "WPNA-FM": {
+      "note": "Directory entry 'WPNA 103,1 FM' (homepage wpna.fm); its name carries the matching frequency."
     }
   }
 }
