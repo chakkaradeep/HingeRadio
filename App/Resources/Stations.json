@@ -1,0 +1,537 @@
+{
+  "generated": "2026-11-22",
+  "cities": [
+    {
+      "id": "seattle",
+      "name": "Seattle",
+      "key": "SEA",
+      "stations": [
+        {
+          "callSign": "KNKX",
+          "name": "KNKX",
+          "licenceCity": "Tacoma",
+          "frequency": 88.5,
+          "streamURL": "https://knkx-live-a.edge.audiocdn.com/6284_128k",
+          "homepage": "https://www.knkx.org/",
+          "radioBrowserID": "5d64b66c-431c-4c93-ab29-b5690e674271"
+        },
+        {
+          "callSign": "KUPS",
+          "name": "KUPS",
+          "licenceCity": "Tacoma",
+          "frequency": 90.1,
+          "streamURL": "http://nap.casthost.net:8244/stream",
+          "homepage": "https://kupsfm.com/",
+          "radioBrowserID": "e78060f6-df8a-47ae-a507-a82f19ef81e0"
+        },
+        {
+          "callSign": "KEXP-FM",
+          "name": "KEXP",
+          "licenceCity": "Seattle",
+          "frequency": 90.3,
+          "streamURL": "https://kexp.streamguys1.com/kexp160.aac",
+          "homepage": "https://kexp.org/",
+          "radioBrowserID": "dd02972f-8d91-449d-8d64-bd636a4a9ed0"
+        },
+        {
+          "callSign": "KBCS",
+          "name": "KBCS",
+          "licenceCity": "Bellevue",
+          "frequency": 91.3,
+          "streamURL": "http://stream.pacificaservice.org:8000/kbcs",
+          "homepage": "https://www.kbcs.fm/",
+          "radioBrowserID": "91c52d22-9a65-4565-96f8-740e2a4fa8e5"
+        },
+        {
+          "callSign": "KYFQ",
+          "name": "KYFQ",
+          "licenceCity": "Tacoma",
+          "frequency": 91.7,
+          "streamURL": "https://streams.radiomast.io/844b0a81-f4b9-485e-adaa-aab8d3ea9f7f",
+          "homepage": "https://bbn1.bbnradio.org/english/listen-nowkyfq/",
+          "radioBrowserID": "a3e2ac4d-2de5-4b3e-8cbd-afe6dfc863a2"
+        },
+        {
+          "callSign": "KJR-FM",
+          "name": "KJR",
+          "licenceCity": "Seattle",
+          "frequency": 93.3,
+          "streamURL": "https://stream.revma.ihrhls.com/zc2565",
+          "homepage": "https://sportsradiokjr.iheart.com/",
+          "radioBrowserID": "67cf514b-0881-4338-8262-9a046c401a27"
+        },
+        {
+          "callSign": "KUOW-FM",
+          "name": "KUOW",
+          "licenceCity": "Seattle",
+          "frequency": 94.9,
+          "streamURL": "https://playerservices.streamtheworld.com/api/livestream-redirect/KUOWFM_HIGH_MP3.mp3",
+          "homepage": "https://www.kuow.org/stream",
+          "radioBrowserID": "d543a293-74fe-473d-b958-69ec08b6b001"
+        },
+        {
+          "callSign": "KIRO-FM",
+          "name": "KIRO",
+          "licenceCity": "Tacoma",
+          "frequency": 97.3,
+          "streamURL": "https://bonneville.cdnstream1.com/2643_48.aac",
+          "homepage": "https://mynorthwest.com/",
+          "radioBrowserID": "87b4bf08-ae69-4c4d-a272-093b9930d5be"
+        },
+        {
+          "callSign": "KING-FM",
+          "name": "Classical KING FM",
+          "licenceCity": "Seattle",
+          "frequency": 98.1,
+          "streamURL": "https://classicalking.streamguys1.com/king-fm-aac-128k",
+          "homepage": "https://www.king.org/",
+          "radioBrowserID": "a3a37dbb-823d-49da-88f9-9d22e308c0c1"
+        },
+        {
+          "callSign": "KZOK-FM",
+          "name": "102.5 KZOK",
+          "licenceCity": "Seattle",
+          "frequency": 102.5,
+          "streamURL": "https://stream.revma.ihrhls.com/zc7787",
+          "homepage": "https://kzok.iheart.com/",
+          "radioBrowserID": "2f16b82c-00d9-4d6f-8f86-8a98e44d90e2"
+        }
+      ]
+    },
+    {
+      "id": "new-york",
+      "name": "New York",
+      "key": "NYC",
+      "stations": [
+        {
+          "callSign": "WCWP",
+          "name": "WCWP",
+          "licenceCity": "Brookville",
+          "frequency": 88.1,
+          "streamURL": "https://wcwp.liu.edu/hls-live/livepkgr/_wcwpfmhls_/wcwpfmhls/livestream.m3u8",
+          "homepage": "https://www.wcwp.org/",
+          "radioBrowserID": "1057f939-44dd-4c94-a20a-b3b1baf3f3d3"
+        },
+        {
+          "callSign": "WBGO",
+          "name": "WBGO Jazz 88.3",
+          "licenceCity": "Newark",
+          "frequency": 88.3,
+          "streamURL": "https://ais-sa8.cdnstream1.com/3629_128.mp3",
+          "homepage": "https://www.wbgo.org/",
+          "radioBrowserID": "3487079b-91b1-4fb8-b315-c4150e705b7a"
+        },
+        {
+          "callSign": "WRSU-FM",
+          "name": "WRSU",
+          "licenceCity": "New Brunswick",
+          "frequency": 88.7,
+          "streamURL": "https://wrsu-libstrm.radioca.st/stream",
+          "homepage": "https://radio.rutgers.edu/",
+          "radioBrowserID": "695e88fb-6e00-4966-98e9-47752f5be5f3"
+        },
+        {
+          "callSign": "WNYU-FM",
+          "name": "WNYU",
+          "licenceCity": "New York",
+          "frequency": 89.1,
+          "streamURL": "https://www.wnyu-ice-cast-relay.com/wnyu.mp3",
+          "homepage": "https://wnyu.org/",
+          "radioBrowserID": "1a3f65ba-aad8-400f-ba9e-8f679801aad1"
+        },
+        {
+          "callSign": "WSOU",
+          "name": "WSOU",
+          "licenceCity": "South Orange",
+          "frequency": 89.5,
+          "streamURL": "https://d3byg0ij92yqk6.cloudfront.net/streamWSOU1.m3u8",
+          "homepage": "https://www.atc-labs.com/SetonHallPlayer/player/wsou2.html",
+          "radioBrowserID": "f63221d1-95ae-4064-bd53-aa27fca30f60"
+        },
+        {
+          "callSign": "WKCR-FM",
+          "name": "WKCR",
+          "licenceCity": "New York",
+          "frequency": 89.9,
+          "streamURL": "https://wkcr.streamguys1.com/live",
+          "homepage": "https://www.cc-seas.columbia.edu/wkcr",
+          "radioBrowserID": "1eb16f11-4aa1-4ca3-a376-137a2afe0c42"
+        },
+        {
+          "callSign": "WHCR-FM",
+          "name": "WHCR",
+          "licenceCity": "New York",
+          "frequency": 90.3,
+          "streamURL": "http://n05.radiojar.com/aafrqsmpyxquv",
+          "homepage": "https://whcr.org/",
+          "radioBrowserID": "0a6b4a50-2bec-4e7b-9429-077acb5a72b8"
+        },
+        {
+          "callSign": "WBJB-FM",
+          "name": "WBJB",
+          "licenceCity": "Lincroft",
+          "frequency": 90.5,
+          "streamURL": "https://ice.wbjb.net/ALT-MP3-High",
+          "homepage": "http://www.altrok.com/",
+          "radioBrowserID": "47e13e04-bbb8-4aeb-85cf-cd99cbccf3bf"
+        },
+        {
+          "callSign": "WFUV",
+          "name": "WFUV",
+          "licenceCity": "New York",
+          "frequency": 90.7,
+          "streamURL": "https://onair.wfuv.org/onair-aacplus",
+          "homepage": "https://wfuv.org/",
+          "radioBrowserID": "dedd26db-3215-4de4-8941-64d473ebaa5e"
+        },
+        {
+          "callSign": "WFMU",
+          "name": "WFMU",
+          "licenceCity": "East Orange",
+          "frequency": 91.1,
+          "streamURL": "https://stream0.wfmu.org/freeform-extrahigh-primary.aac",
+          "homepage": "https://wfmu.org/",
+          "radioBrowserID": "18972386-6d5e-47d0-8524-665f0b5cf90c"
+        },
+        {
+          "callSign": "WNYC-FM",
+          "name": "WNYC",
+          "licenceCity": "New York",
+          "frequency": 93.9,
+          "streamURL": "http://fm939.wnyc.org/wnycfm.aac",
+          "homepage": "https://www.wnyc.org/",
+          "radioBrowserID": "f34ae431-42cd-4ef1-8a24-f4eca8a70cc1"
+        },
+        {
+          "callSign": "WQHT",
+          "name": "Hot 97",
+          "licenceCity": "New York",
+          "frequency": 97.1,
+          "streamURL": "https://18313.live.streamtheworld.com/WQHTFMAAC.aac",
+          "homepage": "https://www.hot97.com/",
+          "radioBrowserID": "a6381986-1c6e-400f-a57e-0bce3ccc1214"
+        },
+        {
+          "callSign": "WBAI",
+          "name": "WBAI",
+          "licenceCity": "New York",
+          "frequency": 99.5,
+          "streamURL": "http://stream.wbai.org:8000/wbai_128",
+          "homepage": "https://www.wbai.org/",
+          "radioBrowserID": "d91d2bf5-ea7a-4d4c-8e85-e8fa11767948"
+        },
+        {
+          "callSign": "WHTZ",
+          "name": "Z100",
+          "licenceCity": "Newark",
+          "frequency": 100.3,
+          "streamURL": "http://stream.revma.ihrhls.com/zc1469",
+          "homepage": "https://z100.iheart.com/",
+          "radioBrowserID": "35d36481-14cc-4c6d-a7b1-bf0e607be1f1"
+        },
+        {
+          "callSign": "WQXR-FM",
+          "name": "WQXR",
+          "licenceCity": "Newark",
+          "frequency": 105.9,
+          "streamURL": "http://stream.wqxr.org/wqxr",
+          "homepage": "https://www.wnyc.org/",
+          "radioBrowserID": "a2bd7f10-4831-416a-939c-729be46ec76a"
+        },
+        {
+          "callSign": "WLTW",
+          "name": "Lite FM",
+          "licenceCity": "New York",
+          "frequency": 106.7,
+          "streamURL": "https://stream.revma.ihrhls.com/zc1477/hls.m3u8?streamid=1477",
+          "homepage": "https://litefm.iheart.com/",
+          "radioBrowserID": "b878428e-22e5-4772-9943-82e90487e2e9"
+        }
+      ]
+    },
+    {
+      "id": "chicago",
+      "name": "Chicago",
+      "key": "CHI",
+      "stations": [
+        {
+          "callSign": "WCRX",
+          "name": "WCRX",
+          "licenceCity": "Chicago",
+          "frequency": 88.1,
+          "streamURL": "http://wcrx.streamguys1.com/live",
+          "homepage": "http://www.colum.edu/academics/wcrx/",
+          "radioBrowserID": "961ee8d5-0601-11e8-ae97-52543be04c81"
+        },
+        {
+          "callSign": "WHPK",
+          "name": "WHPK",
+          "licenceCity": "Chicago",
+          "frequency": 88.5,
+          "streamURL": "https://whpk-stream.uchicago.edu/stream",
+          "homepage": "https://www.whpk.org/",
+          "radioBrowserID": "49bf370a-c7d0-45d1-9afa-28efb2067565"
+        },
+        {
+          "callSign": "WCSF",
+          "name": "WCSF",
+          "licenceCity": "Joliet",
+          "frequency": 88.7,
+          "streamURL": "https://ais-sa1.streamon.fm/7030_32k.aac",
+          "homepage": "https://www.wcsfradio.com/",
+          "radioBrowserID": "15dda167-32bb-4bce-a257-5b221498182c"
+        },
+        {
+          "callSign": "WMXM",
+          "name": "WMXM",
+          "licenceCity": "Lake Forest",
+          "frequency": 88.9,
+          "streamURL": "http://wmxm.streamguys1.com/live",
+          "homepage": "https://wmxm.org/",
+          "radioBrowserID": "e5d9478c-1930-4268-b0f1-9a64adb71616"
+        },
+        {
+          "callSign": "WONC",
+          "name": "WONC",
+          "licenceCity": "Naperville",
+          "frequency": 89.1,
+          "streamURL": "http://webcast.wonc.org:8000/wonclive-128s",
+          "homepage": "http://www.wonc.org/",
+          "radioBrowserID": "9623ec88-0601-11e8-ae97-52543be04c81"
+        },
+        {
+          "callSign": "WMBI-FM",
+          "name": "WMBI",
+          "licenceCity": "Chicago",
+          "frequency": 90.1,
+          "streamURL": "https://14123.live.streamtheworld.com/WMBIFM.mp3",
+          "homepage": "https://www.moodyradio.org/stations/chicago/",
+          "radioBrowserID": "d2dcbe53-1e31-4db0-afec-ad4abd36a4f6"
+        },
+        {
+          "callSign": "WDCB",
+          "name": "WDCB Jazz & Blues",
+          "licenceCity": "Glen Ellyn",
+          "frequency": 90.9,
+          "streamURL": "http://wdcb-ice.streamguys.org/wdcb128",
+          "homepage": "http://wdcb.org/",
+          "radioBrowserID": "96145775-0601-11e8-ae97-52543be04c81"
+        },
+        {
+          "callSign": "WBEZ",
+          "name": "WBEZ",
+          "licenceCity": "Chicago",
+          "frequency": 91.5,
+          "streamURL": "https://stream.wbez.org/wbez64-web.aac",
+          "homepage": "https://www.wbez.org/",
+          "radioBrowserID": "55022ba0-465f-47d8-91bc-709b208afa0c"
+        },
+        {
+          "callSign": "WCPY",
+          "name": "WCPY",
+          "licenceCity": "Arlington Heights",
+          "frequency": 92.7,
+          "streamURL": "https://usa8.fastcast4u.com/proxy/live?mp=/1",
+          "homepage": "https://polski.fm/",
+          "radioBrowserID": "c2e5d437-035e-42f3-8fd5-b2184a350f53"
+        },
+        {
+          "callSign": "WLS-FM",
+          "name": "94.7 WLS",
+          "licenceCity": "Chicago",
+          "frequency": 94.7,
+          "streamURL": "https://26193.live.streamtheworld.com/WLSFM.mp3",
+          "homepage": "https://www.947wls.com/",
+          "radioBrowserID": "254323c9-6e00-44c7-949d-d15e7b569768"
+        },
+        {
+          "callSign": "WCHI-FM",
+          "name": "WCHI",
+          "licenceCity": "Chicago",
+          "frequency": 95.5,
+          "streamURL": "https://stream.revma.ihrhls.com/zc857",
+          "homepage": "http://rock955chi.iheart.com/",
+          "radioBrowserID": "1050ed1a-94d8-433b-b43b-1aa96256835d"
+        },
+        {
+          "callSign": "WFMT",
+          "name": "WFMT",
+          "licenceCity": "Chicago",
+          "frequency": 98.7,
+          "streamURL": "https://wfmt.streamguys1.com/main128.aac",
+          "homepage": "https://www.wfmt.com/",
+          "radioBrowserID": "a8e597b3-7b13-4ff5-9b7d-d7c000ad9861"
+        },
+        {
+          "callSign": "WPNA-FM",
+          "name": "WPNA",
+          "licenceCity": "Evanston",
+          "frequency": 103.1,
+          "streamURL": "https://mercury.reliastream.com/proxy/wpnafmad?mp=/stream",
+          "homepage": "https://wpna.fm/",
+          "radioBrowserID": "3939b397-4c4c-4894-b417-3646ba24b101"
+        },
+        {
+          "callSign": "WKSC-FM",
+          "name": "103.5 KISS FM",
+          "licenceCity": "Chicago",
+          "frequency": 103.5,
+          "streamURL": "https://stream.revma.ihrhls.com/zc849",
+          "homepage": "https://1035kissfm.iheart.com/",
+          "radioBrowserID": "e3be401b-96d2-42b2-bbcd-a5d9591941b7"
+        },
+        {
+          "callSign": "WSRB",
+          "name": "WSRB",
+          "licenceCity": "Lansing",
+          "frequency": 106.3,
+          "streamURL": "https://ais-sa8.cdnstream1.com/phvh2qaosfo/c2ebyqqdqjx",
+          "homepage": "https://www.1063chicago.com/",
+          "radioBrowserID": "29ff8d79-48f9-46de-a8d4-3629808937f6"
+        },
+        {
+          "callSign": "WGCI-FM",
+          "name": "WGCI",
+          "licenceCity": "Chicago",
+          "frequency": 107.5,
+          "streamURL": "https://stream.revma.ihrhls.com/zc841",
+          "homepage": "https://wgci.iheart.com/",
+          "radioBrowserID": "19d879ef-2bb5-4281-989d-46e578e7ae40"
+        }
+      ]
+    },
+    {
+      "id": "los-angeles",
+      "name": "Los Angeles",
+      "key": "LA",
+      "stations": [
+        {
+          "callSign": "KKJZ",
+          "name": "KJazz",
+          "licenceCity": "Long Beach",
+          "frequency": 88.1,
+          "streamURL": "https://streaming.live365.com/a49833/playlist.m3u8",
+          "homepage": "https://kkjz.org/",
+          "radioBrowserID": "2ff78623-db41-425d-bfeb-480f723433a3"
+        },
+        {
+          "callSign": "KCSN",
+          "name": "KCSN",
+          "licenceCity": "Northridge",
+          "frequency": 88.5,
+          "streamURL": "https://playerservices.streamtheworld.com/api/livestream-redirect/KCSNFMAAC.aac",
+          "homepage": "https://www.thesocalsound.org/",
+          "radioBrowserID": "17825a45-0518-41b6-8bec-5845fa96fdc1"
+        },
+        {
+          "callSign": "KSPC",
+          "name": "KSPC",
+          "licenceCity": "Claremont",
+          "frequency": 88.7,
+          "streamURL": "https://kspc.radioca.st/stream?type=http&nocache=41177",
+          "homepage": "https://kspc.org/",
+          "radioBrowserID": "c388c156-bbe7-4be7-9f13-c9fddcec69eb"
+        },
+        {
+          "callSign": "KXLU",
+          "name": "KXLU",
+          "licenceCity": "Los Angeles",
+          "frequency": 88.9,
+          "streamURL": "http://kxlu.streamguys1.com/kxlu-hi",
+          "homepage": "http://kxlu.com/",
+          "radioBrowserID": "3934d1a4-72cb-4d39-9283-4ec19410c5d0"
+        },
+        {
+          "callSign": "KPCC",
+          "name": "LAist 89.3",
+          "licenceCity": "Pasadena",
+          "frequency": 89.3,
+          "streamURL": "https://laist.streamguys1.com/kpcc-mp3?aw_0_1st.playerId=laist",
+          "homepage": "https://laist.com/",
+          "radioBrowserID": "c09b844a-3a77-4a1a-a4b6-2859ccfad399"
+        },
+        {
+          "callSign": "KCRW",
+          "name": "KCRW",
+          "licenceCity": "Santa Monica",
+          "frequency": 89.9,
+          "streamURL": "https://streams.kcrw.com/kcrw_aac",
+          "homepage": "https://www.kcrw.com/",
+          "radioBrowserID": "8dab6197-8529-4ae7-9fa3-01bfa4f8a25a"
+        },
+        {
+          "callSign": "KPFK",
+          "name": "KPFK",
+          "licenceCity": "Los Angeles",
+          "frequency": 90.7,
+          "streamURL": "http://stations.pacifica.org:7267/kpfk_128",
+          "homepage": "https://www.kpfk.org/",
+          "radioBrowserID": "c45f70d7-3d98-4f34-8cb8-e91e54212787"
+        },
+        {
+          "callSign": "KUSC",
+          "name": "KUSC",
+          "licenceCity": "Los Angeles",
+          "frequency": 91.5,
+          "streamURL": "https://14103.live.streamtheworld.com/KUSCAAC96_SC",
+          "homepage": "http://www.kusc.org/",
+          "radioBrowserID": "c624a501-939a-11e9-a605-52543be04c81"
+        },
+        {
+          "callSign": "KRRL",
+          "name": "Real 92.3",
+          "licenceCity": "Los Angeles",
+          "frequency": 92.3,
+          "streamURL": "https://stream.revma.ihrhls.com/zc181",
+          "homepage": "https://real923la.iheart.com/",
+          "radioBrowserID": "ad2f8718-64ad-457f-84d0-c7662a74af19"
+        },
+        {
+          "callSign": "KYSR",
+          "name": "KYSR",
+          "licenceCity": "Los Angeles",
+          "frequency": 98.7,
+          "streamURL": "http://stream.revma.ihrhls.com/zc201/hls.m3u8",
+          "homepage": "https://alt987fm.iheart.com/",
+          "radioBrowserID": "49508135-a5f3-4ba3-89ba-a5118e54ad38"
+        },
+        {
+          "callSign": "KIIS-FM",
+          "name": "102.7 KIIS FM",
+          "licenceCity": "Los Angeles",
+          "frequency": 102.7,
+          "streamURL": "https://stream.revma.ihrhls.com/zc185",
+          "homepage": "https://kiisfm.iheart.com/",
+          "radioBrowserID": "ffa61df7-f408-48a5-b4fb-ca07e8ec3c1a"
+        },
+        {
+          "callSign": "KOST",
+          "name": "KOST",
+          "licenceCity": "Los Angeles",
+          "frequency": 103.5,
+          "streamURL": "https://stream.revma.ihrhls.com/zc193",
+          "homepage": "https://kost1035.iheart.com/",
+          "radioBrowserID": "3726ab3e-60d0-49ec-bce3-0f7c36d4e3bb"
+        },
+        {
+          "callSign": "KPWR",
+          "name": "Power 106",
+          "licenceCity": "Los Angeles",
+          "frequency": 105.9,
+          "streamURL": "https://14943.live.streamtheworld.com/KPWRAAC.aac",
+          "homepage": "https://www.power106.com/",
+          "radioBrowserID": "7ec15b26-a777-40c1-ae09-150c72df9a74"
+        },
+        {
+          "callSign": "KROQ-FM",
+          "name": "KROQ",
+          "licenceCity": "Pasadena",
+          "frequency": 106.7,
+          "streamURL": "http://live.amperwave.net/direct/audacy-kroqfmaac-imc",
+          "homepage": "https://www.audacy.com/kroq",
+          "radioBrowserID": "8676c706-ada0-4eab-b050-987e087c7bb2"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "pick": [
+    "WCRX",
+    "WHPK",
+    "WMXM",
+    "WONC",
+    "WMBI-FM",
+    "WDCB",
+    "WBEZ",
+    "WLS-FM",
+    "WCHI-FM",
+    "WFMT",
+    "WPNA-FM",
+    "WKSC-FM",
+    "WSRB",
+    "WGCI-FM",
+    "WCSF",
+    "WCPY"
+  ],
+  "stations": {
+    "WBEZ": {
+      "name": "WBEZ"
+    },
+    "WFMT": {
+      "name": "WFMT",
+      "stream": "https://wfmt.streamguys1.com/main128.aac"
+    },
+    "WKSC-FM": {
+      "name": "103.5 KISS FM"
+    },
+    "WLS-FM": {
+      "name": "94.7 WLS"
+    },
+    "WDCB": {
+      "name": "WDCB Jazz & Blues"
+    }
+  }
+}

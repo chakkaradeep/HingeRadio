@@ -1,0 +1,8 @@
+{
+  "pick": ["KNKX", "KUPS", "KEXP-FM", "KBCS", "KYFQ", "KJR-FM", "KUOW-FM", "KIRO-FM", "KING-FM", "KZOK-FM"],
+  "stations": {
+    "KEXP-FM": {"name": "KEXP", "stream": "https://kexp.streamguys1.com/kexp160.aac"},
+    "KING-FM": {"name": "Classical KING FM", "stream": "https://classicalking.streamguys1.com/king-fm-aac-128k"},
+    "KZOK-FM": {"name": "102.5 KZOK"}
+  }
+}

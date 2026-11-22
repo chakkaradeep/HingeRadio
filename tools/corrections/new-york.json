@@ -1,0 +1,11 @@
+{
+  "pick": ["WCWP", "WBGO", "WRSU-FM", "WNYU-FM", "WSOU", "WKCR-FM", "WHCR-FM", "WBJB-FM", "WFUV", "WFMU", "WNYC-FM", "WQHT", "WBAI", "WHTZ", "WQXR-FM", "WLTW"],
+  "stations": {
+    "WNYC-FM": {"name": "WNYC"},
+    "WQXR-FM": {"name": "WQXR", "stream": "http://stream.wqxr.org/wqxr"},
+    "WQHT": {"name": "Hot 97"},
+    "WHTZ": {"name": "Z100"},
+    "WBGO": {"name": "WBGO Jazz 88.3"},
+    "WLTW": {"name": "Lite FM"}
+  }
+}

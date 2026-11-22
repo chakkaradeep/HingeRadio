@@ -1,0 +1,12 @@
+{
+  "pick": ["KKJZ", "KCSN", "KSPC", "KXLU", "KPCC", "KCRW", "KPFK", "KUSC", "KRRL", "KYSR", "KIIS-FM", "KOST", "KPWR", "KROQ-FM"],
+  "stations": {
+    "KKJZ": {"name": "KJazz"},
+    "KPCC": {"name": "LAist 89.3"},
+    "KXLU": {"stream": "http://kxlu.streamguys1.com/kxlu-hi"},
+    "KRRL": {"name": "Real 92.3"},
+    "KIIS-FM": {"name": "102.7 KIIS FM"},
+    "KPWR": {"name": "Power 106"},
+    "KROQ-FM": {"name": "KROQ"}
+  }
+}
