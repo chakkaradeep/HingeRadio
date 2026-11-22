@@ -83,9 +83,25 @@ python3 -m unittest discover -s tools -p 'test_*.py'  # 19 tests
 
 On 2026-11-22, after the review fixes, the Swift suite passed 56 of 56 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
 
-## What was checked in the acceptance pass (2026-11-22)
+## Final acceptance pass (2026-11-22, commit 646a949)
 
-Run on the iPhone Duo simulator (iOS 27.1), muted. For every station the hinge was moved onto its mark until the log said `LOCK`, then the log was read for up to 14 seconds for `PLAYING` or `FAILED`. A station that failed was tried a second time after relaunching the app (the app does not retry a station it has marked "No signal" in the same session).
+This pass played every station on the final build (commit `646a949`), on the iPhone Duo simulator (iOS 27.1), muted. For each station the hinge was moved onto its mark until the log said `LOCK`, then the log was read for up to 16 seconds for `PLAYING` or `FAILED`.
+
+| City | Stations on the dial | Played | Failed |
+|---|---|---|---|
+| Seattle | 10 | 10 | 0 |
+| New York | 15 | 15 | 0 |
+| Chicago | 16 | 16 | 0 |
+| Los Angeles | 14 | 14 | 0 |
+| Total | 55 | 55 | 0 |
+
+No station logged `FAILED`, and none gave no result, so no station needed a second try after a relaunch. Stations reached `PLAYING` between 0.8 and 8.1 seconds after `CONNECT` (the slowest was WHPK in Chicago, 8.1 seconds; the next slowest were WONC at 6.9 and WRSU-FM at 5.0).
+
+One station needed a `RETRY`: KING-FM (Seattle). On the first connect of the pass, the log showed `ITEM FAILED KING-FM: unknown error`, then `RETRY KING-FM`, a second `CONNECT`, and `PLAYING` 5.4 seconds after the first `CONNECT`. When KING-FM was tuned again later in the pass it reached `PLAYING` 1.2 seconds after `CONNECT` with no `RETRY`. No other station logged `RETRY`.
+
+## What was checked in the earlier acceptance passes (earlier builds, 2026-11-22)
+
+This section describes the two earlier runs, on builds before the final one. Run on the iPhone Duo simulator (iOS 27.1), muted. For every station the hinge was moved onto its mark until the log said `LOCK`, then the log was read for up to 14 seconds for `PLAYING` or `FAILED`. A station that failed was tried a second time after relaunching the app (the app does not retry a station it has marked "No signal" in the same session).
 
 | City | Stations on the dial now | Played in the first pass (original build) | Played in the re-run (after the https and by-name fix) | Total played |
 |---|---|---|---|---|
@@ -94,8 +110,6 @@ Run on the iPhone Duo simulator (iOS 27.1), muted. For every station the hinge w
 | Chicago | 16 | 12 | 4 (WCRX, WMXM, WONC, WDCB) | 16 |
 | Los Angeles | 14 | 10 | 4 (KXLU, KPFK, KYSR, KROQ-FM) | 14 |
 | Total | 55 | 41 | 14 | 55 |
-
-After the last rebuild (the builder fix and the removal of WHCR-FM), which changed no stream address, only WHTZ was played again, and New York's marks were listed. The other stations were played on the earlier builds, not on the final one.
 
 The first pass found 15 stations blocked because their stream addresses were plain `http://`. They were fixed the same day: eight were moved to the `https://` form of the same address (through the corrections files) and seven are allowed by host name (see "Stations on plain http"). All 15 were then run again from a fresh launch: 14 reached `PLAYING`. The fifteenth, WHCR-FM (New York 90.3), failed on both tries over https with "The operation could not be completed", and was left out of the station list on 2026-11-22; plain http is blocked by the app. The other 41 stations played in the first pass and their addresses did not change. KING-FM failed its first connect in the first pass (`unknown error`) and played on its next two tries.
 
@@ -110,7 +124,7 @@ Two paths that had never been seen working were checked:
 - A station that does not answer: with one Seattle station's address pointed at nothing (a temporary change, undone), the log showed `CONNECT` then `FAILED` within about a tenth of a second, the screen said "No signal", the station's mark was struck through, and the next station tuned still reached `PLAYING`.
 - A phone with no hinge: on the standard iPhone 17 simulator (iOS 27.2) the app launches, and dragging a finger along the dial moves the needle and logs `LOCK` and `STATIC` lines with changing angles.
 
-Screenshots are in `docs/check/`: `10` to `13` were taken in the first pass and each shows one station playing in a city, with the green lamp, but they also show several marks struck through from the plain-http failures of that pass, and `11-nyc-playing.png` still shows the since-removed WHCR-FM mark; `14-closed.png` the closed screen, `15-flat.png` the phone flat, `16-no-signal.png` the no-answer case and `17-no-hinge-drag.png` the iPhone 17 drag.
+Screenshots are in `docs/check/`: `10` to `13` were retaken on the final build (commit `646a949`) and each shows one station playing in a city, with the green lamp and the city of licence under the station name, and no mark struck through: `10-sea-playing.png` shows "102.5 KZOK" with "Seattle" under it, `11-nyc-playing.png` "Lite FM" with "New York" (106.7 MHz), `12-chi-playing.png` "WGCI" with "Chicago" (107.5 MHz), and `13-la-playing.png` "KROQ" with "Pasadena" (106.7 MHz); `14-closed.png` the closed screen, `15-flat.png` the phone flat, `16-no-signal.png` the no-answer case and `17-no-hinge-drag.png` the iPhone 17 drag.
 
 ## Stations on plain http
 
