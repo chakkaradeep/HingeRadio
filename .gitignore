@@ -1,0 +1,5 @@
+build/
+HingeRadio.xcodeproj/
+tools/cache/
+__pycache__/
+.DS_Store
