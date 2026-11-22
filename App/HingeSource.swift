@@ -5,11 +5,9 @@ extension View {
     /// Feeds each hinge change into the model as a `HingeReading`.
     func hingeReadings(into model: RadioModel) -> some View {
         onHingeChange { _, context in
-            guard let hinge = context.hinge else {
-                model.hasHinge = false
-                return
-            }
-            model.hasHinge = true
+            let hasHinge = context.hinge != nil
+            if model.hasHinge != hasHinge { model.hasHinge = hasHinge }
+            guard let hinge = context.hinge else { return }
             model.hinge(HingeReading(angle: hinge.angle.degrees,
                                      isClosed: hinge.status == .closed,
                                      time: ProcessInfo.processInfo.systemUptime))
