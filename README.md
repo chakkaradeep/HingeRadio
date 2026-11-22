@@ -68,7 +68,7 @@ swift test --package-path Packages/RadioCore          # 41 tests
 python3 -m unittest discover -s tools -p 'test_*.py'  # 11 tests
 ```
 
-On 2026-11-22 both passed: 41 of 41 and 11 of 11.
+On 2026-11-22 both passed, before and after the https fix: 41 of 41 and 11 of 11.
 
 ## What was checked in the acceptance pass (2026-11-22)
 
@@ -76,13 +76,15 @@ Run on the iPhone Duo simulator (iOS 27.1), muted. For every station the hinge w
 
 | City | Stations | Played | Failed | Failed stations |
 |---|---|---|---|---|
-| Seattle | 10 | 8 | 2 | KUPS, KBCS |
-| New York | 16 | 11 | 5 | WHCR-FM, WNYC-FM, WBAI, WHTZ, WQXR-FM |
-| Chicago | 16 | 12 | 4 | WCRX, WMXM, WONC, WDCB |
-| Los Angeles | 14 | 10 | 4 | KXLU, KPFK, KYSR, KROQ-FM |
-| Total | 56 | 41 | 15 | |
+| Seattle | 10 | 10 | 0 | |
+| New York | 16 | 15 | 1 | WHCR-FM |
+| Chicago | 16 | 16 | 0 | |
+| Los Angeles | 14 | 14 | 0 | |
+| Total | 56 | 55 | 1 | |
 
-Played stations reached `PLAYING` between 1.0 and 8.1 seconds after `CONNECT`. KING-FM failed once (`unknown error`) and played on the second try (1.2 seconds), so it is counted as played. The 15 failures failed on both tries.
+The first pass found 15 stations blocked because their stream addresses were plain `http://`. They were fixed the same day: eight were moved to the `https://` form of the same address (through the corrections files) and seven are allowed by host name (see "Stations on plain http"). All 15 were then run again from a fresh launch: 14 reached `PLAYING` and WHCR-FM failed on both tries over https, with the message "The operation could not be completed". The other 41 stations played in the first pass and their addresses did not change. KING-FM failed its first connect in the first pass (`unknown error`) and played on its next two tries.
+
+Played stations reached `PLAYING` between 0.6 and 8.1 seconds after `CONNECT`.
 
 Also seen, in every city: moving the hinge into a gap between stations logs `STATIC` and no `CONNECT`; tapping a city key changes the city name and redraws the needle and marks; closing the phone logs `STOP`; switching the radio off logs `STOP`.
 
@@ -93,10 +95,23 @@ Two paths that had never been seen working were checked:
 
 Screenshots are in `docs/check/`: `10` to `13` show one station playing in each city, `14-closed.png` the closed screen, `15-flat.png` the phone flat, `16-no-signal.png` the no-answer case and `17-no-hinge-drag.png` the iPhone 17 drag.
 
+## Stations on plain http
+
+Most streams are `https://`. Seven stations only offer plain `http://`, and iOS blocks that unless the host is allowed by name. The allowed hosts are listed under `NSAppTransportSecurity`, `NSExceptionDomains` in `project.yml`, and nothing else is allowed:
+
+- `nap.casthost.net` (KUPS)
+- `stream.pacificaservice.org` (KBCS)
+- `stream.wbai.org` (WBAI)
+- `wmxm.streamguys1.com` (WMXM)
+- `webcast.wonc.org` (WONC)
+- `wdcb-ice.streamguys.org` (WDCB)
+- `stations.pacifica.org` (KPFK)
+
+If a rebuild of the station list adds a station on a new plain-`http://` host, add that host to the same list in `project.yml`, run `xcodegen generate` and rebuild. Otherwise that station shows "No signal". This is acceptable for a prototype and would need a second look before shipping. All seven played in the second pass.
+
 ## Known problems
 
-- **15 of the 56 stations do not play.** Every one of them has an `http://` stream address, and the log says why: "The resource could not be loaded because the App Transport Security policy requires the use of a secure connection." Every station with an `https://` address played. The app's settings include an exception for media (`NSAllowsArbitraryLoadsForMedia` in `project.yml`), but in this simulator it did not let the `http://` streams through. This was not fixed in the acceptance pass. The two ways out are to loosen that setting or to give those stations `https://` streams through the corrections files. On a second try after relaunch, a few of them logged a different, shorter message ("The operation could not be completed") and still failed.
-- Seattle has only 10 stations, and 2 of them (KUPS, KBCS) do not play, so 8 are usable.
+- WHCR-FM (New York, 90.3) does not play: it failed on both tries over https with "The operation could not be completed". Its address is `https://n05.radiojar.com/aafrqsmpyxquv`.
 
 ## What has not been verified
 
@@ -111,6 +126,6 @@ Screenshots are in `docs/check/`: `10` to `13` show one station playing in each 
 
 - The needle glides for about half a second while the name changes at once.
 - For about a quarter of a second after landing on a new station, the screen can show it as playing before it is.
-- A station that has not produced sound within 12 seconds is marked "No signal" for the rest of the session.
+- A station that has not produced sound within 12 seconds is marked "No signal" until the app is relaunched. This was seen once with a station (KING-FM) that played on the next launch.
 - Seattle has only 10 stations.
 - On the iPhone 17 simulator (not the intended device) the layout is rough: the Dynamic Island covers part of the title and the frequency number is cut off.

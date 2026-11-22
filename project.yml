@@ -26,4 +26,18 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSAppTransportSecurity:
-          NSAllowsArbitraryLoadsForMedia: true
+          NSExceptionDomains:
+            nap.casthost.net:
+              NSExceptionAllowsInsecureHTTPLoads: true
+            stream.pacificaservice.org:
+              NSExceptionAllowsInsecureHTTPLoads: true
+            stream.wbai.org:
+              NSExceptionAllowsInsecureHTTPLoads: true
+            wmxm.streamguys1.com:
+              NSExceptionAllowsInsecureHTTPLoads: true
+            webcast.wonc.org:
+              NSExceptionAllowsInsecureHTTPLoads: true
+            wdcb-ice.streamguys.org:
+              NSExceptionAllowsInsecureHTTPLoads: true
+            stations.pacifica.org:
+              NSExceptionAllowsInsecureHTTPLoads: true

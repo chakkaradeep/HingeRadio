@@ -162,9 +162,7 @@
           "name": "WHCR",
           "licenceCity": "New York",
           "frequency": 90.3,
-          "streamURL": "http://n05.radiojar.com/aafrqsmpyxquv",
-          "homepage": "https://whcr.org/",
-          "radioBrowserID": "0a6b4a50-2bec-4e7b-9429-077acb5a72b8"
+          "streamURL": "https://n05.radiojar.com/aafrqsmpyxquv"
         },
         {
           "callSign": "WBJB-FM",
@@ -198,9 +196,7 @@
           "name": "WNYC",
           "licenceCity": "New York",
           "frequency": 93.9,
-          "streamURL": "http://fm939.wnyc.org/wnycfm.aac",
-          "homepage": "https://www.wnyc.org/",
-          "radioBrowserID": "f34ae431-42cd-4ef1-8a24-f4eca8a70cc1"
+          "streamURL": "https://fm939.wnyc.org/wnycfm.aac"
         },
         {
           "callSign": "WQHT",
@@ -225,18 +221,16 @@
           "name": "Z100",
           "licenceCity": "Newark",
           "frequency": 100.3,
-          "streamURL": "http://stream.revma.ihrhls.com/zc1469",
-          "homepage": "https://z100.iheart.com/",
-          "radioBrowserID": "35d36481-14cc-4c6d-a7b1-bf0e607be1f1"
+          "streamURL": "https://stream.revma.ihrhls.com/zc1469",
+          "homepage": "https://www.kibz.com/",
+          "radioBrowserID": "dbaa5a33-420d-4b19-b089-fb12d3f73f10"
         },
         {
           "callSign": "WQXR-FM",
           "name": "WQXR",
           "licenceCity": "Newark",
           "frequency": 105.9,
-          "streamURL": "http://stream.wqxr.org/wqxr",
-          "homepage": "https://www.wnyc.org/",
-          "radioBrowserID": "a2bd7f10-4831-416a-939c-729be46ec76a"
+          "streamURL": "https://stream.wqxr.org/wqxr"
         },
         {
           "callSign": "WLTW",
@@ -259,9 +253,7 @@
           "name": "WCRX",
           "licenceCity": "Chicago",
           "frequency": 88.1,
-          "streamURL": "http://wcrx.streamguys1.com/live",
-          "homepage": "http://www.colum.edu/academics/wcrx/",
-          "radioBrowserID": "961ee8d5-0601-11e8-ae97-52543be04c81"
+          "streamURL": "https://wcrx.streamguys1.com/live"
         },
         {
           "callSign": "WHPK",
@@ -437,9 +429,7 @@
           "name": "KXLU",
           "licenceCity": "Los Angeles",
           "frequency": 88.9,
-          "streamURL": "http://kxlu.streamguys1.com/kxlu-hi",
-          "homepage": "http://kxlu.com/",
-          "radioBrowserID": "3934d1a4-72cb-4d39-9283-4ec19410c5d0"
+          "streamURL": "https://kxlu.streamguys1.com/kxlu-hi"
         },
         {
           "callSign": "KPCC",
@@ -491,9 +481,7 @@
           "name": "KYSR",
           "licenceCity": "Los Angeles",
           "frequency": 98.7,
-          "streamURL": "http://stream.revma.ihrhls.com/zc201/hls.m3u8",
-          "homepage": "https://alt987fm.iheart.com/",
-          "radioBrowserID": "49508135-a5f3-4ba3-89ba-a5118e54ad38"
+          "streamURL": "https://stream.revma.ihrhls.com/zc201/hls.m3u8"
         },
         {
           "callSign": "KIIS-FM",
@@ -527,9 +515,7 @@
           "name": "KROQ",
           "licenceCity": "Pasadena",
           "frequency": 106.7,
-          "streamURL": "http://live.amperwave.net/direct/audacy-kroqfmaac-imc",
-          "homepage": "https://www.audacy.com/kroq",
-          "radioBrowserID": "8676c706-ada0-4eab-b050-987e087c7bb2"
+          "streamURL": "https://live.amperwave.net/direct/audacy-kroqfmaac-imc"
         }
       ]
     }

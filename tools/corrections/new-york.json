@@ -1,11 +1,50 @@
 {
-  "pick": ["WCWP", "WBGO", "WRSU-FM", "WNYU-FM", "WSOU", "WKCR-FM", "WHCR-FM", "WBJB-FM", "WFUV", "WFMU", "WNYC-FM", "WQHT", "WBAI", "WHTZ", "WQXR-FM", "WLTW"],
+  "pick": [
+    "WCWP",
+    "WBGO",
+    "WRSU-FM",
+    "WNYU-FM",
+    "WSOU",
+    "WKCR-FM",
+    "WHCR-FM",
+    "WBJB-FM",
+    "WFUV",
+    "WFMU",
+    "WNYC-FM",
+    "WQHT",
+    "WBAI",
+    "WHTZ",
+    "WQXR-FM",
+    "WLTW"
+  ],
   "stations": {
-    "WNYC-FM": {"name": "WNYC"},
-    "WQXR-FM": {"name": "WQXR", "stream": "http://stream.wqxr.org/wqxr"},
-    "WQHT": {"name": "Hot 97"},
-    "WHTZ": {"name": "Z100"},
-    "WBGO": {"name": "WBGO Jazz 88.3"},
-    "WLTW": {"name": "Lite FM"}
+    "WNYC-FM": {
+      "name": "WNYC",
+      "stream": "https://fm939.wnyc.org/wnycfm.aac",
+      "note": "https form of the directory address; the app blocks plain http"
+    },
+    "WQXR-FM": {
+      "name": "WQXR",
+      "stream": "https://stream.wqxr.org/wqxr",
+      "note": "https form of the directory address; the app blocks plain http"
+    },
+    "WQHT": {
+      "name": "Hot 97"
+    },
+    "WHTZ": {
+      "name": "Z100",
+      "stream": "https://stream.revma.ihrhls.com/zc1469",
+      "note": "https form of the directory address; the app blocks plain http"
+    },
+    "WBGO": {
+      "name": "WBGO Jazz 88.3"
+    },
+    "WLTW": {
+      "name": "Lite FM"
+    },
+    "WHCR-FM": {
+      "stream": "https://n05.radiojar.com/aafrqsmpyxquv",
+      "note": "https form of the directory address; the app blocks plain http"
+    }
   }
 }

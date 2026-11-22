@@ -23,7 +23,8 @@
       "name": "LAist 89.3"
     },
     "KXLU": {
-      "stream": "http://kxlu.streamguys1.com/kxlu-hi"
+      "stream": "https://kxlu.streamguys1.com/kxlu-hi",
+      "note": "https form of the directory address; the app blocks plain http"
     },
     "KRRL": {
       "name": "Real 92.3",
@@ -36,7 +37,13 @@
       "name": "Power 106"
     },
     "KROQ-FM": {
-      "name": "KROQ"
+      "name": "KROQ",
+      "stream": "https://live.amperwave.net/direct/audacy-kroqfmaac-imc",
+      "note": "https form of the directory address; the app blocks plain http"
+    },
+    "KYSR": {
+      "stream": "https://stream.revma.ihrhls.com/zc201/hls.m3u8",
+      "note": "https form of the directory address; the app blocks plain http"
     }
   }
 }

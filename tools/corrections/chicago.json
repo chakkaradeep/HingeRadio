@@ -39,6 +39,10 @@
     },
     "WPNA-FM": {
       "note": "Directory entry 'WPNA 103,1 FM' (homepage wpna.fm); its name carries the matching frequency."
+    },
+    "WCRX": {
+      "stream": "https://wcrx.streamguys1.com/live",
+      "note": "https form of the directory address; the app blocks plain http"
     }
   }
 }
