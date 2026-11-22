@@ -117,3 +117,30 @@ private func r(_ angle: Double, closed: Bool = false) -> HingeReading {
     radio.hinge(r(.nan))
     #expect(radio.isClosed)
 }
+
+@Test func suspendingSilencesAndResumingRestores() {
+    var radio = Radio(file: file)
+    radio.hinge(r(110))
+    radio.togglePower()
+    #expect(radio.tuning.locked != nil)
+    radio.setSuspended(true)
+    #expect(radio.isSuspended)
+    #expect(!radio.isLive)
+    #expect(radio.station == nil)
+    radio.setSuspended(false)
+    #expect(radio.station?.frequency == 98.0)
+    #expect(radio.powerOn)
+}
+
+@Test func partialBars() {
+    var radio = Radio(file: file)
+    radio.togglePower()
+    radio.hinge(r(120))                 // outside the zone, so the next readings are not held
+    radio.hinge(r(111.875))             // 1.5 past the mark plus half the fade
+    #expect(radio.tuning.locked == nil)
+    #expect(abs(radio.tuning.strength - 0.5) < 1e-9)
+    #expect(radio.display(playback: .playing).bars == 3)
+    radio.hinge(r(112.175))
+    #expect(abs(radio.tuning.strength - 0.1) < 1e-9)
+    #expect(radio.display(playback: .playing).bars == 1)
+}

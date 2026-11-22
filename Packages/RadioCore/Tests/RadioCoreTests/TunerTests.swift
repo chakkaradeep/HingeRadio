@@ -81,3 +81,10 @@ private func makeTuner(_ stations: [Station] = [station("KAAA", 98.0)]) -> Tuner
     t.update(r(0))
     #expect(t.update(r(180)).needle == 1)
 }
+
+@Test func zoneEdgeIsInclusive() {
+    var upper = makeTuner()
+    #expect(upper.update(r(111.5)).locked?.frequency == 98.0)
+    var lower = makeTuner()
+    #expect(lower.update(r(108.5)).locked?.frequency == 98.0)
+}

@@ -22,6 +22,8 @@ public struct Radio: Sendable {
     public private(set) var cityID: String
     public private(set) var powerOn = false
     public private(set) var isClosed = false
+    /// True while the app is not the active one; silent like a closed phone, display unchanged.
+    public private(set) var isSuspended = false
     public private(set) var tuning: TuningState
     public private(set) var dead: Set<String> = []
 
@@ -39,7 +41,7 @@ public struct Radio: Sendable {
     }
 
     public var scale: DialScale { tuner.scale }
-    public var isLive: Bool { powerOn && !isClosed }
+    public var isLive: Bool { powerOn && !isClosed && !isSuspended }
 
     public var station: Station? {
         guard isLive, let candidate = tuning.candidate, !dead.contains(candidate.callSign) else { return nil }
@@ -47,6 +49,8 @@ public struct Radio: Sendable {
     }
 
     public mutating func togglePower() { powerOn.toggle() }
+
+    public mutating func setSuspended(_ suspended: Bool) { isSuspended = suspended }
 
     public mutating func selectCity(_ id: String) {
         guard let city = cities.first(where: { $0.id == id }) else { return }
