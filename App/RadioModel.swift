@@ -45,6 +45,8 @@ import UIKit
     @ObservationIgnored private let noise = NoiseEngine()
     @ObservationIgnored private let haptic = UIImpactFeedbackGenerator(style: .light)
     @ObservationIgnored private var audioStarted = false
+    /// Launch with `-HingeRadioMuted YES` to run silently (for testing). Read once.
+    @ObservationIgnored private let muted = UserDefaults.standard.bool(forKey: "HingeRadioMuted")
 
     init(stationData: Data?) {
         let file = stationData.flatMap { try? StationFile.load(from: $0) } ?? .empty
@@ -81,7 +83,7 @@ import UIKit
     private func radioChanged(from old: Radio) {
         let locked = radio.tuning.locked
         if radio.isLive, let locked, locked.callSign != old.tuning.locked?.callSign {
-            noise.click()
+            if !muted { noise.click() }
             haptic.impactOccurred()
         }
         updateSound()
@@ -102,6 +104,11 @@ import UIKit
                          playing: playback == .playing && player.connected == station,
                          strength: radio.tuning.strength,
                          edgeDistance: radio.tuning.edgeDistance)
+        if muted {
+            player.volume = 0
+            noise.set(staticLevel: 0, whistle: 0, whistleHz: 0)
+            return
+        }
         player.volume = Float(levels.station)
         noise.set(staticLevel: Float(levels.staticLevel), whistle: Float(levels.whistle),
                   whistleHz: Float(levels.whistleHz))
