@@ -65,22 +65,24 @@ Each city has a corrections file in `tools/corrections/` (`seattle.json`, `new-y
 
 ```
 swift test --package-path Packages/RadioCore          # 41 tests
-python3 -m unittest discover -s tools -p 'test_*.py'  # 11 tests
+python3 -m unittest discover -s tools -p 'test_*.py'  # 13 tests
 ```
 
-On 2026-11-22 both passed, before and after the https fix: 41 of 41 and 11 of 11.
+On 2026-11-22 the Swift suite passed (41 of 41). The Python suite passed 11 of 11 on the original build, and 13 of 13 after the last change (the builder fix added two tests).
 
 ## What was checked in the acceptance pass (2026-11-22)
 
 Run on the iPhone Duo simulator (iOS 27.1), muted. For every station the hinge was moved onto its mark until the log said `LOCK`, then the log was read for up to 14 seconds for `PLAYING` or `FAILED`. A station that failed was tried a second time after relaunching the app (the app does not retry a station it has marked "No signal" in the same session).
 
-| City | Stations | Played | Failed | Failed stations |
+| City | Stations on the dial now | Played in the first pass (original build) | Played in the re-run (after the https and by-name fix) | Total played |
 |---|---|---|---|---|
-| Seattle | 10 | 10 | 0 | |
-| New York | 15 | 15 | 0 | |
-| Chicago | 16 | 16 | 0 | |
-| Los Angeles | 14 | 14 | 0 | |
-| Total | 55 | 55 | 0 | |
+| Seattle | 10 | 8 | 2 (KUPS, KBCS) | 10 |
+| New York | 15 | 11 | 4 (WNYC-FM, WBAI, WHTZ, WQXR-FM) | 15 |
+| Chicago | 16 | 12 | 4 (WCRX, WMXM, WONC, WDCB) | 16 |
+| Los Angeles | 14 | 10 | 4 (KXLU, KPFK, KYSR, KROQ-FM) | 14 |
+| Total | 55 | 41 | 14 | 55 |
+
+After the last rebuild (the builder fix and the removal of WHCR-FM), which changed no stream address, only WHTZ was played again, and New York's marks were listed. The other stations were played on the earlier builds, not on the final one.
 
 The first pass found 15 stations blocked because their stream addresses were plain `http://`. They were fixed the same day: eight were moved to the `https://` form of the same address (through the corrections files) and seven are allowed by host name (see "Stations on plain http"). All 15 were then run again from a fresh launch: 14 reached `PLAYING`. The fifteenth, WHCR-FM (New York 90.3), failed on both tries over https with "The operation could not be completed", and was left out of the station list on 2026-11-22; plain http is blocked by the app. The other 41 stations played in the first pass and their addresses did not change. KING-FM failed its first connect in the first pass (`unknown error`) and played on its next two tries.
 
@@ -88,12 +90,14 @@ Played stations reached `PLAYING` between 0.6 and 8.1 seconds after `CONNECT`.
 
 Also seen, in every city: moving the hinge into a gap between stations logs `STATIC` and no `CONNECT`; tapping a city key changes the city name and redraws the needle and marks; closing the phone logs `STOP`; switching the radio off logs `STOP`.
 
+One short unmuted run was also done: it logged `CONNECT`, `PLAYING` and `STOP`, and nobody listened to it.
+
 Two paths that had never been seen working were checked:
 
 - A station that does not answer: with one Seattle station's address pointed at nothing (a temporary change, undone), the log showed `CONNECT` then `FAILED` within about a tenth of a second, the screen said "No signal", the station's mark was struck through, and the next station tuned still reached `PLAYING`.
 - A phone with no hinge: on the standard iPhone 17 simulator (iOS 27.2) the app launches, and dragging a finger along the dial moves the needle and logs `LOCK` and `STATIC` lines with changing angles.
 
-Screenshots are in `docs/check/`: `10` to `13` show one station playing in each city, `14-closed.png` the closed screen, `15-flat.png` the phone flat, `16-no-signal.png` the no-answer case and `17-no-hinge-drag.png` the iPhone 17 drag.
+Screenshots are in `docs/check/`: `10` to `13` were taken in the first pass and each shows one station playing in a city, with the green lamp, but they also show several marks struck through from the plain-http failures of that pass, and `11-nyc-playing.png` still shows the since-removed WHCR-FM mark; `14-closed.png` the closed screen, `15-flat.png` the phone flat, `16-no-signal.png` the no-answer case and `17-no-hinge-drag.png` the iPhone 17 drag.
 
 ## Stations on plain http
 
@@ -120,8 +124,8 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 
 ## Known rough edges
 
-- The needle glides for about half a second while the name changes at once.
-- For about a quarter of a second after landing on a new station, the screen can show it as playing before it is.
+- The needle glides for about half a second while the name changes at once. (This comes from reading the code during review, not from watching the screen.)
+- For about a quarter of a second after landing on a new station, the screen can show it as playing before it is. (This also comes from reading the code during review, not from watching the screen.)
 - A station that has not produced sound within 12 seconds is marked "No signal" until the app is relaunched. This was seen once with a station (KING-FM) that played on the next launch.
 - Seattle has only 10 stations.
 - On the iPhone 17 simulator (not the intended device) the layout is rough: the Dynamic Island covers part of the title and the frequency number is cut off.
