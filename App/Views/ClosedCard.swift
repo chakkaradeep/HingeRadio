@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Shown on the outer screen while the phone is closed.
+/// Shown while the radio counts as closed: on the outer screen, or above the fold on the inner
+/// screen when the hinge is below 45 degrees but not shut.
 struct ClosedCard: View {
     let model: RadioModel
     let em: CGFloat

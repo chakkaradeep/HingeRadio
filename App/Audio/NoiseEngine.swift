@@ -10,14 +10,11 @@ import Synchronization
     private let levels = Levels()
     private var built = false
 
+    /// Safe to call every time the radio goes live: does nothing while the engine is running.
     func start() throws {
         if !built { try build(); built = true }
         guard !engine.isRunning else { return }
         try engine.start()
-    }
-
-    func stop() {
-        engine.stop()
     }
 
     func set(staticLevel: Float, whistle: Float, whistleHz: Float) {

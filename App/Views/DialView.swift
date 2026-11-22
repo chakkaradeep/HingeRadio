@@ -87,7 +87,9 @@ struct DialView: View {
                     .fill(Face.needle)
                     .frame(width: 2, height: height * 0.92)
                     .offset(x: model.radio.tuning.needle * width - 1, y: height * 0.04)
-                    .animation(model.hasHinge ? .timingCurve(0.2, 0.8, 0.2, 1, duration: 0.5) : nil,
+                    // No glide while dragging the glass or the debug slider: the needle follows the finger.
+                    .animation(model.hasHinge && model.debugAngle == nil
+                               ? .timingCurve(0.2, 0.8, 0.2, 1, duration: 0.5) : nil,
                                value: model.radio.tuning.needle)
             }
         }
