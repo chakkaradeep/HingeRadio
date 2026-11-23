@@ -47,13 +47,13 @@ The phone has five poses. The app works out which one from the hinge angle, whic
 
 The top half is the dial: the city name, the needle, a row of dots for the stations, then the station name with its frequency beside it and a lamp labelled TUNED. The lamp is unlit when the radio is off or on static, dim orange while a station tunes in, and bright orange while it plays. The line under the name always says the same thing in words. The top half does not respond to touch.
 
-The lower half is the front of a pocket radio: a speaker grille, a band switch under it, and two ridged wheels at the right edge. Each wheel has a short printed scale beside it with a dot that shows where it is turned.
+The lower half is the front of a pocket radio: a speaker grille, a band switch under it, and two ridged wheels at the right edge. Each wheel has its name printed over it and a short printed scale beside it with a dot that shows where it is turned. A wheel turns only once the finger has moved 6 pt; a touch that lifts before that is a tap.
 
 1. Volume (the small wheel, top). Roll it up past the click and the radio comes on; keep rolling for louder; roll it down past the click and it goes off. Below 0.15 of its travel it is off. A tap on it switches the radio on (at the last volume used) or off. One wheel height of rolling covers the whole range.
-2. Tuning (the tall wheel, bottom). Roll it up to go up the band, down to go down. One wheel height of rolling moves a quarter of the band. Near a station it settles on it, the name and its city of licence appear, and the station plays. Between stations the screen says "Static". A slow release stays where you let go (on the station if one is locked); a quick flick carries on and settles on the nearest station. A tap on the upper half of the wheel goes to the next station up, on the lower half to the next one down.
+2. Tuning (the tall wheel, bottom). Roll it up to go up the band, down to go down. One wheel height of rolling moves a quarter of the band. Near a station it settles on it, the name and its city of licence appear, and the station plays. Between stations the screen says "Static". A slow release stays where you let go (on the station if one is locked); a quick flick carries on and settles on the nearest station. A tap on the upper half of the wheel goes to the next station up, on the lower half to the next one down. On this wheel a tap must lift within 2 pt of where it began; a small nudge between that and 6 pt does nothing.
 3. Band. Tap one of the four positions (SEA, NYC, CHI, LA) to slide the switch there. The dial redraws with that city's stations and the old city goes quiet at once. The needle stays where it was.
 
-With VoiceOver: "Volume" is adjustable in steps of a tenth and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and frequency; "Band" reads as a picker of four cities. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
+With VoiceOver: "Volume" is adjustable in steps of a tenth (from off, one step up switches on at the click; a step down past the click switches off) and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and frequency; "Band" reads as a picker of four cities. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
 
 ### Book, tent and shut: standby
 
@@ -133,6 +133,16 @@ python3 -m unittest tools/test_build_stations.py      # 19 tests
 ```
 
 On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. With the pocket radio face, the Swift suite passed 85 of 85 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
+
+## Wheel touch fix (2026-11-22)
+
+A review found that one touch on a wheel could both turn it and count as a tap: near the click, a tap with a few points of jitter switched the radio on and straight back off. Now a wheel turns only after the touch passes 6 pt, measured from that point, and a touch that never got that far is the only kind that can be a tap. Checked on the iPhone Duo simulator (iOS 27.1), muted, in flex:
+
+- With the volume wheel rolled to just under the click (still "Off", no log line), a touch that moved 3.5 pt up and lifted logged `CONNECT KING-FM` (19:37:10.314) and `PLAYING KING-FM` (19:37:11.580), and no `STOP` after it.
+- A plain tap then logged `STOP` (19:37:26.282).
+- A roll up logged `CONNECT KING-FM` (19:37:26.768) and `PLAYING` (19:37:28.021); a roll down past the click logged `STOP` (19:37:38.026). The roll up did not switch the radio off again on release.
+- On the tuning wheel a 4 pt nudge logged nothing (no `LOCK`, no `STATIC`); a tap on its upper half logged `STATIC 0.558` and `LOCK KZOK-FM 0.699` (19:37:55), one station up.
+- The wheel names now sit over their wheels, the black edge stripe is gone, and the space across the fold is smaller (about 66 pt from the TUNED row to the grille, none of it within 14 pt of the fold). `docs/check/40-pocket-flex.png` and `21-flex.png` were retaken.
 
 ## Pocket radio pass (2026-11-22)
 

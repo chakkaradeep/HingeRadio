@@ -16,7 +16,7 @@ struct DialView: View {
             window(display)
                 .opacity(model.radio.powerOn ? 1 : 0.35)
         }
-        .padding(EdgeInsets(top: 0.9 * em, leading: 1.1 * em, bottom: 0.8 * em, trailing: 1.1 * em))
+        .padding(EdgeInsets(top: 0.9 * em, leading: 1.1 * em, bottom: 0.4 * em, trailing: 1.1 * em))
         .foregroundStyle(Face.ink)
         .animation(.easeOut(duration: 0.3), value: model.radio.powerOn)
     }
@@ -82,7 +82,6 @@ struct DialView: View {
             }
             .fixedSize()
         }
-        .frame(height: 3.2 * em, alignment: .top)
         .accessibilityElement(children: .combine)
     }
 }

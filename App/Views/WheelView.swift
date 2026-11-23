@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// A ridged thumbwheel seen edge on, half hidden behind the plate's right edge: the visible rim
-/// is a tall rounded bar whose ridges roll with its value. Drag up to raise the value; one wheel
-/// height of drag moves it by `span`. A touch that barely moves is a tap.
+/// A ridged thumbwheel seen edge on: a tall rounded rim whose ridges roll with its value. Drag
+/// up to raise the value; one wheel height of drag moves it by `span`. Nothing turns until a
+/// touch has moved `slop` from where it began. A touch that never got that far is a tap if it
+/// lifts within `tapSlop` of where it began, and otherwise does nothing.
 ///
 /// The wheel owns its gesture, so a touch keeps driving the wheel it started on wherever the
 /// finger goes.
@@ -17,19 +18,31 @@ struct WheelView: View {
     let onRelease: (_ predicted: Double) -> Void
     /// A tap, and whether it landed on the upper half.
     let onTap: (_ upperHalf: Bool) -> Void
+    /// How far from its start, in points, a touch may lift and still be a tap (at most `slop`).
+    var tapSlop: CGFloat = slop
 
-    /// Where the current touch began and the value then. Keyed by the touch's start location,
-    /// so a touch whose gesture was cancelled never leaks into the next one.
-    @State private var dragStart: DragStart?
+    /// How far a touch must move, in points, before it turns the wheel.
+    static let slop: CGFloat = 6
 
-    private struct DragStart { let location: CGPoint; let value: Double }
+    /// The current drag, set once the touch has moved past `slop`: which touch it is (by its
+    /// start location), the value then, and the vertical translation then, so the wheel turns
+    /// from where it is rather than jumping by the slop.
+    @State private var drag: Drag?
+    /// True while a finger is down. It resets by itself when the system cancels the gesture,
+    /// which clears `drag` so no stale drag outlives its touch.
+    @GestureState private var touching = false
+
+    private struct Drag: Equatable { let location: CGPoint; let value: Double; let anchor: CGFloat }
 
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
             rim(size: size)
                 .contentShape(Rectangle())
-                .gesture(drag(height: size.height))
+                .gesture(gesture(height: size.height))
+        }
+        .onChange(of: touching) { _, down in
+            if !down { drag = nil }
         }
         .accessibilityElement()
     }
@@ -39,9 +52,7 @@ struct WheelView: View {
     /// The rim: a cylinder seen side on. Ridges sit evenly round it, so they crowd together and
     /// fade toward the top and bottom where the surface turns away; the ends are shaded.
     private func rim(size: CGSize) -> some View {
-        let shape = UnevenRoundedRectangle(topLeadingRadius: 0.32 * size.width,
-                                           bottomLeadingRadius: 0.32 * size.width,
-                                           bottomTrailingRadius: 2, topTrailingRadius: 2)
+        let shape = RoundedRectangle(cornerRadius: 0.4 * size.width, style: .continuous)
         return Canvas { context, canvas in
             let radius = canvas.height / 2
             let pitch: CGFloat = 7                                 // ridge spacing round the rim
@@ -54,8 +65,8 @@ struct WheelView: View {
                 let y = radius - radius * sin(theta)
                 let facing = cos(theta)
                 if facing > 0.08 {
-                    let inset = 0.16 * canvas.width
-                    let line = Path(CGRect(x: inset, y: y - 0.75, width: canvas.width - inset - 3, height: 1.5))
+                    let inset = 0.14 * canvas.width
+                    let line = Path(CGRect(x: inset, y: y - 0.75, width: canvas.width - 2 * inset, height: 1.5))
                     context.fill(line, with: .color(Face.ink.opacity(0.55 * Double(facing))))
                 }
                 u += pitch
@@ -63,40 +74,39 @@ struct WheelView: View {
         }
         .background(Face.shade)
         .overlay {
-            LinearGradient(stops: [.init(color: Face.ink.opacity(0.22), location: 0),
+            LinearGradient(stops: [.init(color: Face.ink.opacity(0.24), location: 0),
                                    .init(color: Face.ink.opacity(0), location: 0.3),
                                    .init(color: Face.ink.opacity(0), location: 0.7),
-                                   .init(color: Face.ink.opacity(0.22), location: 1)],
+                                   .init(color: Face.ink.opacity(0.24), location: 1)],
                            startPoint: .top, endPoint: .bottom)
         }
         .clipShape(shape)
-        .overlay(shape.stroke(Face.ink.opacity(0.35), lineWidth: 1))
-        .overlay(alignment: .trailing) {
-            // The plate's edge, which the rest of the wheel sits behind.
-            Rectangle().fill(Face.ink).frame(width: 2)
-        }
+        .overlay(shape.strokeBorder(Face.ink.opacity(0.4), lineWidth: 1))
     }
 
     // MARK: - Touch
 
-    private func drag(height: CGFloat) -> some Gesture {
+    private func gesture(height: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 0)
-            .onChanged { drag in
+            .updating($touching) { _, down, _ in down = true }
+            .onChanged { touch in
                 guard height > 0 else { return }
-                if dragStart?.location != drag.startLocation {        // a new touch
-                    dragStart = DragStart(location: drag.startLocation, value: value)
+                if drag?.location != touch.startLocation {
+                    // Not yet a drag for this touch: wait until it passes the slop.
+                    guard hypot(touch.translation.width, touch.translation.height) >= Self.slop else { return }
+                    drag = Drag(location: touch.startLocation, value: value, anchor: touch.translation.height)
                 }
-                guard let start = dragStart?.value else { return }
-                onChange(start - Double(drag.translation.height / height) * span)
+                guard let drag else { return }
+                onChange(drag.value - Double((touch.translation.height - drag.anchor) / height) * span)
             }
-            .onEnded { drag in
-                defer { dragStart = nil }
-                guard height > 0, let start = dragStart?.value,
-                      dragStart?.location == drag.startLocation else { return }
-                if hypot(drag.translation.width, drag.translation.height) < 6 {
-                    onTap(drag.location.y < height / 2)
-                } else {
-                    onRelease(start - Double(drag.predictedEndTranslation.height / height) * span)
+            .onEnded { touch in
+                defer { drag = nil }
+                guard height > 0 else { return }
+                if let drag, drag.location == touch.startLocation {
+                    onRelease(drag.value
+                              - Double((touch.predictedEndTranslation.height - drag.anchor) / height) * span)
+                } else if hypot(touch.translation.width, touch.translation.height) <= tapSlop {
+                    onTap(touch.location.y < height / 2)
                 }
             }
     }

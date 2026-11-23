@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Shown for the shut and flat poses: the display's title and line under the app name.
+/// Shown for the flat pose: the display's title and line under the app name.
 struct PoseCard: View {
     let model: RadioModel
     let em: CGFloat
