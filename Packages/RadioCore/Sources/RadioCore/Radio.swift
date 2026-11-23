@@ -75,6 +75,18 @@ public struct Radio: Sendable {
         pose = RadioCore.pose(input, config: poseConfig)
     }
 
+    /// Moves `position` onto the locked station's mark, so the next touch has an even hold on
+    /// both sides. Does nothing when no station is locked.
+    public mutating func settleOnLockedStation() {
+        guard tuning.locked != nil else { return }
+        position = tuning.needle                    // the needle rests on the mark while locked
+    }
+
+    /// The marks of stations not marked dead, in dial order: where a flick may settle.
+    public var liveMarkPositions: [Double] {
+        scale.marks.filter { !dead.contains($0.station.callSign) }.map(\.position)
+    }
+
     public mutating func markDead(_ callSign: String) { dead.insert(callSign) }
 
     public func display(playback: Playback) -> Display {

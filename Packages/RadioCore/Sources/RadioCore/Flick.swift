@@ -8,3 +8,14 @@ public func flickTarget(from position: Double, predicted: Double, marks: [Double
     }
     return nearest
 }
+
+/// The nearest mark strictly above `position`, or nil when there is none. From exactly on a
+/// mark this is the next one along.
+public func nextMark(above position: Double, marks: [Double]) -> Double? {
+    marks.filter { $0 > position + 1e-9 }.min()
+}
+
+/// The nearest mark strictly below `position`, or nil when there is none.
+public func nextMark(below position: Double, marks: [Double]) -> Double? {
+    marks.filter { $0 < position - 1e-9 }.max()
+}

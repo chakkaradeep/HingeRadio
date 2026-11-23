@@ -41,7 +41,7 @@ The phone has five poses. The app works out which one from the hinge angle, whic
 | Flat | Fully open | A "Fold me" card | Plays |
 | Shut | Closed | A "Closed" card | Silent |
 
-"Plays" means the radio is switched on and the app is in front. The design is that moving between poses never cuts the sound. This held in the moves checked (flex to book, flex to flat, and back); flex to tent without a break was not checked. Only shutting the phone, switching off, or leaving the app does.
+"Plays" means the radio is switched on and the app is in front. The design is that moving between poses never cuts the sound. This held in the moves checked (flex to book, flex to flat, and back); flex to tent without a break was not checked. Only shutting the phone, switching off, or leaving the app cuts the sound.
 
 ### Flex: the radio
 
@@ -124,11 +124,11 @@ At the end of `build`, the hosts of the plain-`http://` streams are compared wit
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 74 tests
+swift test --package-path Packages/RadioCore          # 81 tests
 python3 -m unittest tools/test_build_stations.py      # 19 tests
 ```
 
-On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
+On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
 
 ## Poses pass (2026-11-22, commit 8987edd)
 
@@ -226,6 +226,8 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 - The screen staying awake while the radio is on. The code asks for it; nobody watched the screen stay on.
 - The iOS 27.2 Duo simulator. The app was built and checked on 27.1.
 - Haptics. The simulator has none.
+- Tuning with VoiceOver or Switch Control. The tape has an adjustable action (swipe up or down to glide to the next station up or down the band) and reads the station name and frequency. It was built but not tried.
+- Shutting the phone while the app is in the background, beyond one simulator run. In that run (flex, radio on and playing KING-FM, HOME, `closed`, three seconds, app opened again on the outer screen) the log showed `POSE tent`, `POSE flex`, `POSE shut` within 1.5 seconds of closing, while the app was still in the background, and nothing on return: no new `POSE` line and no `CONNECT`. The outer screen showed the "Closed" card. Whether a real phone delivers the hinge change to a background app the same way is not known.
 
 ## Known rough edges
 

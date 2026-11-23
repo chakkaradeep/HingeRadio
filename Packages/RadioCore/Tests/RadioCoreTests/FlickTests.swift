@@ -23,3 +23,25 @@ import Testing
 @Test func notANumberStaysPut() {
     #expect(flickTarget(from: 0.5, predicted: .nan, marks: [0.2]) == 0.5)
 }
+
+@Test func nextMarkBetweenTwoMarks() {
+    #expect(nextMark(above: 0.35, marks: [0.2, 0.5, 0.8]) == 0.5)
+    #expect(nextMark(below: 0.35, marks: [0.2, 0.5, 0.8]) == 0.2)
+}
+
+@Test func nextMarkFromExactlyOnAMarkMovesOn() {
+    #expect(nextMark(above: 0.5, marks: [0.2, 0.5, 0.8]) == 0.8)
+    #expect(nextMark(below: 0.5, marks: [0.2, 0.5, 0.8]) == 0.2)
+}
+
+@Test func nextMarkPastEitherEndIsNil() {
+    #expect(nextMark(above: 0.8, marks: [0.2, 0.5, 0.8]) == nil)
+    #expect(nextMark(above: 0.9, marks: [0.2, 0.5, 0.8]) == nil)
+    #expect(nextMark(below: 0.2, marks: [0.2, 0.5, 0.8]) == nil)
+    #expect(nextMark(below: 0.1, marks: [0.2, 0.5, 0.8]) == nil)
+}
+
+@Test func nextMarkWithNoMarksIsNil() {
+    #expect(nextMark(above: 0.5, marks: []) == nil)
+    #expect(nextMark(below: 0.5, marks: []) == nil)
+}

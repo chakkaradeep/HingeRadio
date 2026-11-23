@@ -87,6 +87,7 @@ import UIKit
 
     /// `nil, nil` when the phone has no hinge.
     func hinge(angle: Double?, status: HingeStatus?) {
+        guard !(angle?.isNaN ?? false) else { return }     // never store a not-a-number angle
         hingeAngle = angle
         hingeStatus = status
         updatePose()
@@ -98,6 +99,9 @@ import UIKit
         landscape = reading.landscape
         updatePose()
     }
+
+    /// After a slow release: puts the raw position on the locked station's mark (see `Radio`).
+    func settleOnLockedStation() { radio.settleOnLockedStation() }
 
     func togglePower() { radio.togglePower() }
 
@@ -189,10 +193,14 @@ import UIKit
         }
     }
 
+    /// Assigns `radio` only when the pose changes, so the many hinge callbacks of a fold do not
+    /// invalidate every view.
     private func updatePose() {
-        let before = radio.pose
-        radio.setPose(PoseInput(screen: screen, landscape: landscape, angle: hingeAngle, status: hingeStatus))
-        if radio.pose != before { log.notice("POSE \(self.radio.pose.rawValue, privacy: .public)") }
+        var next = radio
+        next.setPose(PoseInput(screen: screen, landscape: landscape, angle: hingeAngle, status: hingeStatus))
+        guard next.pose != radio.pose else { return }
+        radio = next
+        log.notice("POSE \(self.radio.pose.rawValue, privacy: .public)")
     }
 
     private func logMarks() {

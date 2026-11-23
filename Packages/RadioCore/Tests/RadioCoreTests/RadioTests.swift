@@ -187,3 +187,34 @@ private let shut = PoseInput(screen: .outer, landscape: false, angle: 0, status:
     radio.tune(toPosition: .nan)
     #expect(radio.position == 1)
 }
+
+@Test func settlingMovesPositionOntoTheLockedMark() {
+    var radio = Radio(file: file)
+    radio.tune(toPosition: (120 - 70) / 80)                 // well outside, so nothing is held
+    radio.tune(toPosition: (111.4 - 70) / 80)               // the edge of KSEA's zone: locks there
+    #expect(radio.tuning.locked?.callSign == "KSEA")
+    let mark = radio.scale.marks[0].position
+    radio.settleOnLockedStation()
+    #expect(radio.position == mark)
+    #expect(radio.tuning.locked?.callSign == "KSEA")
+    #expect(radio.tuning.needle == mark)
+}
+
+@Test func settlingWithNothingLockedKeepsPosition() {
+    var radio = Radio(file: file)
+    radio.tune(toPosition: 0.625)
+    #expect(radio.tuning.locked == nil)
+    radio.settleOnLockedStation()
+    #expect(radio.position == 0.625)
+    #expect(radio.tuning.locked == nil)
+}
+
+@Test func liveMarksLeaveOutDeadStations() {
+    let twoStations = StationFile(generated: "test", cities: [
+        City(id: "seattle", name: "Seattle", key: "seattle", stations: [station("KAAA", 90.0), station("KBBB", 100.0)]),
+    ])
+    var radio = Radio(file: twoStations)
+    #expect(radio.liveMarkPositions == radio.scale.marks.map(\.position))
+    radio.markDead("KAAA")
+    #expect(radio.liveMarkPositions == [radio.scale.marks[1].position])
+}

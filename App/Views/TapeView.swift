@@ -7,8 +7,11 @@ struct TapeView: View {
     let model: RadioModel
     let em: CGFloat
 
-    /// The dial position under the pointer when the current touch began; nil between touches.
-    @State private var dragStart: Double?
+    /// Where the current touch began and the dial position then. Keyed by the touch's start
+    /// location, so a touch whose gesture was cancelled never leaks into the next one.
+    @State private var dragStart: DragStart?
+
+    private struct DragStart { let location: CGPoint; let position: Double }
 
     var body: some View {
         let inset = 0.7 * em
@@ -27,9 +30,28 @@ struct TapeView: View {
         .background(Face.shade, in: RoundedRectangle(cornerRadius: 0.7 * em))
         .clipShape(RoundedRectangle(cornerRadius: 0.7 * em))
         .opacity(model.radio.powerOn ? 1 : 0.35)
+        .animation(.easeOut(duration: 0.3), value: model.radio.powerOn)
         .accessibilityElement()
         .accessibilityLabel("Tuning")
-        .accessibilityValue(String(format: "%.1f megahertz", model.radio.tuning.frequency))
+        .accessibilityValue(accessibilityValue)
+        .accessibilityAdjustableAction { direction in
+            let marks = model.radio.scale.marks.map(\.position)
+            let needle = model.radio.tuning.needle
+            let target: Double?
+            switch direction {
+            case .increment: target = nextMark(above: needle, marks: marks)
+            case .decrement: target = nextMark(below: needle, marks: marks)
+            @unknown default: target = nil
+            }
+            if let target { model.glide(toPosition: target) }
+        }
+    }
+
+    /// The station name and frequency when a station is locked, otherwise the frequency.
+    private var accessibilityValue: String {
+        let frequency = String(format: "%.1f megahertz", model.radio.tuning.frequency)
+        guard let station = model.radio.tuning.locked else { return frequency }
+        return "\(station.name), \(frequency)"
     }
 
     // MARK: - Drawing
@@ -151,25 +173,32 @@ struct TapeView: View {
         DragGesture(minimumDistance: 0)
             .onChanged { drag in
                 guard tapeWidth > 0 else { return }
-                let start = dragStart ?? model.position
-                if dragStart == nil { dragStart = start }
+                if dragStart?.location != drag.startLocation {        // a new touch
+                    dragStart = DragStart(location: drag.startLocation, position: model.position)
+                }
+                guard let start = dragStart?.position else { return }
                 model.tune(toPosition: start - drag.translation.width / tapeWidth)
             }
             .onEnded { drag in
                 defer { dragStart = nil }
-                guard tapeWidth > 0, let start = dragStart else { return }
-                let marks = model.radio.scale.marks.map(\.position)
+                guard tapeWidth > 0, let start = dragStart?.position,
+                      dragStart?.location == drag.startLocation else { return }
                 let target: Double
                 if hypot(drag.translation.width, drag.translation.height) < 6 {
+                    let marks = model.radio.scale.marks.map(\.position)   // taps reach dead stations too
                     let tapped = model.radio.tuning.needle + (drag.location.x - width / 2) / tapeWidth
                     guard let nearest = marks.min(by: { abs($0 - tapped) < abs($1 - tapped) }) else { return }
                     target = nearest
                 } else {
                     target = flickTarget(from: model.position,
                                          predicted: start - drag.predictedEndTranslation.width / tapeWidth,
-                                         marks: marks)
+                                         marks: model.radio.liveMarkPositions)
                 }
-                if target != model.position { model.glide(toPosition: target) }
+                if target != model.position {
+                    model.glide(toPosition: target)
+                } else {
+                    model.settleOnLockedStation()                     // a slow release: no glide
+                }
             }
     }
 }
