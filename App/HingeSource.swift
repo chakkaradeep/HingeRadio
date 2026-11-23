@@ -15,24 +15,4 @@ extension View {
             model.hinge(angle: hinge.angle.degrees, status: status)
         }
     }
-
-    /// A horizontal drag across this view tunes the dial: `x / width`, clamped by the model.
-    func dragTuning(into model: RadioModel) -> some View {
-        modifier(DragTuning(model: model))
-    }
-}
-
-private struct DragTuning: ViewModifier {
-    let model: RadioModel
-    @State private var width: CGFloat = 0
-
-    func body(content: Content) -> some View {
-        content
-            .contentShape(Rectangle())
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-            .gesture(DragGesture(minimumDistance: 0).onChanged { drag in
-                guard width > 0 else { return }
-                model.tune(toPosition: drag.location.x / width)
-            })
-    }
 }

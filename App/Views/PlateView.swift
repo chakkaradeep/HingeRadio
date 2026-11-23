@@ -1,50 +1,23 @@
 import SwiftUI
 import RadioCore
 
-/// The base: speaker grille, city keys, frequency readout and power button.
+/// The base: city keys, frequency readout and power button, with the tuning strip below.
 struct PlateView: View {
     let model: RadioModel
     let em: CGFloat
 
     var body: some View {
-        GeometryReader { proxy in
-            HStack(spacing: 1.1 * em) {
-                grille
-                    .frame(width: proxy.size.height * 0.55, height: proxy.size.height * 0.55)
-                VStack(alignment: .leading, spacing: 0.7 * em) {
-                    keys
-                    readout
-                }
-                .frame(maxWidth: .infinity)
+        VStack(spacing: 0.9 * em) {
+            HStack(alignment: .center, spacing: 1.1 * em) {
+                keys
+                    .frame(maxWidth: .infinity)
+                readout
+                    .frame(maxWidth: .infinity)
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
+            TuningStrip(model: model, em: em)
         }
         .padding(EdgeInsets(top: 1 * em, leading: 1.1 * em, bottom: 1 * em, trailing: 1.1 * em))
         .foregroundStyle(Face.ink)
-    }
-
-    // MARK: - Grille
-
-    /// Dots on a 0.5 em grid, clipped to a circle.
-    private var grille: some View {
-        let pitch = 0.5 * em
-        let radius = 0.085 * em
-        return Canvas { context, size in
-            let columns = Int(size.width / pitch)
-            let rows = Int(size.height / pitch)
-            let originX = (size.width - CGFloat(columns) * pitch) / 2 + pitch / 2
-            let originY = (size.height - CGFloat(rows) * pitch) / 2 + pitch / 2
-            var dots = Path()
-            for row in 0..<rows {
-                for column in 0..<columns {
-                    let center = CGPoint(x: originX + CGFloat(column) * pitch, y: originY + CGFloat(row) * pitch)
-                    dots.addEllipse(in: CGRect(x: center.x - radius, y: center.y - radius, width: 2 * radius, height: 2 * radius))
-                }
-            }
-            context.fill(dots, with: .color(Face.ink))
-        }
-        .clipShape(Circle())
-        .opacity(0.8)
     }
 
     // MARK: - Keys
