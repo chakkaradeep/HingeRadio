@@ -16,13 +16,17 @@ public struct Display: Sendable, Equatable {
     }
 }
 
-/// Power, pose, city and failed stations, on top of a `Tuner`.
+/// Volume wheel, pose, city and failed stations, on top of a `Tuner`. The wheel is power and
+/// loudness in one; the pose never affects sound.
 public struct Radio: Sendable {
     public let cities: [City]
     public private(set) var cityID: String
-    public private(set) var powerOn = false
+    /// Where the wheel clicks on.
+    public static let wheelOnFrom = 0.15
+    /// The side volume wheel, 0...1: off below `wheelOnFrom`.
+    public private(set) var wheel = 0.0
     public private(set) var pose: Pose = .flex
-    /// True while the app is not the active one; silent like a shut phone, display unchanged.
+    /// True while the app is not the active one; silent, display unchanged.
     public private(set) var isSuspended = false
     public private(set) var tuning: TuningState
     public private(set) var dead: Set<String> = []
@@ -32,6 +36,7 @@ public struct Radio: Sendable {
     private let config: DialConfig
     private let poseConfig: PoseConfig
     private var tuner: Tuner
+    private var lastOnWheel = 0.6
 
     public init(file: StationFile, config: DialConfig = DialConfig(), poseConfig: PoseConfig = PoseConfig()) {
         cities = file.cities
@@ -44,14 +49,28 @@ public struct Radio: Sendable {
     }
 
     public var scale: DialScale { tuner.scale }
-    public var isLive: Bool { powerOn && pose != .shut && !isSuspended }
+    public var powerOn: Bool { wheel >= Self.wheelOnFrom }
+    /// 0 when off; 0.2 at `wheelOnFrom` rising linearly to 1 at the top of the wheel.
+    public var loudness: Double {
+        guard powerOn else { return 0 }
+        return 0.2 + 0.8 * (wheel - Self.wheelOnFrom) / (1 - Self.wheelOnFrom)
+    }
+    public var isLive: Bool { powerOn && !isSuspended }
 
     public var station: Station? {
         guard isLive, let candidate = tuning.candidate, !dead.contains(candidate.callSign) else { return nil }
         return candidate
     }
 
-    public mutating func togglePower() { powerOn.toggle() }
+    /// Sets the wheel (clamped to 0...1). Not-a-number is ignored.
+    public mutating func setWheel(_ value: Double) {
+        guard !value.isNaN else { return }
+        wheel = min(1, max(0, value))
+        if powerOn { lastOnWheel = wheel }
+    }
+
+    /// Off goes to the last on position (0.6 if never on); on goes to 0.
+    public mutating func togglePower() { setWheel(powerOn ? 0 : lastOnWheel) }
 
     public mutating func setSuspended(_ suspended: Bool) { isSuspended = suspended }
 
@@ -93,7 +112,6 @@ public struct Radio: Sendable {
         if pose == .flat {
             return Display(title: "Fold me", subtitle: "Sit the phone half open to use the radio.", lamp: .off, bars: 0)
         }
-        if pose == .shut { return Display(title: "Closed", subtitle: "Open the phone to listen again.", lamp: .off, bars: 0) }
         if !powerOn { return Display(title: "Off", subtitle: "Switch on to listen", lamp: .off, bars: 0) }
         guard let candidate = tuning.candidate else {
             return Display(title: "· · ·", subtitle: "Static", lamp: .off, bars: 0)

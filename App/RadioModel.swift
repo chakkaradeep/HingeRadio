@@ -105,6 +105,9 @@ import UIKit
 
     func togglePower() { radio.togglePower() }
 
+    var wheel: Double { radio.wheel }
+    func setWheel(_ value: Double) { radio.setWheel(value) }
+
     func selectCity(_ id: String) {
         let before = radio.tuning.locked?.callSign
         stopGlide()
@@ -136,7 +139,8 @@ import UIKit
     private func radioChanged(from old: Radio) {
         if radio.isLive, !old.isLive { startAudio() }
         let locked = radio.tuning.locked
-        if radio.isLive, let locked, locked.callSign != old.tuning.locked?.callSign {
+        let newLock = radio.isLive && locked != nil && locked?.callSign != old.tuning.locked?.callSign
+        if newLock || radio.powerOn != old.powerOn {
             if !muted { noise.click() }
             haptic.impactOccurred()
         }
@@ -153,6 +157,7 @@ import UIKit
         }
         let station = radio.station
         player.want(station)
+        let loudness = radio.loudness
         let levels = mix(isLive: true,
                          playing: audible == .playing,
                          strength: radio.tuning.strength,
@@ -162,8 +167,8 @@ import UIKit
             noise.set(staticLevel: 0, whistle: 0, whistleHz: 0)
             return
         }
-        player.volume = Float(levels.station)
-        noise.set(staticLevel: Float(levels.staticLevel), whistle: Float(levels.whistle),
+        player.volume = Float(levels.station * loudness)
+        noise.set(staticLevel: Float(levels.staticLevel * loudness), whistle: Float(levels.whistle),
                   whistleHz: Float(levels.whistleHz))
     }
 

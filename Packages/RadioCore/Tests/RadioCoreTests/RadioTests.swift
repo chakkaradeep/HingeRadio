@@ -26,21 +26,63 @@ private let shut = PoseInput(screen: .outer, landscape: false, angle: 0, status:
     #expect(radio.display(playback: .idle).title == "Off")
 }
 
-@Test func shuttingSilencesAndReopeningResumes() {
+@Test func wheelSwitchesOnAtTheClick() {
     var radio = Radio(file: file)
-    radio.togglePower()
-    radio.setPose(shut)
-    #expect(radio.station == nil)
-    #expect(!radio.isLive)
-    radio.setPose(flex)
-    #expect(radio.station?.frequency == 98.0)
+    #expect(!radio.powerOn)
+    radio.setWheel(0.14)
+    #expect(!radio.powerOn)
+    #expect(radio.loudness == 0)
+    radio.setWheel(0.15)
     #expect(radio.powerOn)
+    #expect(abs(radio.loudness - 0.2) < 1e-9)
+    radio.setWheel(1)
+    #expect(abs(radio.loudness - 1) < 1e-9)
 }
 
-@Test func everyPoseButShutPlays() {
+@Test func wheelClampsAndIgnoresNaN() {
+    var radio = Radio(file: file)
+    radio.setWheel(7)
+    #expect(radio.wheel == 1)
+    radio.setWheel(-3)
+    #expect(radio.wheel == 0)
+    radio.setWheel(0.5)
+    radio.setWheel(.nan)
+    #expect(radio.wheel == 0.5)
+}
+
+@Test func wheelOffSilences() {
+    var radio = Radio(file: file)
+    radio.setWheel(0.8)
+    #expect(radio.station?.frequency == 98.0)
+    radio.setWheel(0.1)
+    #expect(radio.station == nil)
+    #expect(!radio.isLive)
+}
+
+@Test func toggleReturnsToTheLastLoudness() {
     var radio = Radio(file: file)
     radio.togglePower()
-    for input in [flex, book, tent, flat] {
+    #expect(abs(radio.wheel - 0.6) < 1e-9)
+    radio.setWheel(0.9)
+    radio.togglePower()
+    #expect(radio.wheel == 0)
+    radio.togglePower()
+    #expect(abs(radio.wheel - 0.9) < 1e-9)
+}
+
+@Test func shutKeepsPlaying() {
+    var radio = Radio(file: file)
+    radio.setWheel(0.8)
+    radio.setPose(shut)
+    #expect(radio.isLive)
+    #expect(radio.station?.frequency == 98.0)
+    #expect(radio.display(playback: .playing).title == "KSEA Name")
+}
+
+@Test func everyPosePlays() {
+    var radio = Radio(file: file)
+    radio.togglePower()
+    for input in [flex, book, tent, flat, shut] {
         radio.setPose(input)
         #expect(radio.isLive)
         #expect(radio.station?.frequency == 98.0)
@@ -136,8 +178,7 @@ private let shut = PoseInput(screen: .outer, landscape: false, angle: 0, status:
     #expect(radio.display(playback: .playing)
             == Display(title: "Fold me", subtitle: "Sit the phone half open to use the radio.", lamp: .off, bars: 0))
     radio.setPose(shut)
-    #expect(radio.display(playback: .playing)
-            == Display(title: "Closed", subtitle: "Open the phone to listen again.", lamp: .off, bars: 0))
+    #expect(radio.display(playback: .playing).title == "KSEA Name")   // shut shows the station, as tent does
     radio.setPose(book)
     #expect(radio.display(playback: .playing).subtitle == "No signal")   // book shows the station, as flex does
 }
