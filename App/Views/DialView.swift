@@ -1,7 +1,8 @@
 import SwiftUI
 import RadioCore
 
-/// The lid: name, city, signal bars, lamp, the dial glass, then the station window.
+/// The lid: name and city, the dial glass, then the station window with the frequency and the
+/// tuned lamp.
 struct DialView: View {
     let model: RadioModel
     let em: CGFloat
@@ -29,22 +30,9 @@ struct DialView: View {
             Spacer(minLength: 0)
             Text(model.city?.name.uppercased() ?? "")
                 .lineLimit(1)
-            bars(display.bars, height: size)
-            LampLight(lamp: display.lamp, size: 0.75 * size, glow: 0.3 * em)
         }
         .font(.system(size: size, weight: .bold))
         .tracking(0.12 * size)
-    }
-
-    private func bars(_ lit: Int, height: CGFloat) -> some View {
-        HStack(alignment: .bottom, spacing: 0.16 * height) {
-            ForEach(0..<5, id: \.self) { index in
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(index < lit ? Face.ink : Face.shade)
-                    .frame(width: 0.22 * height, height: height * [0.30, 0.48, 0.66, 0.84, 1.0][index])
-            }
-        }
-        .frame(height: height, alignment: .bottom)
     }
 
     // MARK: - Glass
@@ -58,18 +46,43 @@ struct DialView: View {
 
     // MARK: - Window
 
+    /// The station name over the line under it; on the right the frequency over the tuned lamp.
     private func window(_ display: Display) -> some View {
-        VStack(alignment: .leading, spacing: 0.1 * em) {
-            Text(display.title)
-                .font(.system(size: 1.25 * em, weight: .bold))
-                .tracking(-0.01 * 1.25 * em)
-            Text(display.subtitle)
-                .font(.system(size: 0.74 * em))
-                .foregroundStyle(Face.muted)
+        let printed = Face.printed(em: em)
+        return HStack(alignment: .firstTextBaseline, spacing: 0.8 * em) {
+            VStack(alignment: .leading, spacing: 0.1 * em) {
+                Text(display.title)
+                    .font(.system(size: 1.25 * em, weight: .bold))
+                    .tracking(-0.01 * 1.25 * em)
+                    .minimumScaleFactor(0.75)
+                Text(display.subtitle)
+                    .font(.system(size: 0.74 * em))
+                    .foregroundStyle(Face.muted)
+            }
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .trailing, spacing: 0.1 * em) {
+                HStack(alignment: .firstTextBaseline, spacing: 0.25 * em) {
+                    Text(String(format: "%.1f", model.radio.tuning.frequency))
+                        .font(.system(size: 1.25 * em, weight: .medium))
+                        .monospacedDigit()
+                    Text("MHz")
+                        .printed(size: printed)
+                        .foregroundStyle(Face.muted)
+                }
+                HStack(spacing: 0.3 * em) {
+                    LampLight(lamp: display.lamp, size: 0.42 * em, glow: 0.25 * em)
+                    Text("TUNED")
+                        .printed(size: printed)
+                        .foregroundStyle(display.lamp == .off ? Face.muted : Face.ink)
+                }
+                .frame(height: 0.74 * em * 1.2)
+                .accessibilityHidden(true)
+            }
+            .fixedSize()
         }
-        .lineLimit(1)
-        .truncationMode(.tail)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
         .frame(height: 3.2 * em, alignment: .top)
+        .accessibilityElement(children: .combine)
     }
 }

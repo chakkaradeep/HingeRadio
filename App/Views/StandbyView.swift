@@ -1,7 +1,8 @@
 import SwiftUI
 import RadioCore
 
-/// Book and tent: the station name, the line under it, the frequency, the lamp and the power button.
+/// Book, tent and shut: the station name, the line under it, the frequency, the tuned lamp and
+/// the on/off switch.
 /// `twoPanels` splits them left and right of a vertical fold.
 ///
 /// Sizes come from the screen's short side, so the name and the frequency stay the two biggest
@@ -76,7 +77,6 @@ struct StandbyView: View {
         var frequency: CGFloat { 0.22 * short }
         var unit: CGFloat { 0.05 * short }
         var lamp: CGFloat { 0.05 * short }
-        var power: CGFloat { max(60, 0.12 * short) }
         var gap: CGFloat { 0.03 * short }
         var margin: CGFloat { 0.06 * short }
     }
@@ -120,7 +120,39 @@ struct StandbyView: View {
                 .foregroundStyle(Face.muted)
                 .opacity(model.radio.powerOn ? 1 : 0.35)
             Spacer(minLength: 0)
-            PowerButton(model: model, size: metrics.power)
+            powerSwitch(metrics)
         }
+    }
+
+    /// Printed "OFF", a slide switch, then "ON": the word for the current state in ink, the
+    /// other muted. One tap anywhere on it switches the radio.
+    private func powerSwitch(_ metrics: Metrics) -> some View {
+        let on = model.radio.powerOn
+        let size = metrics.unit
+        let track = CGSize(width: 2.2 * size, height: 1.15 * size)
+        return Button {
+            model.togglePower()
+        } label: {
+            HStack(spacing: 0.45 * size) {
+                Text("OFF").printed(size: size).foregroundStyle(on ? Face.muted : Face.ink)
+                Capsule()
+                    .fill(Face.shade)
+                    .overlay(Capsule().strokeBorder(Face.ink.opacity(0.25), lineWidth: 1))
+                    .overlay(alignment: on ? .trailing : .leading) {
+                        Circle()
+                            .fill(on ? Face.needle : Face.ink)
+                            .padding(3)
+                    }
+                    .frame(width: track.width, height: track.height)
+                Text("ON").printed(size: size).foregroundStyle(on ? Face.ink : Face.muted)
+            }
+            .frame(minWidth: 60, minHeight: 60)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Power")
+        .accessibilityValue(on ? "On" : "Off")
+        .accessibilityAddTraits(.isToggle)
     }
 }

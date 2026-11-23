@@ -168,7 +168,7 @@ import UIKit
             return
         }
         player.volume = Float(levels.station * loudness)
-        noise.set(staticLevel: Float(levels.staticLevel * loudness), whistle: Float(levels.whistle),
+        noise.set(staticLevel: Float(levels.staticLevel * loudness), whistle: Float(levels.whistle * loudness),
                   whistleHz: Float(levels.whistleHz))
     }
 

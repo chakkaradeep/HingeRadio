@@ -1,7 +1,9 @@
 import SwiftUI
 import RadioCore
 
-/// The signal lamp: grey when off, orange while seeking, green and glowing when locked.
+/// The tuned lamp: unlit when off or on static, a dim orange while tuning in, a steady glowing
+/// orange when the station is playing. The line under the station name always says the same,
+/// so the lamp is never the only signal.
 struct LampLight: View {
     let lamp: Lamp
     let size: CGFloat
@@ -9,15 +11,17 @@ struct LampLight: View {
     let glow: CGFloat
 
     var body: some View {
-        let colour: Color? = switch lamp {
-        case .off: nil
-        case .seeking: Face.needle
-        case .locked: Face.lamp
+        let lit: Double = switch lamp {
+        case .off: 0
+        case .seeking: 0.45
+        case .locked: 1
         }
         Circle()
-            .fill(colour ?? Face.shade)
-            .overlay(Circle().strokeBorder(Color.black.opacity(colour == nil ? 0.2 : 0), lineWidth: 1))
-            .shadow(color: colour ?? .clear, radius: glow)
+            .fill(Face.shade)
+            .overlay(Circle().fill(Face.needle.opacity(lit)))
+            .overlay(Circle().strokeBorder(Face.ink.opacity(lit == 0 ? 0.25 : 0), lineWidth: 1))
+            .shadow(color: Face.needle.opacity(lamp == .locked ? 0.8 : 0), radius: glow)
             .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 }

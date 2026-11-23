@@ -2,7 +2,7 @@ import SwiftUI
 import RadioCore
 
 /// Ticks, numbers, station dots and the needle, filling its frame with a 0.7 em inset each side.
-/// The dial glass draws the whole band with it; the tape on the lower half draws its own close-up.
+/// The dial glass on the top half draws the whole band with it.
 struct ScaleFace: View {
     let model: RadioModel
     let em: CGFloat

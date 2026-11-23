@@ -2,9 +2,10 @@ import SwiftUI
 import UIKit
 
 /// Lays out each pose: in flex the dial on the half above the fold and the plate on the half
-/// below; in book the standby face in two panels either side of the fold; in tent the standby
-/// face on the outer screen; in flat and shut the pose card, centred on the outer screen and on
-/// the inner one kept to the upper half in portrait or the left panel in landscape.
+/// below; in book the standby face in two panels either side of the fold; in tent and shut the
+/// standby face on the outer screen, or, shut with the inner screen still lit, on the inner
+/// screen's upper half in portrait or left panel in landscape; in flat the pose card, centred on
+/// the outer screen and kept to the same half or panel on the inner one.
 struct RootView: View {
     let model: RadioModel
 
@@ -14,7 +15,7 @@ struct RootView: View {
             let insets = proxy.safeAreaInsets
             Group {
                 switch model.radio.pose {
-                case .shut, .flat:
+                case .flat:
                     if model.screen == .outer {
                         PoseCard(model: model, em: Face.em(forWidth: size.width))
                             .padding(insets)
@@ -32,9 +33,25 @@ struct RootView: View {
                             Spacer(minLength: 0)
                         }
                     }
+                case .shut where model.screen == .inner:
+                    // Nearly closed with the inner screen still lit: the standby face on the
+                    // half or panel clear of the fold.
+                    if model.landscape {
+                        panels(size: size, insets: insets) {
+                            StandbyView(model: model, twoPanels: false)
+                        } right: {
+                            Spacer(minLength: 0)
+                        }
+                    } else {
+                        halves(size: size, insets: insets) {
+                            StandbyView(model: model, twoPanels: false)
+                        } bottom: {
+                            Spacer(minLength: 0)
+                        }
+                    }
                 case .book:
                     StandbyView(model: model, twoPanels: true)
-                case .tent:
+                case .tent, .shut:
                     StandbyView(model: model, twoPanels: false)
                 case .flex:
                     let em = Face.em(forWidth: size.width)

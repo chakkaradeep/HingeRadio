@@ -7,13 +7,23 @@ enum Face {
     static let ink = Color(hex: 0x161616)
     static let muted = Color(hex: 0x6A675F)
     static let needle = Color(hex: 0xFF5B1F)
-    static let lamp = Color(hex: 0x2FBF6B)
 
     /// One em, as in the web mock: 5.8% of the screen half's width.
     static func em(forWidth width: CGFloat) -> CGFloat { width * 0.058 }
 
+    /// The size of the small words printed on the plate (TUNING, BAND, the city keys): never
+    /// under 13 pt.
+    static func printed(em: CGFloat) -> CGFloat { max(13, 0.36 * em) }
+
     /// Clear band kept on each side of the fold line, in points.
     static let foldClearance: CGFloat = 14
+}
+
+extension Text {
+    /// The plate's printed lettering: bold capitals, spaced out.
+    func printed(size: CGFloat) -> some View {
+        font(.system(size: size, weight: .bold)).tracking(0.12 * size)
+    }
 }
 
 private extension Color {

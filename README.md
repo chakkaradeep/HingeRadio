@@ -1,6 +1,6 @@
 # Hinge Radio
 
-Hinge Radio is a small SwiftUI app for the iPhone Duo, a folding iPhone. It is an FM radio with a dial. You pick one of four cities (Seattle, New York, Chicago or Los Angeles) and tune across that city's real FM stations, which play over the internet. You tune with a finger, on a sliding tape on the lower half of the inner screen. The hinge does not tune. It only tells the app how the phone is folded, and the app shows a different face for each way of folding. It is a prototype that runs in the iPhone Duo simulator only; it has not been put on a real phone.
+Hinge Radio is a small SwiftUI app for the iPhone Duo, a folding iPhone. It is an FM radio with a dial. You pick one of four cities (Seattle, New York, Chicago or Los Angeles) and tune across that city's real FM stations, which play over the internet. The lower half of the inner screen is drawn like a 1960s pocket radio: a speaker grille, a band switch for the city, and two thumbwheels on the right edge, one for volume and power and one for tuning. The hinge does not tune. It only tells the app how the phone is folded, and the app shows a different face for each way of folding. It is a prototype that runs in the iPhone Duo simulator only; it has not been put on a real phone.
 
 ## How to run it
 
@@ -36,30 +36,34 @@ The phone has five poses. The app works out which one from the hinge angle, whic
 | Pose | How the phone is | What the app shows | Sound |
 |---|---|---|---|
 | Flex | Partly folded, inner screen, upright | The full radio | Plays |
-| Book | Partly folded, inner screen, on its side | Standby face: station name, the line under it, frequency, lamp, power button | Plays |
+| Book | Partly folded, inner screen, on its side | Standby face: station name, the line under it, frequency, tuned lamp, on/off switch | Plays |
 | Tent | Partly folded, outer screen | The same standby face | Plays |
 | Flat | Fully open | A "Fold me" card | Plays |
-| Shut | Closed | A "Closed" card | Silent |
+| Shut | Closed | The same standby face | Plays |
 
-"Plays" means the radio is switched on and the app is in front. The design is that moving between poses never cuts the sound. This held in the moves checked (flex to book, flex to flat, and back); flex to tent without a break was not checked. Only shutting the phone, switching off, or leaving the app cuts the sound.
+"Plays" means the radio is switched on and the app is in front. Sound follows the power alone: no pose cuts it. Only switching off or leaving the app cuts the sound.
 
 ### Flex: the radio
 
-The top half is the dial: a lamp, the city name, the needle, and a row of dots for the stations. It does not respond to touch. The lower half has the four city keys (SEA, NYC, CHI, LA), the frequency readout, the round power button, and the tape.
+The top half is the dial: the city name, the needle, a row of dots for the stations, then the station name with its frequency beside it and a lamp labelled TUNED. The lamp is unlit when the radio is off or on static, dim orange while a station tunes in, and bright orange while it plays. The line under the name always says the same thing in words. The top half does not respond to touch.
 
-1. Press the power button. The lamp goes green when a station is playing.
-2. Drag the tape. It is the dial magnified three times, sliding under a fixed pointer in the middle. Each station shows its call sign and frequency. Drag left to go up the band.
-3. Near a station the tape settles on it, the name and its city of licence appear, and the station plays. Between stations the screen says "Static".
-4. A slow release stays where you let go. A quick flick carries on and settles on the nearest station. A tap on a station's label glides to that station.
-5. A city key switches city. The dial redraws with that city's stations and the old city goes quiet at once. The needle stays where it was.
+The lower half is the front of a pocket radio: a speaker grille, a band switch under it, and two ridged wheels at the right edge. Each wheel has a short printed scale beside it with a dot that shows where it is turned.
 
-### Book and tent: standby
+1. Volume (the small wheel, top). Roll it up past the click and the radio comes on; keep rolling for louder; roll it down past the click and it goes off. Below 0.15 of its travel it is off. A tap on it switches the radio on (at the last volume used) or off. One wheel height of rolling covers the whole range.
+2. Tuning (the tall wheel, bottom). Roll it up to go up the band, down to go down. One wheel height of rolling moves a quarter of the band. Near a station it settles on it, the name and its city of licence appear, and the station plays. Between stations the screen says "Static". A slow release stays where you let go (on the station if one is locked); a quick flick carries on and settles on the nearest station. A tap on the upper half of the wheel goes to the next station up, on the lower half to the next one down.
+3. Band. Tap one of the four positions (SEA, NYC, CHI, LA) to slide the switch there. The dial redraws with that city's stations and the old city goes quiet at once. The needle stays where it was.
 
-Same face on both. It is made to be read from across a room, with the station name and the frequency as the two biggest things on it. You cannot tune or change city here. Put the phone in flex to do that.
+With VoiceOver: "Volume" is adjustable in steps of a tenth and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and frequency; "Band" reads as a picker of four cities. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
 
-### Flat and shut
+### Book, tent and shut: standby
 
-Flat shows a card that says "Fold me" and, if the radio was on, it keeps playing. Shut shows "Closed" and goes silent. Opening the phone again resumes the radio if it was on.
+The same face on all three. It is made to be read from across a room, with the station name and the frequency as the two biggest things on it. In the corner is a switch printed "OFF" and "ON"; a tap anywhere on it switches the radio. You cannot tune or change city here. Put the phone in flex to do that.
+
+Closing the phone keeps the radio playing and shows the standby face on the outer screen, whichever way up it is. If the hinge is nearly shut but the inner screen is still lit, the standby face shows on the half of the inner screen above the fold (or the panel left of it on its side).
+
+### Flat
+
+Flat shows a card that says "Fold me" and, if the radio was on, it keeps playing.
 
 ### Reaching each pose on the simulator
 
@@ -71,7 +75,7 @@ Use the Simulator's hinge controls, or the iOS Simulator tool's `set_posture` an
 - Shut: set the hinge to closed. The outer screen lights.
 - Tent: set the hinge to closed first, then bend it to about 60 degrees. The outer screen stays lit.
 
-The outer screen is only reached through closed, which silences the radio. So moving from flex to tent without a break could not be tried on the simulator.
+The outer screen is only reached through closed. Closing no longer silences the radio, so flex to closed to tent now plays throughout (see the pocket radio pass below).
 
 Leaving the app (for example with the Home button) pauses the radio. Coming back reconnects to the station you were on.
 
@@ -128,7 +132,21 @@ swift test --package-path Packages/RadioCore          # 81 tests
 python3 -m unittest tools/test_build_stations.py      # 19 tests
 ```
 
-On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
+On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. With the pocket radio face, the Swift suite passed 85 of 85 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
+
+## Pocket radio pass (2026-11-22)
+
+This pass ran on the build committed with this section, on the iPhone Duo simulator (iOS 27.1), muted, in flex (open, then 110 degrees, upright) unless a step says otherwise. Every touch was a scripted tap or drag. What was seen in the log and on screen:
+
+- **Volume wheel rolled up** from off: `CONNECT KING-FM` (19:23:28.240), then `ITEM FAILED`, `RETRY`, `CONNECT KING-FM` and `PLAYING KING-FM` (19:23:34.214). The volume dot turned orange above the click. **Rolled down past the click**: `STOP` (19:23:41.021).
+- **Volume wheel tapped**: on (`CONNECT KING-FM` 19:23:41.741, `PLAYING` 19:23:45.907), tapped again: `STOP` (19:23:52.265). A third tap switched it on again for the next steps.
+- **Tuning wheel, Seattle**: a slow roll up logged `STATIC 0.541` then `LOCK KZOK-FM 0.696`; a slow roll down `STATIC 0.683` then `LOCK KING-FM 0.529`; a fast upward roll released mid-flick logged `STATIC 0.545`, `LOCK KZOK-FM 0.696` and `PLAYING KZOK-FM`, so it settled on a station.
+- **Tuning wheel, Chicago** (the most crowded dial): slow roll down `LOCK WFMT 0.652`, `LOCK WCHI-FM 0.590`, `LOCK WLS-FM 0.529` (falling); slow roll up `LOCK WLS-FM 0.513`, `LOCK WCHI-FM 0.575`, `LOCK WFMT 0.621` (rising), released on `STATIC 0.668`. A tap on the lower half of the wheel then logged `LOCK WFMT 0.656` and `PLAYING WFMT`.
+- **Band switch**: a tap on NYC logged `STOP`, `STATIC 0.714`, `CONNECT WHTZ` and `PLAYING WHTZ`, and the header read NEW YORK with the knob under NYC. Taps on LA, SEA and CHI in quick turn logged `STOP`, then `LOCK KIIS-FM`, `LOCK KZOK-FM` and `LOCK WPNA-FM` within 0.4 s, then `PLAYING WPNA-FM`; the header read CHICAGO with CHI in ink. The LA and SEA faces were not screenshotted.
+- **Closed while playing** (WFMT): the log showed `POSE shut` (19:25:31.780) and no `STOP` or `CONNECT`. The outer screen (678x466) showed the standby face: "WFMT", "Chicago", "98.7", "MHz", the lit lamp and the switch at ON. Bent to 60 degrees: `POSE flex` then `POSE tent` 1.3 s later (the known flicker), still no `STOP` or `CONNECT`. Back to closed and a tap on the switch: `STOP` (19:26:17.571), and the face read "Off", "Switch on to listen". Turned a quarter turn the outer screen went 466x678 and showed the same face upright, clear of the camera.
+- **Book**: on its side the standby face sat either side of the fold; a tap on its switch logged `CONNECT WFMT` and `PLAYING WFMT`. From there through flex, tent, shut, tent, flex and flat (19:27:09 to 19:27:21) there was no `STOP` and no `CONNECT`.
+- **Nearly shut on the inner screen**: a jump to 15 degrees lit the outer screen, so the inner-screen standby layout was not seen.
+- Screenshots: `docs/check/40-pocket-flex.png` (Chicago, WFMT playing), `41-pocket-closed.png`, `42-pocket-book.png`; `21-flex.png`, `22-book.png`, `24-shut.png` and `25-tent.png` were replaced with this build's faces. In each, nothing sat within 14 pt of the fold and no label was clipped.
 
 ## Poses pass (2026-11-22, commit 8987edd)
 
@@ -217,17 +235,18 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 
 ## What has not been verified
 
-- How the tape feels under a finger. The drags in this pass were scripted and slow. Flicks and taps were not tried in this pass. When the tape was built, a scripted 120 ms flick on the simulator settled on a station and a tap on a station label locked that station (from that task's report). Nobody has tried any of it by hand.
+- How the wheels feel under a thumb. Every roll in the pocket radio pass was scripted on the simulator. Nobody has rolled them by hand.
+- Whether the right edge fights the system's edge gestures on a real phone. The wheels end about 43 pt in from the glass edge; on the simulator no roll was taken by the system, but the simulator's touches are synthetic.
 - How it sounds. Every run was muted except a short unmuted launch at the end; nobody listened.
 - A real phone. Anything on a real iPhone Duo, including how it chooses its lit screen.
-- Moving from flex to tent without a break. The outer screen is only reached through closed on the simulator.
-- Tent itself, beyond what is above: it was only reached from closed, and the radio had stopped and restarted on the way.
+- The standby face on the inner screen when nearly shut. On the simulator a jump to 15 degrees lit the outer screen, so that layout was never seen.
 - Where the fold line is. It is inferred from screen sizes (the inner screen is two outer-size panels), and the simulator draws no fold line.
 - The screen staying awake while the radio is on. The code asks for it; nobody watched the screen stay on.
 - The iOS 27.2 Duo simulator. The app was built and checked on 27.1.
 - Haptics. The simulator has none.
-- Tuning with VoiceOver or Switch Control. The tape has an adjustable action (swipe up or down to glide to the next station up or down the band) and reads the station name and frequency. It was built but not tried.
-- Shutting the phone while the app is in the background, beyond one simulator run. In that run (flex, radio on and playing KING-FM, HOME, `closed`, three seconds, app opened again on the outer screen) the log showed `POSE tent`, `POSE flex`, `POSE shut` within 1.5 seconds of closing, while the app was still in the background, and nothing on return: no new `POSE` line and no `CONNECT`. The outer screen showed the "Closed" card. Whether a real phone delivers the hinge change to a background app the same way is not known.
+- VoiceOver and Switch Control. The two wheels are adjustable, the volume wheel switches on and off with a double-tap, the band switch reads as a picker, and the standby switch reads as a toggle. All of it was built but not tried.
+- Reduce Motion. The jump instead of the glide was built but not tried.
+- Shutting the phone while the app is in the background, beyond one simulator run. In that run (flex, radio on and playing KING-FM, HOME, `closed`, three seconds, app opened again on the outer screen) the log showed `POSE tent`, `POSE flex`, `POSE shut` within 1.5 seconds of closing, while the app was still in the background, and nothing on return: no new `POSE` line and no `CONNECT`. The outer screen showed the "Closed" card (that card has since been replaced by the standby face). Whether a real phone delivers the hinge change to a background app the same way is not known.
 
 ## Known rough edges
 
