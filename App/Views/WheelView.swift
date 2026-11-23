@@ -12,6 +12,10 @@ struct WheelView: View {
     let value: Double
     /// How much of the 0...1 range one wheel height of drag covers.
     let span: Double
+    /// The value between two ridges: the step a tick marks, so each tick is a ridge going past.
+    let ridge: Double
+    /// A finger came down on the wheel (before any slop): a real wheel stops under the thumb.
+    var onTouchDown: () -> Void = {}
     /// A new value while dragging.
     let onChange: (Double) -> Void
     /// The finger lifted after a drag, with the value the drag's momentum would carry it to.
@@ -28,6 +32,8 @@ struct WheelView: View {
     /// start location), the value then, and the vertical translation then, so the wheel turns
     /// from where it is rather than jumping by the slop.
     @State private var drag: Drag?
+    /// The start of the touch already reported to `onTouchDown`.
+    @State private var downAt: CGPoint?
     /// True while a finger is down. It resets by itself when the system cancels the gesture,
     /// which clears `drag` so no stale drag outlives its touch.
     @GestureState private var touching = false
@@ -42,7 +48,7 @@ struct WheelView: View {
                 .gesture(gesture(height: size.height))
         }
         .onChange(of: touching) { _, down in
-            if !down { drag = nil }
+            if !down { drag = nil; downAt = nil }
         }
         .accessibilityElement()
     }
@@ -55,7 +61,7 @@ struct WheelView: View {
         let shape = RoundedRectangle(cornerRadius: 0.4 * size.width, style: .continuous)
         return Canvas { context, canvas in
             let radius = canvas.height / 2
-            let pitch: CGFloat = 7                                 // ridge spacing round the rim
+            let pitch = max(3, canvas.height * CGFloat(ridge / span))  // one tick step of travel
             let travel = CGFloat(value / span) * canvas.height     // surface moved by the value
             let phase = travel.truncatingRemainder(dividingBy: pitch)
             let arc = CGFloat.pi * radius
@@ -91,6 +97,10 @@ struct WheelView: View {
             .updating($touching) { _, down, _ in down = true }
             .onChanged { touch in
                 guard height > 0 else { return }
+                if downAt != touch.startLocation {
+                    downAt = touch.startLocation
+                    onTouchDown()
+                }
                 if drag?.location != touch.startLocation {
                     // Not yet a drag for this touch: wait until it passes the slop.
                     guard hypot(touch.translation.width, touch.translation.height) >= Self.slop else { return }

@@ -47,7 +47,8 @@ struct LampLight: View {
 }
 
 /// The two lamps with their printed names: POWER, red while the radio is on, and TUNED, green while
-/// a station is playing and pulsing dimly green while it tunes in. VoiceOver reads each one.
+/// a station is playing and pulsing dimly green while it tunes in. VoiceOver reads "Power, on/off"
+/// and "Tuned, <station>", "Tuning in, <station>" or "Not tuned".
 struct LampPair: View {
     let powerOn: Bool
     let display: Display
@@ -69,11 +70,19 @@ struct LampPair: View {
 
             lamp(name: "TUNED", lit: display.lamp != .off) { tunedLamp }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(display.lamp == .locked ? "Tuned" : "Not tuned")
-                .accessibilityValue(display.lamp == .locked ? display.title : "")
+                .accessibilityLabel(tunedLabel)
+                .accessibilityValue(display.lamp == .off ? "" : display.title)
         }
         .animation(.easeOut(duration: 0.18), value: powerOn)
         .animation(.easeOut(duration: 0.25), value: display.lamp)
+    }
+
+    private var tunedLabel: String {
+        switch display.lamp {
+        case .locked: "Tuned"
+        case .seeking: "Tuning in"
+        case .off: "Not tuned"
+        }
     }
 
     @ViewBuilder private var tunedLamp: some View {
@@ -82,7 +91,7 @@ struct LampPair: View {
             LampLight(color: Face.lampGreen, level: 1, size: lampSize, glow: glow)
         case .seeking where !reduceMotion:
             // A slow dim breath while the station connects.
-            TimelineView(.animation) { context in
+            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
                 let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.4) / 1.4
                 LampLight(color: Face.lampGreen, level: 0.2 + 0.25 * (0.5 - 0.5 * cos(2 * .pi * phase)),
                           size: lampSize, glow: glow)

@@ -33,6 +33,11 @@ import UIKit
     @ObservationIgnored private let clickHaptic = UIImpactFeedbackGenerator(style: .rigid)
     @ObservationIgnored private let stopHaptic = UIImpactFeedbackGenerator(style: .medium)
     @ObservationIgnored private var lastTick = ContinuousClock.now - .seconds(1)
+    /// True while a settle moves the needle: the detent pulls in without ticking.
+    @ObservationIgnored private var quietTicks = false
+    /// The session's move to `.ambient` after switching off, waiting for the off click to ring out.
+    @ObservationIgnored private var offSession: Task<Void, Never>?
+    @ObservationIgnored private var sessionObservers: [any NSObjectProtocol] = []
     /// Launch with `-HingeRadioMuted YES` to run silently (for testing). Read once.
     @ObservationIgnored private let muted = UserDefaults.standard.bool(forKey: "HingeRadioMuted")
 
@@ -55,6 +60,7 @@ import UIKit
         player.onPlayback = { [weak self] in self?.reportedPlayback = $0 }
         player.onFailed = { [weak self] in self?.markDead($0.callSign) }
         logMarks()
+        observeSession()
     }
 
     var display: Display { radio.display(playback: audible) }
@@ -62,10 +68,6 @@ import UIKit
     /// The dial position (0...1) last tuned to; the needle shows it.
     var position: Double { radio.position }
 
-    /// One ridge on the tuning wheel: 1/160 of the band, about 0.13 MHz.
-    static let tuningRidge = 1.0 / 160
-    /// One soft step of the volume wheel while it is on.
-    static let volumeRidge = 0.05
     /// The fastest the wheels tick: a quick roll sounds like a ratchet, not a buzz.
     static let tickInterval = Duration.milliseconds(33)
 
@@ -77,8 +79,8 @@ import UIKit
 
     /// Steps the tuning to `target` along an ease-out over `duration` seconds, one step per screen
     /// frame, locking and clicking on each station it passes. A new touch or a city change stops it
-    /// where it is.
-    func glide(toPosition target: Double, duration: Double = 0.35) {
+    /// where it is. A `quiet` glide (a settle) passes ridges without ticking.
+    func glide(toPosition target: Double, duration: Double = 0.35, quiet: Bool = false) {
         guard !target.isNaN else { return }
         stopGlide()
         let from = radio.position
@@ -87,9 +89,19 @@ import UIKit
         frames.run { [weak self] now in
             let t = min(1, max(0, (now - start) / duration))
             let eased = 1 - pow(1 - t, 3)
-            self?.step(toPosition: from + (to - from) * eased)
+            self?.step(toPosition: from + (to - from) * eased, quiet: quiet)
             return t < 1
         }
+    }
+
+    /// A finger came down on a wheel: whatever glide is running stops under it.
+    func holdStill() { stopGlide() }
+
+    /// To the next station up or down the band (see `Radio.stepTarget`): a glide, or a jump when
+    /// `animated` is false. Nothing past either end.
+    func stepStation(up: Bool, animated: Bool) {
+        guard let target = radio.stepTarget(up: up) else { return }
+        if animated { glide(toPosition: target) } else { tune(toPosition: target) }
     }
 
     /// `nil, nil` when the phone has no hinge.
@@ -107,11 +119,17 @@ import UIKit
         updatePose()
     }
 
-    /// After a slow release: eases the needle onto the locked station's mark over 0.2 s (at once
-    /// when `animated` is false). With nothing locked the needle stays where it is.
+    /// After a slow release or a band change: eases the needle onto the locked station's mark
+    /// over 0.2 s (at once when `animated` is false), without ticking. With nothing locked the
+    /// needle stays where it is.
     func settle(animated: Bool) {
-        guard let target = radio.settleTarget else { return }
-        if animated { glide(toPosition: target, duration: 0.2) } else { tune(toPosition: target) }
+        guard let target = radio.settleTarget, target != radio.position else { return }
+        if animated {
+            glide(toPosition: target, duration: 0.2, quiet: true)
+        } else {
+            stopGlide()
+            step(toPosition: target, quiet: true)
+        }
     }
 
     func togglePower() { radio.togglePower() }
@@ -119,13 +137,16 @@ import UIKit
     var wheel: Double { radio.wheel }
     func setWheel(_ value: Double) { radio.setWheel(value) }
 
-    func selectCity(_ id: String) {
+    /// Changes city; if a station of the new city is locked under the needle, the needle then
+    /// settles onto its mark (at once when `animated` is false).
+    func selectCity(_ id: String, animated: Bool) {
         let before = radio.tuning.locked?.callSign
         stopGlide()
         if id != radio.cityID { player.stop() }   // the old city's station goes silent at once
         radio.selectCity(id)
         logMarks()
         logLockChange(from: before)
+        settle(animated: animated)
     }
 
     func markDead(_ callSign: String) { radio.markDead(callSign) }
@@ -136,55 +157,50 @@ import UIKit
     func appIsActive(_ active: Bool) {
         radio.setSuspended(!active)
         guard active else { return }
-        if !radio.isLive { startAudio() }          // going live already started it
+        if !radio.isLive { startAudio(live: false) }   // going live already started it
         for haptic in [tickHaptic, clickHaptic, stopHaptic] { haptic.prepare() }
     }
 
     // MARK: - Private
 
-    private func step(toPosition position: Double) {
+    private func step(toPosition position: Double, quiet: Bool = false) {
         let before = radio.tuning.locked?.callSign
+        quietTicks = quiet
         radio.tune(toPosition: position)
+        quietTicks = false
         logLockChange(from: before)
     }
 
     private func stopGlide() { frames.stop() }
 
     private func radioChanged(from old: Radio) {
-        if radio.isLive, !old.isLive { startAudio() }
-        feel(from: old)
+        if radio.isLive, !old.isLive {
+            offSession?.cancel()
+            startAudio(live: true)                  // before the click, so the click is not cut
+        }
+        if let feel = RadioCore.feel(from: old, to: radio), !(quietTicks && feel.isTick) {
+            play(feel)
+        }
         updateSound()
+        if old.isLive, !radio.isLive, !radio.isSuspended { returnToAmbient() }
     }
 
     // MARK: - Feel
 
-    private enum Feel { case tuningTick, volumeTick, stop, click }
-
-    /// The one place that decides the clicks, stops and ticks, each a sound with its haptic.
-    /// Every change gives at most one, the firmest that applies: a new city, power or a new lock
-    /// clicks; reaching the end of a wheel's travel stops; passing a ridge ticks. They work with the
-    /// radio off too: the wheels are mechanical.
-    private func feel(from old: Radio) {
-        if radio.cityID != old.cityID { return fire(.click, "click band") }
-        if radio.powerOn != old.powerOn { return fire(.click, radio.powerOn ? "click on" : "click off") }
-        if let locked = radio.tuning.locked?.callSign, locked != old.tuning.locked?.callSign {
-            return fire(.click, "click lock \(locked)")
-        }
-        let tuningEnd = radio.position != old.position && (radio.position == 0 || radio.position == 1)
-        let volumeEnd = radio.wheel != old.wheel && (radio.wheel == 0 || radio.wheel == 1)
-        if tuningEnd || volumeEnd { return fire(.stop, tuningEnd ? "stop tuning" : "stop volume") }
-        if ticksCrossed(from: old.position, to: radio.position, step: Self.tuningRidge) > 0 {
-            return fire(.tuningTick, "tick tuning")
-        }
-        if radio.powerOn, old.powerOn, ticksCrossed(from: old.wheel, to: radio.wheel, step: Self.volumeRidge) > 0 {
-            fire(.volumeTick, "tick volume")
-        }
-    }
-
-    /// Plays one feel and its haptic. A tick within `tickInterval` of the last tick, click or stop
-    /// is dropped, so a fast roll is a ratchet and a click is never blurred by a tick on its heels.
-    private func fire(_ feel: Feel, _ name: String) {
+    /// Plays one feel (decided by `RadioCore.feel`) and its haptic. A tick within `tickInterval`
+    /// of the last tick, click or stop is dropped, so a fast roll is a ratchet and a click is never
+    /// blurred by a tick on its heels.
+    private func play(_ feel: Feel) {
         let now = ContinuousClock.now
+        let name = switch feel {
+        case .bandClick: "click band"
+        case .powerClick: radio.powerOn ? "click on" : "click off"
+        case .lockClick(let callSign): "click lock \(callSign)"
+        case .tuningStop: "stop tuning"
+        case .volumeStop: "stop volume"
+        case .tuningTick: "tick tuning"
+        case .volumeTick: "tick volume"
+        }
         switch feel {
         case .tuningTick, .volumeTick:
             guard now - lastTick >= Self.tickInterval else { return }
@@ -194,13 +210,13 @@ import UIKit
             tickHaptic.impactOccurred(intensity: soft ? 0.4 : 0.7)
             tickHaptic.prepare()
             feelLog.info("FEEL \(name, privacy: .public)")
-        case .stop:
+        case .tuningStop, .volumeStop:
             lastTick = now
             if !muted { noise.tick(level: 1.8) }
             stopHaptic.impactOccurred(intensity: 0.9)
             stopHaptic.prepare()
             feelLog.notice("FEEL \(name, privacy: .public)")
-        case .click:
+        case .bandClick, .powerClick, .lockClick:
             lastTick = now
             if !muted { noise.click() }
             clickHaptic.impactOccurred()
@@ -239,15 +255,33 @@ import UIKit
         audiblePlayback(reported: reportedPlayback, connected: player.connected, wanted: radio.station)
     }
 
-    /// Each time the radio goes live, and each time the app becomes active: the session and the
-    /// noise engine, which may have stopped while the app was away. Live, the session is
-    /// `.playback`; off, it is `.ambient`, so the wheels' ticks mix with other apps' sound rather
-    /// than stopping it. Failures are logged and leave station playback working.
-    private func startAudio() {
+    /// Each time the radio goes live, and each time the app becomes active while it is off: the
+    /// session and the noise engine, which may have stopped while the app was away. Live, the
+    /// session is `.playback`; off, it is `.ambient`, so the wheels' ticks mix with other apps'
+    /// sound rather than stopping it. When the category changes the engine is stopped around the
+    /// change and started again, so no output runs across it. Going off, the session is first let
+    /// go with notify-others, so audio the radio interrupted may resume. Failures are logged and
+    /// leave station playback working.
+    private func startAudio(live: Bool, force: Bool = false) {
+        let session = AVAudioSession.sharedInstance()
+        let category: AVAudioSession.Category = live ? .playback : .ambient
+        if force || session.category != category {
+            noise.stop()
+            if !live {
+                do {
+                    try session.setActive(false, options: .notifyOthersOnDeactivation)
+                } catch {
+                    soundLog.error("AUDIO SESSION release \(error.localizedDescription, privacy: .public)")
+                }
+            }
+            do {
+                try session.setCategory(category)
+                soundLog.notice("SESSION \(live ? "playback" : "ambient", privacy: .public)")
+            } catch {
+                soundLog.error("AUDIO SESSION category \(error.localizedDescription, privacy: .public)")
+            }
+        }
         do {
-            let session = AVAudioSession.sharedInstance()
-            let category: AVAudioSession.Category = radio.isLive ? .playback : .ambient
-            if session.category != category { try session.setCategory(category) }
             try session.setActive(true)
         } catch {
             soundLog.error("AUDIO SESSION \(error.localizedDescription, privacy: .public)")
@@ -257,6 +291,62 @@ import UIKit
         } catch {
             soundLog.error("NOISE ENGINE \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// After switching off: once the off click has rung out, back to the `.ambient` session.
+    private func returnToAmbient() {
+        offSession?.cancel()
+        offSession = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard let self, !Task.isCancelled, !self.radio.isLive, !self.radio.isSuspended else { return }
+            self.startAudio(live: false)
+        }
+    }
+
+    /// An interruption (a call, an alarm, Siri) makes the session inactive and stops the engine;
+    /// when the system recommends resuming, with the app still in front, the session and the
+    /// engine come back. A media services reset loses both, so the noise graph is built anew and
+    /// the session set up again.
+    private func observeSession() {
+        let center = NotificationCenter.default
+        let session = AVAudioSession.sharedInstance()
+        sessionObservers.append(center.addObserver(
+            forName: AVAudioSession.didBecomeInactiveNotification, object: session, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.soundLog.notice("SESSION inactive") }
+        })
+        sessionObservers.append(center.addObserver(
+            forName: AVAudioSession.resumptionRecommendationNotification, object: session, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.interruptionEnded() }
+        })
+        sessionObservers.append(center.addObserver(
+            forName: AVAudioSession.mediaServicesWereResetNotification, object: session, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.mediaServicesReset() }
+        })
+    }
+
+    /// The system says an interruption is over: with the app in front, the session and the engine
+    /// come back so the wheels tick again and the static returns.
+    private func interruptionEnded() {
+        soundLog.notice("AUDIO RESUME")
+        guard !radio.isSuspended else { return }
+        do {
+            try AVAudioSession.sharedInstance().setActive(true)
+            try noise.restartIfStopped()
+        } catch {
+            soundLog.error("AUDIO RESUME \(error.localizedDescription, privacy: .public)")
+        }
+        updateSound()
+    }
+
+    private func mediaServicesReset() {
+        soundLog.notice("AUDIO RESET")
+        noise.rebuild()
+        guard !radio.isSuspended else { return }
+        startAudio(live: radio.isLive, force: true)
+        updateSound()
     }
 
     /// Assigns `radio` only when the pose changes, so the many hinge callbacks of a fold do not

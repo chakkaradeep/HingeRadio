@@ -105,8 +105,9 @@ struct StandbyView: View {
         }
     }
 
+    /// The locked station's own frequency (this face cannot be tuned), else the needle's.
     private func frequency(_ metrics: Metrics) -> some View {
-        Text(String(format: "%.1f", model.radio.tuning.frequency))
+        Text(String(format: "%.1f", model.radio.tuning.locked?.frequency ?? model.radio.tuning.frequency))
             .font(.system(size: metrics.frequency, weight: .medium))
             .monospacedDigit()
             .tracking(-0.02 * metrics.frequency)

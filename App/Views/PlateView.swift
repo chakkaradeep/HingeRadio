@@ -57,7 +57,7 @@ struct PlateView: View {
         return HStack(spacing: 0.3 * em) {
             scale(top: "ON", bottom: "OFF", fraction: radio.wheel, click: Radio.wheelOnFrom,
                   lit: radio.powerOn, size: size)
-            WheelView(value: radio.wheel, span: 1,
+            WheelView(value: radio.wheel, span: 1, ridge: Radio.volumeRidge,
                       onChange: { model.setWheel($0) },
                       onRelease: { _ in },
                       onTap: { _ in model.togglePower() })
@@ -87,7 +87,8 @@ struct PlateView: View {
         return HStack(spacing: 0.3 * em) {
             scale(top: "108", bottom: "88", fraction: radio.tuning.needle, click: nil,
                   lit: radio.powerOn, size: size)
-            WheelView(value: model.position, span: 0.25,
+            WheelView(value: model.position, span: 0.25, ridge: Radio.tuningRidge,
+                      onTouchDown: { model.holdStill() },
                       onChange: { model.tune(toPosition: $0) },
                       onRelease: { predicted in
                           let target = flickTarget(from: model.position, predicted: predicted,
@@ -113,20 +114,17 @@ struct PlateView: View {
         }
     }
 
-    /// The station name and frequency when a station is locked, otherwise the frequency.
+    /// The station name and its own frequency when a station is locked, otherwise the frequency
+    /// under the needle.
     private var tuningValue: String {
-        let frequency = String(format: "%.1f megahertz", model.radio.tuning.frequency)
-        guard let station = model.radio.tuning.locked else { return frequency }
-        return "\(station.name), \(frequency)"
+        guard let station = model.radio.tuning.locked else {
+            return String(format: "%.1f megahertz", model.radio.tuning.frequency)
+        }
+        return "\(station.name), " + String(format: "%.1f megahertz", station.frequency)
     }
 
-    /// To the next station up or down the band, dead ones included so each can be reached.
-    private func step(up: Bool) {
-        let marks = model.radio.scale.marks.map(\.position)
-        let needle = model.radio.tuning.needle
-        let target = up ? nextMark(above: needle, marks: marks) : nextMark(below: needle, marks: marks)
-        if let target { move(to: target) }
-    }
+    /// To the next station up or down the band (see `Radio.stepTarget`).
+    private func step(up: Bool) { model.stepStation(up: up, animated: !reduceMotion) }
 
     /// Glides, or jumps when Reduce Motion is on.
     private func move(to target: Double) {

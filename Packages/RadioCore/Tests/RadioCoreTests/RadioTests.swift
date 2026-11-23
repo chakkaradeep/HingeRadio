@@ -294,3 +294,54 @@ private let shut = PoseInput(screen: .outer, landscape: false, angle: 0, status:
         #expect(display.lamp == .off)
     }
 }
+
+// MARK: - Launch settle and steps
+
+@Test func launchRestsOnTheLockedMark() {
+    // 98.1 sits just above mid-dial, so position 0.5 is inside its zone but off its mark.
+    let offMark = StationFile(generated: "test", cities: [
+        City(id: "seattle", name: "Seattle", key: "seattle", stations: [station("KOFF", 98.1)]),
+    ])
+    let radio = Radio(file: offMark)
+    let mark = radio.scale.marks[0].position
+    #expect(mark != 0.5)
+    #expect(radio.tuning.locked?.callSign == "KOFF")
+    #expect(radio.position == mark)
+    #expect(radio.tuning.needle == mark)
+    #expect(abs(radio.tuning.frequency - 98.1) < 1e-9)
+}
+
+private let pair = StationFile(generated: "test", cities: [
+    City(id: "seattle", name: "Seattle", key: "seattle", stations: [station("KAAA", 90.0), station("KBBB", 100.0)]),
+])
+
+@Test func stepFromAnOffMarkLockGoesToTheNextStation() {
+    var radio = Radio(file: pair)
+    let marks = radio.scale.marks.map(\.position)
+    radio.tune(toPosition: marks[0] - 0.01)                   // KAAA locked, needle below its mark
+    #expect(radio.tuning.locked?.callSign == "KAAA")
+    #expect(radio.stepTarget(up: true) == marks[1])
+    radio.tune(toPosition: marks[1] + 0.01)                   // KBBB locked, needle above its mark
+    #expect(radio.tuning.locked?.callSign == "KBBB")
+    #expect(radio.stepTarget(up: false) == marks[0])
+}
+
+@Test func stepFromStaticGoesToTheNeighbours() {
+    var radio = Radio(file: pair)
+    let marks = radio.scale.marks.map(\.position)
+    radio.tune(toPosition: (marks[0] + marks[1]) / 2)
+    #expect(radio.tuning.locked == nil)
+    #expect(radio.stepTarget(up: true) == marks[1])
+    #expect(radio.stepTarget(up: false) == marks[0])
+}
+
+@Test func stepPastEitherEndIsNil() {
+    var radio = Radio(file: pair)
+    let marks = radio.scale.marks.map(\.position)
+    radio.tune(toPosition: marks[1] - 0.01)                   // KBBB locked, below its mark
+    #expect(radio.stepTarget(up: true) == nil)
+    radio.tune(toPosition: marks[0] + 0.01)                   // KAAA locked, above its mark
+    #expect(radio.stepTarget(up: false) == nil)
+    #expect(Radio(file: .empty).stepTarget(up: true) == nil)
+    #expect(Radio(file: .empty).stepTarget(up: false) == nil)
+}

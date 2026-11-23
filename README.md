@@ -50,18 +50,19 @@ The top half is the dial: the city name, the needle, a row of dots for the stati
 - POWER is red while the radio is on and unlit when it is off.
 - TUNED is green while a station plays, glows dimly green while one tunes in, and is unlit off a station.
 
-Switched off, the space for the station name is empty: the unlit POWER lamp says it is off. The dial, the frequency and the grille dim. Switched on, the line under the name says the same thing as the lamps in words ("Static", "Tuning in", "No signal" or the station's city). VoiceOver reads the lamps as "Power, on" or "Power, off" and "Tuned, <station>" or "Not tuned". The top half does not respond to touch.
+Switched off, the space for the station name is empty: the unlit POWER lamp says it is off. The dial and the frequency dim; the grille stays as it is. Switched on, the line under the name says the same thing as the lamps in words ("Static", "Tuning in", "No signal" or the station's city). VoiceOver reads the lamps as "Power, on" or "Power, off" and "Tuned, <station>", "Tuning in, <station>" or "Not tuned". The top half does not respond to touch.
 
-The needle follows the tuning wheel on every move, near a station too, and the frequency under it changes with it. Inside a station's zone the station is locked and its name shows while the needle sits a little either side of the mark. When you let go slowly the needle eases onto the mark in about a fifth of a second.
+The needle follows the tuning wheel on every move, near a station too, and the frequency under it changes with it. Inside a station's zone the station is locked and its name shows while the needle sits a little either side of the mark. When you let go slowly the needle eases onto the mark in about a fifth of a second, quietly (no ticks). At launch the needle starts on the station's mark. A finger resting on the wheel stops a glide under it.
 
 The lower half is the front of a pocket radio: a speaker grille, a band switch under it, and two ridged wheels at the right edge. Each wheel has its name printed over it and a short printed scale beside it with a dot that shows where it is turned. A wheel turns only once the finger has moved 6 pt; a touch that lifts before that is a tap.
 
 1. Volume (the small wheel, top). Roll it up past the click and the radio comes on; keep rolling for louder; roll it down past the click and it goes off. Below 0.15 of its travel it is off. A tap on it switches the radio on (at the last volume used) or off. One wheel height of rolling covers the whole range.
-2. Tuning (the tall wheel, bottom). Roll it up to go up the band, down to go down. One wheel height of rolling moves a quarter of the band. Near a station it settles on it, the name and its city of licence appear, and the station plays. Between stations the screen says "Static". A slow release on a station eases the needle onto its mark; off a station it stays where you let go. A quick flick carries on and settles on the nearest station. A tap on the upper half of the wheel goes to the next station up, on the lower half to the next one down. On this wheel a tap must lift within 4 pt of where it began; a small nudge between that and 6 pt does nothing.
-3. Band. Tap one of the four positions (SEA, NYC, CHI, LA) to slide the switch there. The dial redraws with that city's stations and the old city goes quiet at once. The needle stays where it was.
+2. Tuning (the tall wheel, bottom). Roll it up to go up the band, down to go down. One wheel height of rolling moves a quarter of the band. Near a station it settles on it, the name and its city of licence appear, and the station plays. Between stations the screen says "Static". A slow release on a station eases the needle onto its mark; off a station it stays where you let go. A quick flick carries on and settles on the nearest station. A tap on the upper half of the wheel goes to the next station up, on the lower half to the next one down, counting from the locked station when there is one. On this wheel a tap must lift within 4 pt of where it began; a small nudge between that and 6 pt does nothing.
+3. Band. Tap one of the four positions (SEA, NYC, CHI, LA) to slide the switch there. The dial redraws with that city's stations and the old city goes quiet at once. The needle stays where it was, unless one of the new city's stations is under it: then it eases onto that station's mark.
 
 Each control ticks or clicks like a mechanical one, with a small sound and a matching tap you can feel, whether the radio is on or off:
 
+- The ridges drawn on each wheel are spaced one tick apart, so each tick is a ridge going past.
 - The tuning wheel gives a soft tick for each ridge it passes (every 1/160 of the band, about 0.13 MHz) and a firmer click when it settles on a station. A fast roll gives at most about 30 ticks a second, so it sounds like a ratchet.
 - The volume wheel clicks where it switches on and off, and gives a very soft tick every 0.05 of its travel while on.
 - The band switch clicks when it lands on a new city (one click, even when the new city has a station under the needle).
@@ -69,11 +70,11 @@ Each control ticks or clicks like a mechanical one, with a small sound and a mat
 
 Running silently (below) silences these sounds too; the taps you feel still happen.
 
-With VoiceOver: "Volume" is adjustable in steps of a tenth (from off, one step up switches on at the click; a step down past the click switches off) and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and frequency; "Band" reads as a picker of four cities. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
+With VoiceOver: "Volume" is adjustable in steps of a tenth (from off, one step up switches on at the click; a step down past the click switches off) and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and its frequency; "Band" reads as a picker of four cities. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
 
 ### Book, tent and shut: standby
 
-The same face on all three. It is made to be read from across a room, with the station name and the frequency as the two biggest things on it. Under the name are the same POWER and TUNED lamps as in flex; switched off, the name and the line under it are empty. In the corner is a switch printed "OFF" and "ON"; a tap anywhere on it switches the radio. You cannot tune or change city here. Put the phone in flex to do that.
+The same face on all three. It is made to be read from across a room, with the station name and the frequency as the two biggest things on it. The frequency is the locked station's own. Under the name are the same POWER and TUNED lamps as in flex; switched off, the name and the line under it are empty. In the corner is a switch printed "OFF" and "ON"; a tap anywhere on it switches the radio. You cannot tune or change city here. Put the phone in flex to do that.
 
 Closing the phone keeps the radio playing and shows the standby face on the outer screen, whichever way up it is. If the hinge is nearly shut but the inner screen is still lit, the standby face shows on the half of the inner screen above the fold (or the panel left of it on its side).
 
@@ -145,11 +146,11 @@ At the end of `build`, the hosts of the plain-`http://` streams are compared wit
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 95 tests
+swift test --package-path Packages/RadioCore          # 110 tests
 python3 -m unittest tools/test_build_stations.py      # 19 tests
 ```
 
-On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. With the pocket radio face, the Swift suite passed 85 of 85 and the Python suite 19 of 19. With the smooth needle, ticks and lamps, the Swift suite passed 95 of 95 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
+On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. With the pocket radio face, the Swift suite passed 85 of 85 and the Python suite 19 of 19. With the smooth needle, ticks and lamps, the Swift suite passed 95 of 95 and the Python suite 19 of 19; after the review fixes that followed, 110 of 110 and 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
 
 ## Wheel touch fix (2026-11-22)
 
@@ -174,6 +175,18 @@ After trying the face on a real phone the owner asked for smooth tuning on every
 - **Closed while playing** (`41-pocket-closed.png`): `POSE tent`, `POSE shut`, no `STOP`. The standby face showed "WMBI", "Chicago", both lamps lit, "90.1", the switch at ON. A tap on the switch: `FEEL click off`, `STOP`; the face then showed no name and no line, both lamps unlit.
 - **Book** (`42-pocket-book.png`, `22-book.png`): both lamps lit under "Chicago" on the left panel, clear of the fold.
 - **Flick** with the radio off, after a fresh launch: ticks about 33 to 58 ms apart, `STATIC 0.554`, `FEEL click lock KZOK-FM`, `LOCK KZOK-FM 0.700`, then one more tick 100 ms later; no `CONNECT` (sound follows power alone). A flick in an earlier build of this pass passed five Chicago stations with one lock click each.
+
+### Review fixes to that pass (2026-11-22)
+
+A review found the needle could rest beside a locked station (at launch and after a band change), that a tap or VoiceOver step from there landed on the same station, that the audio session stayed in playback after switching off, and that the click and tick rules had no tests. The rules (which feel a change gives, where a step goes) now live in RadioCore with tests. Checked again on the iPhone Duo simulator (iOS 27.1), muted, in flex:
+
+- **Launch**: `SESSION ambient` and no feel line. Switched on: `SESSION playback` (20:06:15.290), `FEEL click on` 8 ms later, `CONNECT KING-FM`, `PLAYING KING-FM`. The needle sat on KING-FM's mark and the readout said 98.1 (`44-lamps-playing.png` retaken).
+- **Off and on again**: `FEEL click off`, `STOP` (20:06:32.680), `SESSION ambient` 167 ms later; on: `SESSION playback`, `FEEL click on`, `CONNECT`, `PLAYING`. No error line from the app. The system logged a notice that a synchronous session call on the main thread can risk a hang.
+- **One tap on the tuning wheel's upper half** from there: `STATIC 0.564`, `FEEL click lock KZOK-FM`, `LOCK KZOK-FM 0.698`: the next station, not KING-FM again.
+- **Band change with a station under the needle**: on Seattle's KIRO-FM, a tap on CHI logged `FEEL click band` and `LOCK WCPY 0.458`, and no tick; the screenshot then showed the needle on WCPY's mark and 92.7 (`40-pocket-flex.png`, `21-flex.png` retaken). To NYC from KZOK-FM nothing locked (WHTZ is just outside its zone), and the needle stayed put.
+- **Slow roll into WLS-FM and lift**: `FEEL click lock WLS-FM`, `LOCK WLS-FM 0.507`; ticks only while the finger moved, none after the lift; the needle then rested on the mark at 94.7. Ticks came about one per drawn ridge.
+- **Volume**: up to the top: soft ticks then `FEEL stop volume` (20:09:09.529); down past the click: `FEEL click off`, `STOP`, `FEEL stop volume`, `SESSION ambient`.
+- **Closed while playing** (`41-pocket-closed.png`): `POSE tent`, `POSE shut`, no `STOP`; both lamps lit, "94.7 WLS", and the readout 94.7.
 
 ## Pocket radio pass (2026-11-22)
 
@@ -286,7 +299,8 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 - The iOS 27.2 Duo simulator. The app was built and checked on 27.1.
 - Haptics and the tick and click sounds. The simulator has no haptics and every run here was muted, so nobody has felt the taps or heard the ticks and clicks. Their strength and timing are a first guess.
 - The 120 frames a second drawing on a ProMotion screen. The app asks for it; the simulator does not show it.
-- The audio session while off. With the radio off the app now holds an ambient session (so ticks can sound without stopping other apps' audio) and switches to playback when the radio comes on. This was not checked with another app playing.
+- The audio session while off. With the radio off the app holds an ambient session (so ticks can sound without stopping other apps' audio, and the silent switch silences them); it switches to playback when the radio comes on, and back, letting other apps resume, when it goes off. This was not checked with another app playing.
+- Interruptions (a call, an alarm, Siri) and a media services reset. The app brings the session and the tick engine back when the system recommends resuming, and rebuilds them after a reset; neither has been triggered.
 - VoiceOver and Switch Control. The two wheels are adjustable, the volume wheel switches on and off with a double-tap, the band switch reads as a picker, and the standby switch reads as a toggle. All of it was built but not tried.
 - Reduce Motion. The jump instead of the glide was built but not tried.
 - Shutting the phone while the app is in the background, beyond one simulator run. In that run (flex, radio on and playing KING-FM, HOME, `closed`, three seconds, app opened again on the outer screen) the log showed `POSE tent`, `POSE flex`, `POSE shut` within 1.5 seconds of closing, while the app was still in the background, and nothing on return: no new `POSE` line and no `CONNECT`. The outer screen showed the "Closed" card (that card has since been replaced by the standby face). Whether a real phone delivers the hinge change to a background app the same way is not known.

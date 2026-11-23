@@ -7,6 +7,8 @@ struct BandSwitch: View {
     let model: RadioModel
     let em: CGFloat
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     /// The height of the slot the knob runs in.
     static func track(em: CGFloat) -> CGFloat { max(26, 0.7 * em) }
 
@@ -54,7 +56,7 @@ struct BandSwitch: View {
                     ForEach(cities) { city in
                         Color.clear
                             .contentShape(Rectangle())
-                            .onTapGesture { model.selectCity(city.id) }
+                            .onTapGesture { model.selectCity(city.id, animated: !reduceMotion) }
                     }
                 }
             }
@@ -63,7 +65,7 @@ struct BandSwitch: View {
         .animation(.spring(duration: 0.25, bounce: 0.15), value: model.radio.cityID)
         .accessibilityRepresentation {
             Picker("Band", selection: Binding(get: { model.radio.cityID },
-                                              set: { model.selectCity($0) })) {
+                                              set: { model.selectCity($0, animated: !reduceMotion) })) {
                 ForEach(cities) { city in
                     Text(city.name).tag(city.id)
                 }

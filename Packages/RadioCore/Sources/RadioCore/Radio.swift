@@ -23,6 +23,10 @@ public struct Radio: Sendable {
     public private(set) var cityID: String
     /// Where the wheel clicks on.
     public static let wheelOnFrom = 0.15
+    /// One ridge on the tuning wheel: 1/160 of the band, about 0.13 MHz.
+    public static let tuningRidge = 1.0 / 160
+    /// One soft step of the volume wheel.
+    public static let volumeRidge = 0.05
     /// The side volume wheel, 0...1: off below `wheelOnFrom`.
     public private(set) var wheel = 0.0
     public private(set) var pose: Pose = .flex
@@ -46,6 +50,7 @@ public struct Radio: Sendable {
         tuner = Tuner(stations: file.cities.first?.stations ?? [], config: config)
         tuning = tuner.state
         tune(toPosition: position)
+        settleOnLockedStation()                 // the needle starts on the station, not beside it
     }
 
     public var scale: DialScale { tuner.scale }
@@ -102,7 +107,8 @@ public struct Radio: Sendable {
     }
 
     /// Tunes straight onto the locked station's mark, so the needle rests there and the next touch
-    /// has an even hold on both sides. Does nothing when no station is locked.
+    /// has an even hold on both sides. Does nothing when no station is locked. Used at launch; the
+    /// app eases onto `settleTarget` itself after a release or a band change.
     public mutating func settleOnLockedStation() {
         guard let target = settleTarget else { return }
         tune(toPosition: target)
@@ -111,6 +117,16 @@ public struct Radio: Sendable {
     /// The marks of stations not marked dead, in dial order: where a flick may settle.
     public var liveMarkPositions: [Double] {
         scale.marks.filter { !dead.contains($0.station.callSign) }.map(\.position)
+    }
+
+    /// Where a tap on the tuning wheel or a VoiceOver step goes: the next station up or down the
+    /// band, dead ones included so each can be reached. It counts from the locked station's mark
+    /// when one is locked (so a needle resting beside it still moves on), otherwise from the
+    /// needle. Nil past either end or with no stations.
+    public func stepTarget(up: Bool) -> Double? {
+        let from = settleTarget ?? tuning.needle
+        let marks = scale.marks.map(\.position)
+        return up ? nextMark(above: from, marks: marks) : nextMark(below: from, marks: marks)
     }
 
     public mutating func markDead(_ callSign: String) { dead.insert(callSign) }

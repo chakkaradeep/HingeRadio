@@ -8,7 +8,7 @@ import Synchronization
 ///
 /// It runs whenever the app is active, radio on or off, so the wheels tick while switched off.
 @MainActor final class NoiseEngine {
-    private let engine = AVAudioEngine()
+    private var engine = AVAudioEngine()
     private let levels = Levels()
     private var built = false
     private var configurationObserver: (any NSObjectProtocol)?
@@ -35,6 +35,19 @@ import Synchronization
     func tick(level: Float = 1) {
         levels.tickLevel.store(min(2, max(0, level)).bitPattern, ordering: .relaxed)
         levels.ticks.add(1, ordering: .relaxed)
+    }
+
+    /// Stops the engine, so no audio runs while the session changes. `start()` resumes it.
+    func stop() {
+        if engine.isRunning { engine.stop() }
+    }
+
+    /// After a media services reset the old engine is gone: the next `start()` builds a new one.
+    func rebuild() {
+        if let configurationObserver { NotificationCenter.default.removeObserver(configurationObserver) }
+        configurationObserver = nil
+        engine = AVAudioEngine()
+        built = false
     }
 
     /// After the audio route or session changes the engine may have stopped: start it again.
