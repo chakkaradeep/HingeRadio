@@ -1,6 +1,6 @@
 # Hinge Radio
 
-Hinge Radio is a small SwiftUI app for the iPhone Duo, a folding iPhone. The phone stands half open on a table, and bending the hinge turns a real FM dial: the further back you lean the screen, the higher the frequency. Pick Seattle, New York, Chicago or Los Angeles and the dial lands on that city's real FM stations, which play over the internet. It is a prototype that runs in the iPhone Duo simulator only; it has not been put on a real phone.
+Hinge Radio is a small SwiftUI app for the iPhone Duo, a folding iPhone. It is an FM radio with a dial. You pick one of four cities (Seattle, New York, Chicago or Los Angeles) and tune across that city's real FM stations, which play over the internet. You tune with a finger, on a sliding tape on the lower half of the inner screen. The hinge does not tune. It only tells the app how the phone is folded, and the app shows a different face for each way of folding. It is a prototype that runs in the iPhone Duo simulator only; it has not been put on a real phone.
 
 ## How to run it
 
@@ -29,20 +29,55 @@ xcrun simctl install <id> build/DerivedData/Build/Products/Debug-iphonesimulator
 xcrun simctl launch <id> com.example.HingeRadio
 ```
 
-## How to use it on the simulator
+## How to use it
 
-1. Open the phone flat first (Simulator menu, Device, or the hinge controls), then bend it back to an angle between 70 and 150 degrees. The inner screen lights up and the dial follows the hinge. 70 is the bottom of the dial (87.5 MHz) and 150 is the top (108.5 MHz).
-2. Press the round power button at the bottom right to switch the radio on. The lamp at the top right goes green when a station is playing.
-3. Bend the hinge to move the needle. Near a station the dial locks onto it and the name and its city of licence appear. Between stations the screen says "Static".
-4. The four keys (SEA, NYC, CHI, LA) switch city. The dial redraws with that city's stations and the old city goes quiet at once.
-5. Closing the phone silences the radio and shows a "Closed" screen on the outer display. Opening it again shows the dial again with the power button still on. (Reopening was checked by opening the phone all the way flat.) If the hinge goes below 45 degrees while the inner screen is still lit, the "Closed" screen sits above the fold.
-6. Leaving the app (for example with the Home button) pauses the radio; coming back reconnects to the station under the needle.
+The phone has five poses. The app works out which one from the hinge angle, which screen is lit and which way up the screen is. Each pose is written to the log as `POSE <name>` when it changes.
 
-One thing to know about the simulator: if you open the phone slowly from closed, the outer screen stays lit until the hinge is at about 170 degrees. To get the inner screen at an angle between 70 and 150, set the hinge to flat first and then bend back. The measurements are in `docs/hinge-measurements.md`.
+| Pose | How the phone is | What the app shows | Sound |
+|---|---|---|---|
+| Flex | Partly folded, inner screen, upright | The full radio | Plays |
+| Book | Partly folded, inner screen, on its side | Standby face: station name, the line under it, frequency, lamp, power button | Plays |
+| Tent | Partly folded, outer screen | The same standby face | Plays |
+| Flat | Fully open | A "Fold me" card | Plays |
+| Shut | Closed | A "Closed" card | Silent |
 
-### The debug slider
+"Plays" means the radio is switched on and the app is in front. Moving between poses never cuts the sound. Only shutting the phone, switching off, or leaving the app does.
 
-Long-press the "HINGE RADIO" title. A slider appears and replaces the hinge, including closing: while it is showing, the real hinge is ignored. Long-press the title again to go back to the hinge. It only exists in simulator builds.
+### Flex: the radio
+
+The top half is the dial: a lamp, the city name, the needle, and a row of dots for the stations. It does not respond to touch. The lower half has the four city keys (SEA, NYC, CHI, LA), the frequency readout, the round power button, and the tape.
+
+1. Press the power button. The lamp goes green when a station is playing.
+2. Drag the tape. It is the dial magnified three times, sliding under a fixed pointer in the middle. Each station shows its call sign and frequency. Drag left to go up the band.
+3. Near a station the tape settles on it, the name and its city of licence appear, and the station plays. Between stations the screen says "Static".
+4. A slow release stays where you let go. A quick flick carries on and settles on the nearest station. A tap on a station's label glides to that station.
+5. A city key switches city. The dial redraws with that city's stations and the old city goes quiet at once. The needle stays where it was.
+
+### Book and tent: standby
+
+Same face on both. It is made to be read from across a room, with the station name and the frequency as the two biggest things on it. You cannot tune or change city here. Put the phone in flex to do that.
+
+### Flat and shut
+
+Flat shows a card that says "Fold me" and, if the radio was on, it keeps playing. Shut shows "Closed" and goes silent. Opening the phone again resumes the radio if it was on.
+
+### Reaching each pose on the simulator
+
+Use the Simulator's hinge controls, or the iOS Simulator tool's `set_posture` and `rotate`.
+
+- Flex: set the hinge to open (flat), then bend it to about 110 degrees. The inner screen stays lit and upright.
+- Book: from flex, turn the simulator a quarter turn. The inner screen goes wider than tall.
+- Flat: set the hinge to open.
+- Shut: set the hinge to closed. The outer screen lights.
+- Tent: set the hinge to closed first, then bend it to about 60 degrees. The outer screen stays lit.
+
+The outer screen is only reached through closed, which silences the radio. So moving from flex to tent without a break could not be tried on the simulator.
+
+Leaving the app (for example with the Home button) pauses the radio. Coming back reconnects to the station you were on.
+
+The measurements behind these rules (the shut line at 20 degrees, the flat line at 175, which screen is lit) are in `docs/pose-measurements.md`. The older measurements are in `docs/hinge-measurements.md`.
+
+On the simulator, for about 1.3 seconds after a jump from closed, the app briefly sees the inner screen's size. A passing `POSE flex` and `POSE tent` can show in the log then. They cause no stop and no reconnect.
 
 ### Running silently
 
@@ -51,6 +86,18 @@ Launch with the argument `-HingeRadioMuted YES` and the app plays nothing: stati
 ```
 xcrun simctl launch <id> com.example.HingeRadio -HingeRadioMuted YES
 ```
+
+### The log
+
+Lines are in the `HingeRadio` subsystem. Read them with:
+
+```
+xcrun simctl spawn <id> log show --last 3m --style compact --predicate 'subsystem == "HingeRadio"'
+```
+
+- `POSE shut|tent|flex|book|flat` when the pose changes.
+- `LOCK <call> <position>` or `STATIC <position>` only when the locked station changes.
+- `CONNECT`, `PLAYING`, `RETRY`, `FAILED` and `STOP` from the player.
 
 ## The stations
 
@@ -77,13 +124,39 @@ At the end of `build`, the hosts of the plain-`http://` streams are compared wit
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 56 tests
-python3 -m unittest discover -s tools -p 'test_*.py'  # 19 tests
+swift test --package-path Packages/RadioCore          # 74 tests
+python3 -m unittest tools/test_build_stations.py      # 19 tests
 ```
 
-On 2026-11-22, after the review fixes, the Swift suite passed 56 of 56 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
+On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
+
+## Poses pass (2026-11-22, commit 8987edd)
+
+This pass ran on the final build (commit `8987edd`) on the iPhone Duo simulator (iOS 27.1), muted, reading the log after each step. What was seen:
+
+- **Flex, one station in each city.** With the tape dragged slowly (about 150 ms between touch samples, and a pause before lifting), each city locked and played:
+  - Seattle: `LOCK KZOK-FM`, `CONNECT KZOK-FM`, `PLAYING KZOK-FM` (1.1 s after connect).
+  - New York: `LOCK WQXR-FM`, `CONNECT`, `PLAYING` (2.3 s).
+  - Chicago: `LOCK WFMT` (after `LOCK WKSC-FM` and `LOCK WPNA-FM` on the way past), `CONNECT`, `PLAYING` (2.8 s).
+  - Los Angeles: `LOCK KROQ-FM` (after `LOCK KIIS-FM`, `LOCK KOST` and `LOCK KPWR` on the way), `CONNECT`, `PLAYING` (5.8 s).
+  - Passing stations logged a `LOCK` each and no `CONNECT` for them. Pressing the city key also gave a `STOP`, then a new `LOCK`, `CONNECT` and `PLAYING` for the station under the needle (WHTZ in New York, WSRB in Chicago).
+- **Flex to book and back.** Turning the simulator logged `POSE book`, then turning back `POSE flex`. No `STOP` and no `CONNECT` between them. The book screen showed "KROQ", "Pasadena", "106.7", "MHz", the green lamp and the power button.
+- **Flat and back.** Hinge to open logged `POSE flat`, then 110 degrees logged `POSE flex`. No `STOP` and no `CONNECT` between. The flat screen showed "Hinge Radio", "Fold me" and "Sit the phone half open to use the radio."
+- **Shut and reopen.** Hinge to closed logged `STOP` and `POSE shut` (with a passing `POSE tent` just before, as the hinge swept down). The screen showed "Closed" and "Open the phone to listen again." From closed, the hinge at 60 degrees logged `CONNECT KROQ-FM` and, 2.7 s later, `PLAYING KROQ-FM`. Passing `POSE flex` and `POSE tent` lines showed in between and caused no extra `STOP` or `CONNECT`.
+- **Tent.** After that 60 degree jump the log settled on `POSE tent` and the outer screen showed the standby face ("KROQ", "Pasadena", "106.7 MHz", green lamp, power button). Moving from flex to tent without a break could not be checked: the outer screen is only reached through closed, which stops the radio.
+- **Leaving the app.** Pressing HOME logged `STOP` at 18:33:09.9, about a second or less after the press (the press itself is not in the log). Launching the app again logged `CONNECT KROQ-FM`, then `PLAYING KROQ-FM` 1.9 s later. A passing `POSE tent`, `POSE flex` also appeared after HOME, with no extra `STOP` or `CONNECT`.
+- **No hinge: not run.** The iPhone 17 simulator named for this check (iOS 26.2) refused to install the app, which needs iOS 27.1 ("Requires a Newer Version of iOS"). Nothing else was tried in its place. So the full radio upright on a phone with no hinge, the standby face on its side, and the tape tuning there were not checked on this build. The earlier pass checked a phone with no hinge on an older build.
+
+Two things seen that were not expected, and not fixed here:
+
+- When the radio was first switched on, it played the station already under the needle (`CONNECT KING-FM`) without a `LOCK` line for it. `LOCK` is logged only when the locked station changes.
+- At launch the log had `POSE flat` first, then `POSE flex` about ten seconds later, when the hinge was set to 110.
+
+Screenshots of the earlier poses are in `docs/check/` (`21` to `30`). No screenshots were retaken in this pass.
 
 ## Final acceptance pass (2026-11-22, commit 646a949)
+
+This section describes the earlier build, where the hinge tuned the dial. That build is gone.
 
 This pass played every station on the final build (commit `646a949`), on the iPhone Duo simulator (iOS 27.1), muted. For each station the hinge was moved onto its mark until the log said `LOCK`, then the log was read for up to 16 seconds for `PLAYING` or `FAILED`.
 
@@ -100,6 +173,8 @@ No station logged `FAILED`, and none gave no result, so no station needed a seco
 One station needed a `RETRY`: KING-FM (Seattle). On the first connect of the pass, the log showed `ITEM FAILED KING-FM: unknown error`, then `RETRY KING-FM`, a second `CONNECT`, and `PLAYING` 5.4 seconds after the first `CONNECT`. When KING-FM was tuned again later in the pass it reached `PLAYING` 1.2 seconds after `CONNECT` with no `RETRY`. No other station logged `RETRY`.
 
 ## What was checked in the earlier acceptance passes (earlier builds, 2026-11-22)
+
+This section describes the earlier build, where the hinge tuned the dial. Its hinge-tuning, debug slider and "closed below 45 degrees" behaviour are gone.
 
 This section describes the two earlier runs, on builds before the final one. Run on the iPhone Duo simulator (iOS 27.1), muted. For every station the hinge was moved onto its mark until the log said `LOCK`, then the log was read for up to 14 seconds for `PLAYING` or `FAILED`. A station that failed was tried a second time after relaunching the app (the app does not retry a station it has marked "No signal" in the same session).
 
@@ -142,16 +217,19 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 
 ## What has not been verified
 
-- How it sounds. The simulator's sound was not listened to; only that streams report as playing.
-- How the hinge feels, and the haptics. There was no phone, and the simulator has no haptics.
+- How the tape feels under a finger. The simulator drags were scripted and slow; nobody tried a flick or a tap by hand in this pass.
+- How it sounds. Every run was muted except a short unmuted launch at the end; nobody listened.
+- A real phone. Anything on a real iPhone Duo, including how it chooses its lit screen.
+- Moving from flex to tent without a break. The outer screen is only reached through closed on the simulator.
+- Tent itself, beyond what is above: it was only reached from closed, and the radio had stopped and restarted on the way.
+- A phone with no hinge on this build (see the poses pass).
 - Where the fold line is. It is inferred from screen sizes (the inner screen is two outer-size panels), and the simulator draws no fold line.
-- The screen staying awake while the radio is on.
-- The iOS 27.2 Duo simulator. The app was built and checked on 27.1; only the iPhone 17 simulator was run on 27.2.
-- Anything on a real iPhone Duo.
+- The screen staying awake while the radio is on. The code asks for it; nobody watched the screen stay on.
+- The iOS 27.2 Duo simulator. The app was built and checked on 27.1.
+- Haptics. The simulator has none.
 
 ## Known rough edges
 
-- The needle glides for about half a second while the name changes at once. (This comes from reading the code during review, not from watching the screen.)
 - When the player reports an error for a station, the app loads it once more; a second error before any sound, or 12 seconds without sound, marks it "No signal" until the app is relaunched. Before this retry existed, KING-FM was marked "No signal" after a player error 1.6 seconds after connecting, and played on the next launch.
 - Seattle has only 10 stations.
-- On the iPhone 17 simulator (not the intended device) the layout is rough: the Dynamic Island covers part of the title and the frequency number is cut off.
+- On a phone with no hinge (not the intended device) the layout was rough in the earlier build: the Dynamic Island covered part of the title and the frequency number was cut off. This was not checked again.
