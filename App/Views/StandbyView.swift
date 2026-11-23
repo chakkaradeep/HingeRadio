@@ -1,9 +1,11 @@
 import SwiftUI
+import UIKit
 import RadioCore
 
-/// Book, tent and shut: the station name, the line under it, the power and tuned lamps, the
-/// frequency and the on/off switch. Switched off, the name and the line are empty.
-/// `twoPanels` splits them left and right of a vertical fold.
+/// Book, tent and shut: the station name, the line under it, the power and tuned lamps and the
+/// frequency, with the side wheels (`SideWheels`) at the right edge, the same as on the flex
+/// plate: volume (which is also power) above tuning. Switched off, the name and the line are
+/// empty. `twoPanels` splits them left and right of a vertical fold, the wheels on the right.
 ///
 /// Sizes come from the screen's short side, so the name and the frequency stay the two biggest
 /// things and read from across a room. It lays itself out from the size it is given, so the outer
@@ -12,12 +14,18 @@ struct StandbyView: View {
     let model: RadioModel
     let twoPanels: Bool
 
+    /// The width the frequency has, beside the wheels.
+    @State private var frequencySlot: CGFloat = 0
+
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
             let insets = proxy.safeAreaInsets
             let metrics = Metrics(short: min(size.width, size.height))
             let margin = metrics.margin
+            // The wheels' em, as flex works it out from the inner screen's width: the same
+            // wheels there, a little smaller on the outer screen.
+            let wheels = SideWheels(model: model, em: Face.em(forWidth: metrics.short))
             Group {
                 if twoPanels {
                     // The panels split the whole screen, so the fold stays on the centre line;
@@ -27,32 +35,40 @@ struct StandbyView: View {
                             name(metrics)
                             subtitleAndLamp(metrics)
                         }
+                        .animation(.easeOut(duration: 0.3), value: model.radio.powerOn)
                         .padding(EdgeInsets(top: insets.top + margin, leading: insets.leading + margin,
                                             bottom: insets.bottom + margin, trailing: Face.foldClearance + margin))
                         .frame(width: size.width / 2, height: size.height, alignment: .leading)
-                        VStack(alignment: .leading, spacing: metrics.gap) {
-                            frequency(metrics)
-                            unitAndPower(metrics)
+                        HStack(spacing: margin) {
+                            VStack(alignment: .leading, spacing: metrics.gap) {
+                                frequency(metrics)
+                                unit(metrics)
+                            }
+                            .animation(.easeOut(duration: 0.3), value: model.radio.powerOn)
+                            wheels
                         }
                         .padding(EdgeInsets(top: insets.top + margin, leading: Face.foldClearance + margin,
                                             bottom: insets.bottom + margin, trailing: insets.trailing + margin))
-                        .frame(width: size.width / 2, height: size.height, alignment: .leading)
+                        .frame(width: size.width / 2, height: size.height)
                     }
                 } else {
-                    VStack(alignment: .leading, spacing: metrics.gap) {
-                        name(metrics)
-                        subtitleAndLamp(metrics)
-                        Spacer(minLength: 0)
-                        frequency(metrics)
-                        unitAndPower(metrics)
+                    HStack(spacing: margin) {
+                        VStack(alignment: .leading, spacing: metrics.gap) {
+                            name(metrics)
+                            subtitleAndLamp(metrics)
+                            Spacer(minLength: 0)
+                            frequency(metrics)
+                            unit(metrics)
+                        }
+                        .animation(.easeOut(duration: 0.3), value: model.radio.powerOn)
+                        wheels
                     }
                     .padding(singlePanelPadding(size: size, insets: insets, margin: margin))
-                    .frame(width: size.width, height: size.height, alignment: .leading)
+                    .frame(width: size.width, height: size.height)
                 }
             }
         }
         .foregroundStyle(Face.ink)
-        .animation(.easeOut(duration: 0.3), value: model.radio.powerOn)
     }
 
     /// The outer screen's camera sits in one corner, reaching about 66 pt in from both edges, and
@@ -105,58 +121,36 @@ struct StandbyView: View {
         }
     }
 
-    /// The locked station's own frequency (this face cannot be tuned), else the needle's.
+    /// The frequency under the needle, as on the flex dial (the wheels tune here too). Its size
+    /// is set from the widest reading, so it stays put while tuning across 100 MHz, and fits
+    /// beside the wheels.
     private func frequency(_ metrics: Metrics) -> some View {
-        Text(String(format: "%.1f", model.radio.tuning.locked?.frequency ?? model.radio.tuning.frequency))
-            .font(.system(size: metrics.frequency, weight: .medium))
+        let fitted = frequencySlot > 0 ? frequencySlot / Self.frequencyWidthPerPoint : metrics.frequency
+        let size = min(metrics.frequency, fitted)
+        return Text(String(format: "%.1f", model.radio.tuning.frequency))
+            .font(.system(size: size, weight: .medium))
             .monospacedDigit()
-            .tracking(-0.02 * metrics.frequency)
+            .tracking(-0.02 * size)
+            .contentTransition(.identity)
             .lineLimit(1)
             .minimumScaleFactor(0.5)
             .opacity(model.radio.powerOn ? 1 : 0.35)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { frequencySlot = $0 }
     }
 
-    private func unitAndPower(_ metrics: Metrics) -> some View {
-        HStack(alignment: .center, spacing: metrics.gap) {
-            Text("MHz")
-                .font(.system(size: metrics.unit, weight: .bold))
-                .tracking(0.1 * metrics.unit)
-                .foregroundStyle(Face.muted)
-                .opacity(model.radio.powerOn ? 1 : 0.35)
-            Spacer(minLength: 0)
-            powerSwitch(metrics)
-        }
-    }
+    /// The width of the widest reading, "000.0", per point of font size.
+    private static let frequencyWidthPerPoint: CGFloat = {
+        let font = UIFont.monospacedDigitSystemFont(ofSize: 100, weight: .medium)
+        let width = ("000.0" as NSString).size(withAttributes: [.font: font, .kern: -2]).width
+        return ceil(width) / 100
+    }()
 
-    /// Printed "OFF", a slide switch, then "ON": the word for the current state in ink, the
-    /// other muted. One tap anywhere on it switches the radio.
-    private func powerSwitch(_ metrics: Metrics) -> some View {
-        let on = model.radio.powerOn
-        let size = metrics.unit
-        let track = CGSize(width: 2.2 * size, height: 1.15 * size)
-        return Button {
-            model.togglePower()
-        } label: {
-            HStack(spacing: 0.45 * size) {
-                Text("OFF").printed(size: size).foregroundStyle(on ? Face.muted : Face.ink)
-                Capsule()
-                    .fill(Face.shade)
-                    .overlay(Capsule().strokeBorder(Face.ink.opacity(0.25), lineWidth: 1))
-                    .overlay(alignment: on ? .trailing : .leading) {
-                        Circle()
-                            .fill(on ? Face.needle : Face.ink)
-                            .padding(3)
-                    }
-                    .frame(width: track.width, height: track.height)
-                Text("ON").printed(size: size).foregroundStyle(on ? Face.ink : Face.muted)
-            }
-            .frame(minWidth: 60, minHeight: 60)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Power")
-        .accessibilityValue(on ? "On" : "Off")
-        .accessibilityAddTraits(.isToggle)
+    private func unit(_ metrics: Metrics) -> some View {
+        Text("MHz")
+            .font(.system(size: metrics.unit, weight: .bold))
+            .tracking(0.1 * metrics.unit)
+            .foregroundStyle(Face.muted)
+            .opacity(model.radio.powerOn ? 1 : 0.35)
     }
 }

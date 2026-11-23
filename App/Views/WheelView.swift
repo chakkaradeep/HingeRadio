@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// A ridged thumbwheel seen edge on: a tall rounded rim whose ridges roll with its value. Drag
-/// up to raise the value; one wheel height of drag moves it by `span`. Nothing turns until a
+/// up to raise the value, by an amount set by its `gearing`. Nothing turns until a
 /// touch has moved `slop` from where it began. A touch that never got that far is a tap if it
 /// lifts within `tapSlop` of where it began, and otherwise does nothing.
 ///
@@ -10,8 +10,8 @@ import SwiftUI
 struct WheelView: View {
     /// 0...1.
     let value: Double
-    /// How much of the 0...1 range one wheel height of drag covers.
-    let span: Double
+    /// How much of the 0...1 range a drag covers.
+    let gearing: Gearing
     /// The value between two ridges: the step a tick marks, so each tick is a ridge going past.
     let ridge: Double
     /// A finger came down on the wheel (before any slop): a real wheel stops under the thumb.
@@ -38,6 +38,21 @@ struct WheelView: View {
     /// which clears `drag` so no stale drag outlives its touch.
     @GestureState private var touching = false
 
+    /// How far a drag turns the wheel.
+    enum Gearing {
+        /// One wheel height of drag covers this much of 0...1, whatever the height.
+        case perHeight(Double)
+        /// One point of drag covers this much of 0...1, whatever the height.
+        case perPoint(Double)
+
+        func perPoint(height: CGFloat) -> Double {
+            switch self {
+            case .perHeight(let span): height > 0 ? span / Double(height) : 0
+            case .perPoint(let step): step
+            }
+        }
+    }
+
     private struct Drag: Equatable { let location: CGPoint; let value: Double; let anchor: CGFloat }
 
     var body: some View {
@@ -61,8 +76,10 @@ struct WheelView: View {
         let shape = RoundedRectangle(cornerRadius: 0.4 * size.width, style: .continuous)
         return Canvas { context, canvas in
             let radius = canvas.height / 2
-            let pitch = max(3, canvas.height * CGFloat(ridge / span))  // one tick step of travel
-            let travel = CGFloat(value / span) * canvas.height     // surface moved by the value
+            let perPoint = gearing.perPoint(height: canvas.height)
+            guard perPoint > 0 else { return }
+            let pitch = max(3, CGFloat(ridge / perPoint))          // one tick step of travel
+            let travel = CGFloat(value / perPoint)                 // surface moved by the value
             let phase = travel.truncatingRemainder(dividingBy: pitch)
             let arc = CGFloat.pi * radius
             var u = phase < 0 ? phase + pitch : phase
@@ -93,7 +110,8 @@ struct WheelView: View {
     // MARK: - Touch
 
     private func gesture(height: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 0)
+        let perPoint = gearing.perPoint(height: height)
+        return DragGesture(minimumDistance: 0)
             .updating($touching) { _, down, _ in down = true }
             .onChanged { touch in
                 guard height > 0 else { return }
@@ -107,14 +125,14 @@ struct WheelView: View {
                     drag = Drag(location: touch.startLocation, value: value, anchor: touch.translation.height)
                 }
                 guard let drag else { return }
-                onChange(drag.value - Double((touch.translation.height - drag.anchor) / height) * span)
+                onChange(drag.value - Double(touch.translation.height - drag.anchor) * perPoint)
             }
             .onEnded { touch in
                 defer { drag = nil }
                 guard height > 0 else { return }
                 if let drag, drag.location == touch.startLocation {
                     onRelease(drag.value
-                              - Double((touch.predictedEndTranslation.height - drag.anchor) / height) * span)
+                              - Double(touch.predictedEndTranslation.height - drag.anchor) * perPoint)
                 } else if hypot(touch.translation.width, touch.translation.height) <= tapSlop {
                     onTap(touch.location.y < height / 2)
                 }
