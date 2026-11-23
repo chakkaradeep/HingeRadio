@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Shown while the radio counts as closed: on the outer screen, or above the fold on the inner
-/// screen when the hinge is below 45 degrees but not shut.
+/// Shown for the shut and flat poses: the display's title and line under the app name.
 struct ClosedCard: View {
     let model: RadioModel
     let em: CGFloat

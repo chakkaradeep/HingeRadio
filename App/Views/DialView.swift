@@ -5,8 +5,6 @@ import RadioCore
 struct DialView: View {
     let model: RadioModel
     let em: CGFloat
-    /// Long press on "HINGE RADIO"; nil leaves the title inert.
-    var onTitleLongPress: (() -> Void)? = nil
 
     var body: some View {
         let display = model.display
@@ -27,7 +25,7 @@ struct DialView: View {
     private func header(_ display: Display) -> some View {
         let size = 0.72 * em
         return HStack(spacing: 0.6 * size) {
-            title
+            Text("HINGE RADIO").lineLimit(1)
             Spacer(minLength: 0)
             Text(model.city?.name.uppercased() ?? "")
                 .lineLimit(1)
@@ -36,15 +34,6 @@ struct DialView: View {
         }
         .font(.system(size: size, weight: .bold))
         .tracking(0.12 * size)
-    }
-
-    @ViewBuilder private var title: some View {
-        let text = Text("HINGE RADIO").lineLimit(1)
-        if let onTitleLongPress {
-            text.onLongPressGesture(perform: onTitleLongPress)
-        } else {
-            text
-        }
     }
 
     private func bars(_ lit: Int, height: CGFloat) -> some View {
@@ -87,10 +76,6 @@ struct DialView: View {
                     .fill(Face.needle)
                     .frame(width: 2, height: height * 0.92)
                     .offset(x: model.radio.tuning.needle * width - 1, y: height * 0.04)
-                    // No glide while dragging the glass or the debug slider: the needle follows the finger.
-                    .animation(model.hasHinge && model.debugAngle == nil
-                               ? .timingCurve(0.2, 0.8, 0.2, 1, duration: 0.5) : nil,
-                               value: model.radio.tuning.needle)
             }
         }
         .dragTuning(into: model)

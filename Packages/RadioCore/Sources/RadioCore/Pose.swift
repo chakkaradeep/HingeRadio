@@ -31,6 +31,7 @@ public struct WindowReading: Sendable, Equatable {
     }
 }
 
+/// The input's angle must not be not-a-number; `Radio.setPose` filters it out.
 public func pose(_ input: PoseInput, config: PoseConfig = PoseConfig()) -> Pose {
     guard let angle = input.angle else {
         return input.landscape ? .book : .flex

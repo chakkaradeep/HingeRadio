@@ -7,9 +7,7 @@ private func station(_ call: String, _ mhz: Double) -> Station {
             streamURL: URL(string: "https://example.com/\(call)")!)
 }
 
-private func r(_ angle: Double) -> HingeReading {
-    HingeReading(angle: angle, isClosed: false, time: 0)
-}
+private func r(_ dial: Double) -> Double { dial }
 
 private func makeTuner(_ stations: [Station] = [station("KAAA", 98.0)]) -> Tuner {
     Tuner(stations: stations, config: DialConfig())

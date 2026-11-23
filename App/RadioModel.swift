@@ -5,16 +5,8 @@ import os
 import RadioCore
 import UIKit
 
-/// Owns the `Radio` and feeds it hinge readings. Holds no radio rules of its own.
+/// Owns the `Radio` and feeds it the dial position and the pose inputs. Holds no radio rules of its own.
 @MainActor @Observable final class RadioModel {
-    /// The one place the dial's end angles are chosen (docs/hinge-measurements.md, Decision 1).
-    static let dialConfig: DialConfig = {
-        var config = DialConfig()
-        config.minAngle = 70
-        config.maxAngle = 150
-        return config
-    }()
-
     private(set) var radio: Radio {
         didSet { radioChanged(from: oldValue) }
     }
@@ -24,24 +16,15 @@ import UIKit
         didSet { if reportedPlayback != oldValue { updateSound() } }
     }
 
-    /// False until a hinge context with a hinge arrives; while false, dragging the dial glass tunes.
-    var hasHinge = false
-    /// The angle of the reading the radio last received; 110 until the first one arrives.
-    private(set) var angle: Double = 110
-    /// Whether the reading the radio last received said the hinge itself is closed.
-    private(set) var hingeClosed = false
-    /// Set by the debug slider. While not nil it replaces hinge readings.
-    var debugAngle: Double? {
-        didSet {
-            if let debugAngle {
-                apply(HingeReading(angle: debugAngle, isClosed: false, time: ProcessInfo.processInfo.systemUptime))
-            } else if let lastHingeReading {
-                apply(lastHingeReading)
-            }
-        }
-    }
+    /// Which screen the window is on; the inner one until the first window size arrives.
+    private(set) var screen: Screen = .inner
+    /// Whether the window is wider than tall; false until the first window size arrives.
+    private(set) var landscape = false
 
-    @ObservationIgnored private var lastHingeReading: HingeReading?
+    @ObservationIgnored private var hingeAngle: Double?
+    @ObservationIgnored private var hingeStatus: HingeStatus?
+    /// The dial position (0...1) last tuned to, for the log lines.
+    @ObservationIgnored private var position = 0.5
     @ObservationIgnored private let log = Logger(subsystem: "HingeRadio", category: "dial")
     @ObservationIgnored private let soundLog = Logger(subsystem: "HingeRadio", category: "sound")
     @ObservationIgnored private let player = StationPlayer()
@@ -66,23 +49,34 @@ import UIKit
                 .error("STATIONS missing from the app bundle, showing an empty dial")
             file = .empty
         }
-        radio = Radio(file: file, config: Self.dialConfig)
+        radio = Radio(file: file)
         player.onPlayback = { [weak self] in self?.reportedPlayback = $0 }
         player.onFailed = { [weak self] in self?.markDead($0.callSign) }
         logMarks()
     }
 
-    var config: DialConfig { Self.dialConfig }
     var display: Display { radio.display(playback: audible) }
     var city: City? { radio.cities.first { $0.id == radio.cityID } }
-    /// Closed by angle (below 45 degrees) while the hinge itself is not closed: the inner screen
-    /// is still lit, so the closed card belongs above the fold rather than across it.
-    var closedOnInnerScreen: Bool { radio.isClosed && !hingeClosed }
+    func tune(toPosition position: Double) {
+        guard !position.isNaN else { return }
+        let before = radio.tuning.locked?.callSign
+        self.position = min(1, max(0, position))
+        radio.tune(toPosition: position)
+        logLockChange(from: before)
+    }
 
-    func hinge(_ reading: HingeReading) {
-        lastHingeReading = reading
-        guard debugAngle == nil else { return }
-        apply(reading)
+    /// `nil, nil` when the phone has no hinge.
+    func hinge(angle: Double?, status: HingeStatus?) {
+        hingeAngle = angle
+        hingeStatus = status
+        updatePose()
+    }
+
+    func window(width: Double, height: Double) {
+        guard let reading = windowReading(width: width, height: height) else { return }
+        screen = reading.screen
+        landscape = reading.landscape
+        updatePose()
     }
 
     func togglePower() { radio.togglePower() }
@@ -163,13 +157,10 @@ import UIKit
         }
     }
 
-    private func apply(_ reading: HingeReading) {
-        guard !reading.angle.isNaN else { return }
-        let before = radio.tuning.locked?.callSign
-        radio.hinge(reading)
-        angle = reading.angle
-        hingeClosed = reading.isClosed
-        logLockChange(from: before)
+    private func updatePose() {
+        let before = radio.pose
+        radio.setPose(PoseInput(screen: screen, landscape: landscape, angle: hingeAngle, status: hingeStatus))
+        if radio.pose != before { log.notice("POSE \(self.radio.pose.rawValue, privacy: .public)") }
     }
 
     private func logMarks() {
@@ -182,7 +173,7 @@ import UIKit
     private func logLockChange(from before: String?) {
         let after = radio.tuning.locked?.callSign
         guard after != before else { return }
-        let line = after.map { String(format: "LOCK %@ %.2f", $0, angle) } ?? String(format: "STATIC %.2f", angle)
+        let line = after.map { String(format: "LOCK %@ %.3f", $0, position) } ?? String(format: "STATIC %.3f", position)
         log.notice("\(line, privacy: .public)")
     }
 }

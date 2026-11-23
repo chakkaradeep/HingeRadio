@@ -1,8 +1,8 @@
 import SwiftUI
 import UIKit
 
-/// The closed card while closed (centred on the outer screen, above the fold on the inner one);
-/// otherwise the dial on the half above the fold and the plate on the half below.
+/// The closed card for shut and flat (centred on the outer screen, above the fold on the inner
+/// one); otherwise the dial on the half above the fold and the plate on the half below.
 struct RootView: View {
     let model: RadioModel
 
@@ -12,33 +12,32 @@ struct RootView: View {
             let insets = proxy.safeAreaInsets
             let em = Face.em(forWidth: size.width)
             Group {
-                if model.radio.isClosed && !model.closedOnInnerScreen {
-                    // Outer screen: the card centred, the slider at the bottom.
-                    ClosedCard(model: model, em: em)
-                        .padding(insets)
-                        .overlay(alignment: .bottom) {
-                            debugSlider(em: em).padding(.bottom, insets.bottom)
-                        }
-                        .frame(width: size.width, height: size.height)
-                } else if model.radio.isClosed {
-                    // Closed by angle with the inner screen still lit: the card above the fold.
-                    halves(size: size, insets: insets) {
+                switch model.radio.pose {
+                case .shut, .flat:
+                    if model.screen == .outer {
                         ClosedCard(model: model, em: em)
-                    } bottom: {
-                        Spacer(minLength: 0)
-                        debugSlider(em: em)
+                            .padding(insets)
+                            .frame(width: size.width, height: size.height)
+                    } else {
+                        halves(size: size, insets: insets) {
+                            ClosedCard(model: model, em: em)
+                        } bottom: {
+                            Spacer(minLength: 0)
+                        }
                     }
-                } else {
+                case .tent, .flex, .book:
                     halves(size: size, insets: insets) {
-                        DialView(model: model, em: em, onTitleLongPress: titleLongPress)
+                        DialView(model: model, em: em)
                     } bottom: {
                         PlateView(model: model, em: em)
-                        debugSlider(em: em)
                     }
                 }
             }
         }
         .ignoresSafeArea()
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
+            model.window(width: size.width, height: size.height)
+        }
         .background(Face.face)
         .preferredColorScheme(.light)
         .statusBarHidden()
@@ -66,23 +65,5 @@ struct RootView: View {
                 .frame(width: size.width, height: size.height / 2)
                 .clipped()
         }
-    }
-
-    // MARK: - Debug slider (simulator builds only)
-
-    @ViewBuilder private func debugSlider(em: CGFloat) -> some View {
-        #if targetEnvironment(simulator)
-        if model.debugAngle != nil {
-            DebugHingeSlider(model: model, em: em)
-        }
-        #endif
-    }
-
-    private var titleLongPress: (() -> Void)? {
-        #if targetEnvironment(simulator)
-        return { model.debugAngle = model.debugAngle == nil ? model.angle : nil }
-        #else
-        return nil
-        #endif
     }
 }

@@ -16,32 +16,34 @@ public struct Display: Sendable, Equatable {
     }
 }
 
-/// Power, closed state, city and failed stations, on top of a `Tuner`.
+/// Power, pose, city and failed stations, on top of a `Tuner`.
 public struct Radio: Sendable {
     public let cities: [City]
     public private(set) var cityID: String
     public private(set) var powerOn = false
-    public private(set) var isClosed = false
-    /// True while the app is not the active one; silent like a closed phone, display unchanged.
+    public private(set) var pose: Pose = .flex
+    /// True while the app is not the active one; silent like a shut phone, display unchanged.
     public private(set) var isSuspended = false
     public private(set) var tuning: TuningState
     public private(set) var dead: Set<String> = []
 
     private let config: DialConfig
+    private let poseConfig: PoseConfig
     private var tuner: Tuner
-    private var lastReading = HingeReading(angle: 110, isClosed: false, time: 0)
+    private var position = 0.5
 
-    public init(file: StationFile, config: DialConfig = DialConfig()) {
+    public init(file: StationFile, config: DialConfig = DialConfig(), poseConfig: PoseConfig = PoseConfig()) {
         cities = file.cities
         cityID = file.cities.first?.id ?? ""
         self.config = config
+        self.poseConfig = poseConfig
         tuner = Tuner(stations: file.cities.first?.stations ?? [], config: config)
         tuning = tuner.state
-        hinge(lastReading)
+        tune(toPosition: position)
     }
 
     public var scale: DialScale { tuner.scale }
-    public var isLive: Bool { powerOn && !isClosed && !isSuspended }
+    public var isLive: Bool { powerOn && pose != .shut && !isSuspended }
 
     public var station: Station? {
         guard isLive, let candidate = tuning.candidate, !dead.contains(candidate.callSign) else { return nil }
@@ -56,20 +58,29 @@ public struct Radio: Sendable {
         guard let city = cities.first(where: { $0.id == id }) else { return }
         cityID = id
         tuner = Tuner(stations: city.stations, config: config)
-        hinge(lastReading)
+        tune(toPosition: position)
     }
 
-    public mutating func hinge(_ reading: HingeReading) {
-        guard !reading.angle.isNaN else { return }
-        lastReading = reading
-        isClosed = reading.isClosed || reading.angle < config.closedBelow
-        tuning = tuner.update(reading)
+    /// Moves the needle to `position` (0...1, clamped). Not-a-number is ignored.
+    public mutating func tune(toPosition position: Double) {
+        guard !position.isNaN else { return }
+        self.position = min(1, max(0, position))
+        tuning = tuner.update(config.minAngle + self.position * (config.maxAngle - config.minAngle))
+    }
+
+    /// Sets the pose from the screen, way up and hinge. A not-a-number angle is ignored.
+    public mutating func setPose(_ input: PoseInput) {
+        guard !(input.angle?.isNaN ?? false) else { return }
+        pose = RadioCore.pose(input, config: poseConfig)
     }
 
     public mutating func markDead(_ callSign: String) { dead.insert(callSign) }
 
     public func display(playback: Playback) -> Display {
-        if isClosed { return Display(title: "Closed", subtitle: "Open the phone to listen again.", lamp: .off, bars: 0) }
+        if pose == .flat {
+            return Display(title: "Fold me", subtitle: "Sit the phone half open to use the radio.", lamp: .off, bars: 0)
+        }
+        if pose == .shut { return Display(title: "Closed", subtitle: "Open the phone to listen again.", lamp: .off, bars: 0) }
         if !powerOn { return Display(title: "Off", subtitle: "Switch on to listen", lamp: .off, bars: 0) }
         guard let candidate = tuning.candidate else {
             return Display(title: "· · ·", subtitle: "Static", lamp: .off, bars: 0)
