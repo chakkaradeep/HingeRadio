@@ -69,24 +69,8 @@ struct PlateView: View {
                 .foregroundStyle(Face.muted)
                 .fixedSize()
             Spacer(minLength: 0)
-            powerButton
+            PowerButton(model: model, size: 2.1 * em)
                 .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 0.25 * em }
         }
-    }
-
-    private var powerButton: some View {
-        let size = 2.1 * em
-        return Button {
-            model.togglePower()
-        } label: {
-            Circle()
-                .fill(Face.shade)
-                .background(Circle().fill(Color.black.opacity(0.2)).offset(y: 0.16 * em))
-                .overlay(Circle().fill(model.radio.powerOn ? Face.lamp : Face.muted).padding(size * 0.32))
-                .frame(width: size, height: size)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Power")
-        .accessibilityAddTraits(model.radio.powerOn ? .isSelected : [])
     }
 }

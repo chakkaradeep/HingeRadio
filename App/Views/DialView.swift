@@ -30,7 +30,7 @@ struct DialView: View {
             Text(model.city?.name.uppercased() ?? "")
                 .lineLimit(1)
             bars(display.bars, height: size)
-            lamp(display.lamp, size: 0.75 * size)
+            LampLight(lamp: display.lamp, size: 0.75 * size, glow: 0.3 * em)
         }
         .font(.system(size: size, weight: .bold))
         .tracking(0.12 * size)
@@ -45,19 +45,6 @@ struct DialView: View {
             }
         }
         .frame(height: height, alignment: .bottom)
-    }
-
-    private func lamp(_ lamp: Lamp, size: CGFloat) -> some View {
-        let colour: Color? = switch lamp {
-        case .off: nil
-        case .seeking: Face.needle
-        case .locked: Face.lamp
-        }
-        return Circle()
-            .fill(colour ?? Face.shade)
-            .overlay(Circle().strokeBorder(Color.black.opacity(colour == nil ? 0.2 : 0), lineWidth: 1))
-            .shadow(color: colour ?? .clear, radius: 0.3 * em)
-            .frame(width: size, height: size)
     }
 
     // MARK: - Glass
