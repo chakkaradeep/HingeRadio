@@ -213,3 +213,28 @@ All **(my call)**.
 4. **Finger precision.** Sixteen stations share a strip about 600 pt wide. The closest pair is about 34 pt apart and a zone is about 22 pt wide. That may be tight.
 5. **The 20 degree line.** Too low and the radio could play when nearly shut; too high and a narrow tent goes silent.
 6. **Flat keeps playing behind a card.** The owner may prefer silence there.
+
+## Amendment, 2026-11-22: the tape
+
+After seeing the tuning strip, the owner said: "make sure the slide is not the same duplicate - think innovatively". Claude offered a tape, a thumbwheel and a knob. **The owner picked the tape.** This section replaces everything above that describes the tuning strip. The rest of the design stands.
+
+- **The lower half holds a tape, not a second dial.** The tape is the dial magnified three times, sliding under a fixed pointer in the centre. The dial on the top half shows the whole band; the tape shows where you are, close up.
+- **You drag the tape, not a needle.** Dragging the tape to the left moves up the band, as if pulling the higher stations toward the pointer. **(my call)**
+- **The tape carries what the dial cannot:** each station's call sign in large type with its frequency under it, and hatching for the static between stations. A station marked "No signal" is struck through.
+- **The snap is unchanged.** Inside a station's zone the tape rests with the station under the pointer and the station plays.
+- **A slow release stays put**, static included. **A flick carries the tape on and it settles on the station nearest to where the flick would have ended**, passing the stations on the way with their clicks. **(my call)**
+- **(my call)** A tap on the tape glides to the station nearest the tap.
+- The tape is as wide as the lower half inside the plate's padding and at least 60 pt tall. The city keys, the readout and the power button stay above it.
+- The tuning strip built in Task 4 is removed. The top half's dial is unchanged and still does not respond to touch.
+
+```
++------------------------------------------------+
+|  [ SEA ] [ NYC ] [ CHI ] [ LA ]   90.3 MHz (I) |
+|                       v                        |
+| ///// |  KUOW  | ///// |  KEXP  | ///// | KBCS |
+|          94.9             90.3            91.3 |
+|                       ^                        |
++------------------------------------------------+
+```
+
+New risk: the tape moves the opposite way to the needle above it (tape left, needle right). That is how a real tape dial behaves, but the owner may find it backwards.

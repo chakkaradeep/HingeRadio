@@ -454,6 +454,118 @@ git commit -m "feat: standby face for book and tent, fold-me card when flat, lan
 
 ---
 
+### Task 7: The tape (runs before Task 6)
+
+Added on 2026-11-22 after the owner asked for the lower-half control not to duplicate the dial and picked the tape (spec, "Amendment: the tape"). It replaces the tuning strip from Task 4. Where Global Constraints say "tuning strip", read "tape": same width and minimum height, but it is not a copy of the dial's scale.
+
+**Files:**
+- Create: `App/Views/TapeView.swift`, `Packages/RadioCore/Sources/RadioCore/Flick.swift`
+- Test: `Packages/RadioCore/Tests/RadioCoreTests/FlickTests.swift`, `RadioTests.swift`
+- Modify: `Packages/RadioCore/Sources/RadioCore/Radio.swift`, `App/RadioModel.swift`, `App/Views/PlateView.swift`
+- Delete: `App/Views/TuningStrip.swift`
+
+**Interfaces:**
+- Consumes: `Radio.tune(toPosition:)`, `DialScale.marks` (each with `position` 0...1), `ScaleFace` (now used by the dial only).
+- Produces:
+
+```swift
+// Radio: the position last tuned to, before any snap. Replaces RadioModel's own copy.
+public private(set) var position: Double
+
+// Flick.swift
+/// Where the tape should come to rest after a release.
+/// Returns `position` when the release is slower than `minFlick`; otherwise the mark nearest
+/// `predicted`, or `predicted` clamped to 0...1 when there are no marks.
+public func flickTarget(from position: Double, predicted: Double, marks: [Double], minFlick: Double = 0.03) -> Double
+
+// RadioModel
+var position: Double { get }                 // radio.position
+func glide(toPosition target: Double)        // steps tune(toPosition:) along an ease-out over 0.35 s; a new touch cancels it
+
+// TapeView
+struct TapeView: View { let model: RadioModel; let em: CGFloat }
+```
+
+- [ ] **Step 1: Write the failing tests.** `FlickTests.swift`:
+
+```swift
+import Testing
+@testable import RadioCore
+
+@Test func slowReleaseStaysPut() {
+    #expect(flickTarget(from: 0.40, predicted: 0.42, marks: [0.2, 0.5, 0.8]) == 0.40)
+}
+
+@Test func flickSettlesOnNearestMarkToPredictedEnd() {
+    #expect(flickTarget(from: 0.20, predicted: 0.55, marks: [0.2, 0.5, 0.8]) == 0.5)
+    #expect(flickTarget(from: 0.80, predicted: 0.30, marks: [0.2, 0.5, 0.8]) == 0.2)
+}
+
+@Test func flickPastTheEndsSettlesOnTheEndStation() {
+    #expect(flickTarget(from: 0.5, predicted: 3.0, marks: [0.2, 0.5, 0.8]) == 0.8)
+    #expect(flickTarget(from: 0.5, predicted: -3.0, marks: [0.2, 0.5, 0.8]) == 0.2)
+}
+
+@Test func flickWithNoMarksClamps() {
+    #expect(flickTarget(from: 0.5, predicted: 3.0, marks: []) == 1)
+    #expect(flickTarget(from: 0.5, predicted: -3.0, marks: []) == 0)
+}
+
+@Test func notANumberStaysPut() {
+    #expect(flickTarget(from: 0.5, predicted: .nan, marks: [0.2]) == 0.5)
+}
+```
+
+In `RadioTests.swift` add:
+
+```swift
+@Test func positionIsTheRawTunedValue() {
+    var radio = Radio(file: file)
+    #expect(radio.position == 0.5)
+    radio.tune(toPosition: 0.5175)                 // snaps the needle, not the position
+    #expect(radio.position == 0.5175)
+    #expect(abs(radio.tuning.needle - 0.5) < 1e-9)
+    radio.tune(toPosition: 2)
+    #expect(radio.position == 1)
+    radio.tune(toPosition: .nan)
+    #expect(radio.position == 1)
+}
+```
+
+- [ ] **Step 2: Run them to see them fail.** `swift test --package-path Packages/RadioCore`. Expected: a build failure naming `flickTarget` or `position`.
+
+- [ ] **Step 3: Implement** `Flick.swift` and expose `Radio.position`. `RadioModel` drops its own stored position and clamp and reads `radio.position`. Run the package: all tests pass.
+
+- [ ] **Step 4: Build `TapeView`.**
+  - The tape is `3 x` the width of the view's scale area. A point at dial position `q` is drawn at `centre + (q - needle) * tapeWidth`, where `needle` is `model.radio.tuning.needle`, so the tape rests on a station's mark while locked.
+  - On the tape: for each station, its call sign in bold (about `0.8 * em`) with its frequency to one decimal under it in the muted colour, centred on its mark; a short tick at each whole MHz; diagonal hatching in the gaps between station zones; a struck-through, faded label for a dead station; the station under the pointer in the needle colour while the radio is on. Positions come from `model.radio.scale` (`marks` and `position(forFrequency:)`).
+  - A fixed pointer in the needle colour at the centre, drawn over the tape. The shaded, rounded background matches the dial glass. The tape fades out toward both edges of the view.
+  - Drag: on touch down cancel any glide and remember `model.position`; on each move call `model.tune(toPosition: start - translation.width / tapeWidth)`. On release call `model.glide(toPosition: flickTarget(from: model.position, predicted: start - predictedEndTranslation.width / tapeWidth, marks: ...))` when that target differs from `model.position`.
+  - A touch that moves less than 6 pt is a tap: glide to the mark nearest the dial position under the finger.
+  - Nothing happens while the view has no width. Accessibility label `Tuning`, value the frequency readout.
+  - The tape dims with the power off as the dial does.
+
+- [ ] **Step 5: Put it on the plate.** `PlateView` shows `TapeView` where `TuningStrip` was. Delete `TuningStrip.swift`. `ScaleFace` stays, used by the dial alone.
+
+- [ ] **Step 6: Check on the simulator.** Build and launch in flex (`open`, 110, upright), power on.
+  - `touch_path` slowly on the tape from right to left in steps, lifting slowly: expected `LOCK` lines for stations in rising frequency order, and the needle on the top dial moving right.
+  - The same from left to right: falling order.
+  - A slow drag that ends between two stations with a pause before lifting: expected a final `STATIC` line and the readout between the two.
+  - A fast `touch_path` (the whole path in under 0.15 s) to the left: expected several `LOCK` lines and a final `LOCK`, with the screenshot showing a station under the pointer.
+  - A tap on a station label that is not under the pointer: expected `LOCK` for that station.
+  - A long drag to the right past the low end: no crash; the readout shows 87.5 MHz or the first station.
+  - `touch_path` across the dial on the top half: no `LOCK` or `STATIC` line.
+  - Save `docs/check/30-flex-tape.png` with a station locked, replace `docs/check/21-flex.png` with the same view, and delete `docs/check/20-flex-strip.png`. In the screenshot no label is clipped by another, and the call sign under the pointer matches the name shown on the top half.
+
+- [ ] **Step 7: Commit.**
+
+```bash
+git add -A Packages/RadioCore App docs/check
+git commit -m "feat: sliding tape on the lower half replaces the tuning strip"
+```
+
+---
+
 ### Task 6: Acceptance pass and README
 
 **Files:**
@@ -466,7 +578,7 @@ git commit -m "feat: standby face for book and tent, fold-me card when flat, lan
 - [ ] **Step 1: Run every test.** `swift test --package-path Packages/RadioCore` and `python3 -m unittest tools/test_build_stations.py`. Expected: all pass. Note both counts.
 
 - [ ] **Step 2: Run the spec's checks on the final build**, muted, reading the log after each. Record what was seen, not what was expected.
-  - **Flex:** in each of the four cities, drag the strip onto one station: `LOCK`, `CONNECT`, `PLAYING`.
+  - **Flex:** in each of the four cities, drag the tape onto one station: `LOCK`, `CONNECT`, `PLAYING`.
   - **Flex to book and back:** `POSE book`, then `POSE flex`, with no `STOP` and no `CONNECT` between.
   - **Flat and back:** `POSE flat`, then `POSE flex`, with no `STOP` and no `CONNECT` between.
   - **Shut and reopen:** `STOP`, then `CONNECT` and `PLAYING`.
@@ -474,7 +586,7 @@ git commit -m "feat: standby face for book and tent, fold-me card when flat, lan
   - **Leaving the app:** press `HOME`: `STOP` within three seconds. Open the app again: `CONNECT`, `PLAYING`.
   - **No hinge:** on the iPhone 17 simulator used in the first acceptance pass, the app shows the full radio upright and the standby face on its side, and the strip tunes.
 
-- [ ] **Step 3: Update `README.md`.** Rewrite the opening and "how to use it" for the five poses and the tuning strip, including how to reach each pose on the simulator. Remove the debug slider section. Add a section "Poses pass (date, commit)" with what Step 2 saw. Head the two older acceptance sections with one line saying they describe the earlier build, where the hinge tuned. Update the not-verified list: how the strip feels under a finger, how it sounds, a real phone, moving from flex to tent without a break, and tent itself if Decision 6 said it could not be checked.
+- [ ] **Step 3: Update `README.md`.** Rewrite the opening and "how to use it" for the five poses and the tape, including how to reach each pose on the simulator. Remove the debug slider section. Add a section "Poses pass (date, commit)" with what Step 2 saw. Head the two older acceptance sections with one line saying they describe the earlier build, where the hinge tuned. Update the not-verified list: how the tape feels under a finger, how it sounds, a real phone, moving from flex to tent without a break, and tent itself if Decision 6 said it could not be checked.
 
 - [ ] **Step 4: Commit.**
 
