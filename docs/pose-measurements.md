@@ -37,7 +37,7 @@ Every turn on the inner screen changed the size (log: `size-change` 951x669 at 1
 Notes on this sequence, all from the log:
 
 - On the outer screen no turn fired a hinge callback (the counter stayed at 69 and the angle at 61.95 for all four turns).
-- Only the last two turns produced a `size-change` line (466x678 at 17:44:41.175, then 678x466 at 17:44:41.759). The first two turns (left, then right) produced none: the size stayed 678x466.
+- Only the last two turns produced a `size-change` line (466x678 at 17:44:41.175, then 678x466 at 17:44:41.759). The first two turns (left, then right) produced none: the size stayed 678x466. Lag cannot be ruled out as the cause (see Decision 2).
 - The size was wider than tall (678x466) at the start of this sequence and at every outer reading except the one 466x678 reading after the third turn. This is the size the outer screen reported after `closed` was set while the inner screen had just been turned back to portrait. An earlier measurement (`docs/hinge-measurements.md`, launched closed with no turns) read 466x678 on the outer screen, so the outer size without a turn depends on what came before. This run did not find out why.
 - While the 60 degree jump settled, the probe reported the inner size first: at 17:44:12.235 a `size-change` to 669x951 with status partiallyOpen (angles 25.09 up to 61.95), then at 17:44:13.533 a `size-change` back to 678x466 with status closed, 1.3 s later. See the shut line table.
 
@@ -96,19 +96,21 @@ Not run. The step applies only if a `PHASE` line left `active`; none did in any 
 
 Keep the rule: outer when the window's short side is under 560 pt.
 
-Readings: every outer reading had a short side of 466 (678x466, and 466x678 once). Every inner reading had a short side of 669 (669x951 and 951x669). 466 is under 560 and 669 is over, with no exceptions among the settled readings. One caveat from the log: for about 1.3 s after a jump from `closed` to 20 degrees or more, the probe reported the inner size (669x951) before the outer size returned (sequence 3, and sequence 2 and 5 at 60). Any code that decides the screen from the size will see the inner answer for that time.
+Readings: every outer reading had a short side of 466 (678x466, and 466x678 once). Every inner reading had a short side of 669 (669x951 and 951x669). 466 is under 560 and 669 is over, with no exceptions among the settled readings. Keeping 560 rests on those settled readings and is a judgement, since the transient inner-size readings below appear for about 1.3 s. One caveat from the log: for about 1.3 s after a jump from `closed` to 20 degrees or more, the probe reported the inner size (669x951) before the outer size returned (sequence 3, and sequence 2 and 5 at 60). Any code that decides the screen from the size will see the inner answer for that time.
 
 ### 2. Which way up
 
-The simulator's readings do not meet the brief's condition, so here is what the app is told: orientation reaches the app only as the window size. Landscape-by-size (wider than tall) matches what was seen, but a turn does not always change the size on the outer screen.
+What was measured on the inner screen: each of the four turns changed the window size (951x669, 669x951, 951x669, 669x951, sequence 1, with `size-change` lines about 6.6 s apart), and each fired one hinge callback. On the inner screen, wider than tall was a usable landscape signal.
 
-Readings: on the inner screen all four turns changed the size, in the order left, right, right, left: 951x669, 669x951, 951x669, 669x951 (sequence 1). On the outer screen only two of the four turns changed it (the first two gave no `size-change`; the third gave 466x678 and the fourth 678x466, sequence 2). The outer screen was already wider than tall (678x466) before any turn, and no hinge callback fired on any outer turn, while on the inner screen each turn fired one.
+What was measured on the outer screen: the size was already wider than tall (678x466) before any turn. Of the four turns, only the last two produced a `size-change` line (466x678, then 678x466, 0.6 s apart); the first two produced none, and no hinge callback fired on any outer turn. These turn results are inconclusive: the turns were sent in quick succession and screenshots after a rotate were seen to lag, so it is not shown that the first two turns had settled when the next call went in. A timing artifact cannot be ruled out, so "outer turns are unreliable" is not a measured fact.
+
+Rule that follows: landscape = wider than tall on the inner screen. On the outer screen, wider than tall is not evidence of a turn (it was true with no turn at all), so nothing may depend on the outer screen's way up. The only orientation signal the probe observed was the window size; it did not look at interface or device orientation, so no claim is made about other signals.
 
 ### 3. Shut line
 
 20 stays.
 
-Readings: `closed` reads 0.00 (below 20). A commanded 25 reads 28.89 on settled (20 or more). A commanded 15 reads 19.45 and a commanded 20 reads 24.17, so the settled readings cross 20 between commanded 15 and 20. The tool's commanded angle reads higher than commanded at the low end (10 gave 14.73, 15 gave 19.45), so the app must compare the reported angle, not the commanded one. During the jump to 20 and above the probe also logged status partiallyOpen from 20.28 and an inner size for about 1.3 s, then status closed again at the settled angle (sequence 3).
+Readings: `closed` reads 0.00 (below 20). A commanded 25 reads 28.89 on settled (20 or more). A commanded 15 reads 19.45 and a commanded 20 reads 24.17, so the settled readings cross 20 between commanded 15 and 20. During the jump to 20 and above the probe also logged status partiallyOpen from 20.28 and an inner size for about 1.3 s, then status closed again at the settled angle (sequence 3).
 
 ### 4. Flat line
 
