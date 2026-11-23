@@ -145,7 +145,7 @@ This pass ran on the final build (commit `8987edd`) on the iPhone Duo simulator 
 - **Shut and reopen.** Hinge to closed logged `STOP` and `POSE shut` (with a passing `POSE tent` just before, as the hinge swept down). The screen showed "Closed" and "Open the phone to listen again." From closed, the hinge at 60 degrees logged `CONNECT KROQ-FM` and, 2.7 s later, `PLAYING KROQ-FM`. Passing `POSE flex` and `POSE tent` lines showed in between and caused no extra `STOP` or `CONNECT`.
 - **Tent.** After that 60 degree jump the log settled on `POSE tent` and the outer screen showed the standby face ("KROQ", "Pasadena", "106.7 MHz", green lamp, power button). Moving from flex to tent without a break could not be checked: the outer screen is only reached through closed, which stops the radio.
 - **Leaving the app.** Pressing HOME logged `STOP` at 18:33:09.9, about a second or less after the press (the press itself is not in the log). Launching the app again logged `CONNECT KROQ-FM`, then `PLAYING KROQ-FM` 1.9 s later. A passing `POSE tent`, `POSE flex` also appeared after HOME, with no extra `STOP` or `CONNECT`.
-- **No hinge: not run.** The iPhone 17 simulator named for this check (iOS 26.2) refused to install the app, which needs iOS 27.1 ("Requires a Newer Version of iOS"). Nothing else was tried in its place. So the full radio upright on a phone with no hinge, the standby face on its side, and the tape tuning there were not checked on this build. The earlier pass checked a phone with no hinge on an older build.
+- **No hinge.** Run on the iPhone 17 simulator on iOS 27.2, muted. (A first try on an iPhone 17 on iOS 26.2 could not install the app, which needs iOS 27.1.) Upright, the app showed the full radio: dial on top, then the city keys, readout and power button, then the tape. The log showed no `POSE` line at launch. After switching on and a slow drag on the tape, it logged `STATIC`, `LOCK KZOK-FM`, `CONNECT KZOK-FM` and, 2.1 s later, `PLAYING KZOK-FM`. Turned on its side it logged `POSE book` and showed the standby face ("102.5 KZOK", "Seattle", "102.5 MHz", green lamp, power button). Turned back it logged `POSE flex`. No `STOP` and no `CONNECT` in between. On the sideways face the Dynamic Island covered the left edge of the station name (the "1" of "102.5" and the start of "Seattle"). In the upright view it covered part of the title ("HINGE RADI" and "TTLE" showed). Neither was fixed.
 
 Two things seen that were not expected, and not fixed here:
 
@@ -222,7 +222,6 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 - A real phone. Anything on a real iPhone Duo, including how it chooses its lit screen.
 - Moving from flex to tent without a break. The outer screen is only reached through closed on the simulator.
 - Tent itself, beyond what is above: it was only reached from closed, and the radio had stopped and restarted on the way.
-- A phone with no hinge on this build (see the poses pass).
 - Where the fold line is. It is inferred from screen sizes (the inner screen is two outer-size panels), and the simulator draws no fold line.
 - The screen staying awake while the radio is on. The code asks for it; nobody watched the screen stay on.
 - The iOS 27.2 Duo simulator. The app was built and checked on 27.1.
@@ -232,4 +231,4 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 
 - When the player reports an error for a station, the app loads it once more; a second error before any sound, or 12 seconds without sound, marks it "No signal" until the app is relaunched. Before this retry existed, KING-FM was marked "No signal" after a player error 1.6 seconds after connecting, and played on the next launch.
 - Seattle has only 10 stations.
-- On a phone with no hinge (not the intended device) the layout was rough in the earlier build: the Dynamic Island covered part of the title and the frequency number was cut off. This was not checked again.
+- On a phone with no hinge (not the intended device) the Dynamic Island covers part of the title when upright and the left edge of the station name when on its side. The frequency number was cut off in the earlier build; it was not cut off in the final build.
