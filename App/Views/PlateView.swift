@@ -95,11 +95,11 @@ struct PlateView: View {
                           if target != model.position {
                               move(to: target)
                           } else {
-                              model.settleOnLockedStation()           // a slow release: no glide
+                              model.settle(animated: !reduceMotion)  // a slow release eases onto the mark
                           }
                       },
                       onTap: { upperHalf in step(up: upperHalf) },
-                      tapSlop: 2)                 // a nudge that is neither tap nor roll does nothing
+                      tapSlop: 4)                 // a nudge that is neither tap nor roll does nothing
                 .frame(width: wheelWidth)
                 .accessibilityLabel("Tuning")
                 .accessibilityValue(tuningValue)

@@ -17,9 +17,24 @@ private func makeTuner(_ stations: [Station] = [station("KAAA", 98.0)]) -> Tuner
     var t = makeTuner()
     let s = t.update(r(111.4))
     #expect(s.locked?.frequency == 98.0)
-    #expect(abs(s.needle - 0.5) < 1e-9)
-    #expect(abs(s.frequency - 98.0) < 1e-9)
+    #expect(abs(s.needle - 0.5175) < 1e-9)              // the needle follows the dial, off the mark
+    #expect(abs(s.frequency - 98.3675) < 1e-9)          // the frequency at the needle
     #expect(s.strength == 1)
+    let onMark = t.update(r(110))
+    #expect(abs(onMark.needle - 0.5) < 1e-9)
+    #expect(abs(onMark.frequency - 98.0) < 1e-9)
+}
+
+@Test func needleTracksEveryMoveInTheZone() {
+    var t = makeTuner()
+    var last = -1.0
+    for dial in stride(from: 108.5, through: 111.5, by: 0.25) {
+        let s = t.update(r(dial))
+        #expect(s.locked?.frequency == 98.0)
+        #expect(abs(s.needle - (dial - 70) / 80) < 1e-9)
+        #expect(s.needle > last)                         // every move moves the needle
+        last = s.needle
+    }
 }
 
 @Test func holdsWithinReleaseMargin() {
@@ -27,6 +42,7 @@ private func makeTuner(_ stations: [Station] = [station("KAAA", 98.0)]) -> Tuner
     t.update(r(110))
     let s = t.update(r(111.9))
     #expect(s.locked?.frequency == 98.0)
+    #expect(abs(s.needle - (111.9 - 70) / 80) < 1e-9)
 }
 
 @Test func releasesPastMargin() {

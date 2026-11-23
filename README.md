@@ -36,7 +36,7 @@ The phone has five poses. The app works out which one from the hinge angle, whic
 | Pose | How the phone is | What the app shows | Sound |
 |---|---|---|---|
 | Flex | Partly folded, inner screen, upright | The full radio | Plays |
-| Book | Partly folded, inner screen, on its side | Standby face: station name, the line under it, frequency, tuned lamp, on/off switch | Plays |
+| Book | Partly folded, inner screen, on its side | Standby face: station name, the line under it, power and tuned lamps, frequency, on/off switch | Plays |
 | Tent | Partly folded, outer screen | The same standby face | Plays |
 | Flat | Fully open | A "Fold me" card | Plays |
 | Shut | Closed | The same standby face | Plays |
@@ -45,19 +45,35 @@ The phone has five poses. The app works out which one from the hinge angle, whic
 
 ### Flex: the radio
 
-The top half is the dial: the city name, the needle, a row of dots for the stations, then the station name with its frequency beside it and a lamp labelled TUNED. The lamp is unlit when the radio is off or on static, dim orange while a station tunes in, and bright orange while it plays. The line under the name always says the same thing in words. The top half does not respond to touch.
+The top half is the dial: the city name, the needle, a row of dots for the stations, then the station name with its frequency beside it and two small lamps with their names printed beside them:
+
+- POWER is red while the radio is on and unlit when it is off.
+- TUNED is green while a station plays, glows dimly green while one tunes in, and is unlit off a station.
+
+Switched off, the space for the station name is empty: the unlit POWER lamp says it is off. The dial, the frequency and the grille dim. Switched on, the line under the name says the same thing as the lamps in words ("Static", "Tuning in", "No signal" or the station's city). VoiceOver reads the lamps as "Power, on" or "Power, off" and "Tuned, <station>" or "Not tuned". The top half does not respond to touch.
+
+The needle follows the tuning wheel on every move, near a station too, and the frequency under it changes with it. Inside a station's zone the station is locked and its name shows while the needle sits a little either side of the mark. When you let go slowly the needle eases onto the mark in about a fifth of a second.
 
 The lower half is the front of a pocket radio: a speaker grille, a band switch under it, and two ridged wheels at the right edge. Each wheel has its name printed over it and a short printed scale beside it with a dot that shows where it is turned. A wheel turns only once the finger has moved 6 pt; a touch that lifts before that is a tap.
 
 1. Volume (the small wheel, top). Roll it up past the click and the radio comes on; keep rolling for louder; roll it down past the click and it goes off. Below 0.15 of its travel it is off. A tap on it switches the radio on (at the last volume used) or off. One wheel height of rolling covers the whole range.
-2. Tuning (the tall wheel, bottom). Roll it up to go up the band, down to go down. One wheel height of rolling moves a quarter of the band. Near a station it settles on it, the name and its city of licence appear, and the station plays. Between stations the screen says "Static". A slow release stays where you let go (on the station if one is locked); a quick flick carries on and settles on the nearest station. A tap on the upper half of the wheel goes to the next station up, on the lower half to the next one down. On this wheel a tap must lift within 2 pt of where it began; a small nudge between that and 6 pt does nothing.
+2. Tuning (the tall wheel, bottom). Roll it up to go up the band, down to go down. One wheel height of rolling moves a quarter of the band. Near a station it settles on it, the name and its city of licence appear, and the station plays. Between stations the screen says "Static". A slow release on a station eases the needle onto its mark; off a station it stays where you let go. A quick flick carries on and settles on the nearest station. A tap on the upper half of the wheel goes to the next station up, on the lower half to the next one down. On this wheel a tap must lift within 4 pt of where it began; a small nudge between that and 6 pt does nothing.
 3. Band. Tap one of the four positions (SEA, NYC, CHI, LA) to slide the switch there. The dial redraws with that city's stations and the old city goes quiet at once. The needle stays where it was.
+
+Each control ticks or clicks like a mechanical one, with a small sound and a matching tap you can feel, whether the radio is on or off:
+
+- The tuning wheel gives a soft tick for each ridge it passes (every 1/160 of the band, about 0.13 MHz) and a firmer click when it settles on a station. A fast roll gives at most about 30 ticks a second, so it sounds like a ratchet.
+- The volume wheel clicks where it switches on and off, and gives a very soft tick every 0.05 of its travel while on.
+- The band switch clicks when it lands on a new city (one click, even when the new city has a station under the needle).
+- Each wheel gives one firmer stop when it reaches the end of its travel.
+
+Running silently (below) silences these sounds too; the taps you feel still happen.
 
 With VoiceOver: "Volume" is adjustable in steps of a tenth (from off, one step up switches on at the click; a step down past the click switches off) and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and frequency; "Band" reads as a picker of four cities. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
 
 ### Book, tent and shut: standby
 
-The same face on all three. It is made to be read from across a room, with the station name and the frequency as the two biggest things on it. In the corner is a switch printed "OFF" and "ON"; a tap anywhere on it switches the radio. You cannot tune or change city here. Put the phone in flex to do that.
+The same face on all three. It is made to be read from across a room, with the station name and the frequency as the two biggest things on it. Under the name are the same POWER and TUNED lamps as in flex; switched off, the name and the line under it are empty. In the corner is a switch printed "OFF" and "ON"; a tap anywhere on it switches the radio. You cannot tune or change city here. Put the phone in flex to do that.
 
 Closing the phone keeps the radio playing and shows the standby face on the outer screen, whichever way up it is. If the hinge is nearly shut but the inner screen is still lit, the standby face shows on the half of the inner screen above the fold (or the panel left of it on its side).
 
@@ -85,7 +101,7 @@ On the simulator, for about 1.3 seconds after a jump from closed, the app briefl
 
 ### Running silently
 
-Launch with the argument `-HingeRadioMuted YES` and the app plays nothing: stations still connect, and the lamp, text and log lines behave the same. In Xcode, add it under the scheme's Run, Arguments. From the command line:
+Launch with the argument `-HingeRadioMuted YES` and the app plays nothing, ticks and clicks included: stations still connect, and the lamps, text, log lines and the taps you feel behave the same. In Xcode, add it under the scheme's Run, Arguments. From the command line:
 
 ```
 xcrun simctl launch <id> com.example.HingeRadio -HingeRadioMuted YES
@@ -102,6 +118,7 @@ xcrun simctl spawn <id> log show --last 3m --style compact --predicate 'subsyste
 - `POSE shut|tent|flex|book|flat` when the pose changes.
 - `LOCK <call> <position>` or `STATIC <position>` only when the locked station changes.
 - `CONNECT`, `PLAYING`, `RETRY`, `FAILED` and `STOP` from the player.
+- `FEEL click on|off|band|lock <call>` and `FEEL stop tuning|volume` for each click and stop; `FEEL tick tuning|volume` for each tick, at the info level (add `--info` to see them).
 
 ## The stations
 
@@ -128,11 +145,11 @@ At the end of `build`, the hosts of the plain-`http://` streams are compared wit
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 81 tests
+swift test --package-path Packages/RadioCore          # 95 tests
 python3 -m unittest tools/test_build_stations.py      # 19 tests
 ```
 
-On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. With the pocket radio face, the Swift suite passed 85 of 85 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
+On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. With the pocket radio face, the Swift suite passed 85 of 85 and the Python suite 19 of 19. With the smooth needle, ticks and lamps, the Swift suite passed 95 of 95 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
 
 ## Wheel touch fix (2026-11-22)
 
@@ -143,6 +160,20 @@ A review found that one touch on a wheel could both turn it and count as a tap: 
 - A roll up logged `CONNECT KING-FM` (19:37:26.768) and `PLAYING` (19:37:28.021); a roll down past the click logged `STOP` (19:37:38.026). The roll up did not switch the radio off again on release.
 - On the tuning wheel a 4 pt nudge logged nothing (no `LOCK`, no `STATIC`); a tap on its upper half logged `STATIC 0.558` and `LOCK KZOK-FM 0.699` (19:37:55), one station up.
 - The wheel names now sit over their wheels, the black edge stripe is gone, and the space across the fold is smaller (about 66 pt from the TUNED row to the grille, none of it within 14 pt of the fold). `docs/check/40-pocket-flex.png` and `21-flex.png` were retaken.
+
+## Smooth needle, ticks and lamps (2026-11-22)
+
+After trying the face on a real phone the owner asked for smooth tuning on every move, ticks and clicks with haptics, and red and green lamps in place of the off words. Checked on the iPhone Duo simulator (iOS 27.1), muted, in flex unless a step says otherwise. Every touch was scripted. What was seen:
+
+- **Off at launch** (`docs/check/43-lamps-off.png`): no words where the station name goes, both lamps pale and unlit with a thin ring, the dial and frequency dimmed. No `FEEL` line at launch.
+- **Volume wheel tapped**: `FEEL click on` (19:50:07.866), `CONNECT KING-FM`, `PLAYING KING-FM` (19:50:09.291). The screenshot (`44-lamps-playing.png`) shows POWER red and TUNED green, each a small lit dome with a pinpoint highlight and a faint glow, labels level with the lamps.
+- **Slow roll through a station**: up out of KING-FM's zone and back into it, then held. Log: `STATIC 0.540`, `FEEL click lock KING-FM` and `LOCK KING-FM 0.532` (19:51:28.597), ticks between. A capture taken during the hold showed the needle to the right of the KING-FM mark, the readout at 98.5 and "Classical KING FM" showing. After the lift (19:51:34.99) two ticks were logged as the needle eased back, and a screenshot showed the needle on the mark and 98.1.
+- **Slow roll down through three stations** (about 220 pt over 4.4 s): `LOCK KIRO-FM 0.475`, `LOCK KUOW-FM 0.375`, `LOCK KJR-FM 0.319`, in that order, each with one `FEEL click lock`, then `PLAYING KJR-FM`. Two captures taken during the drag 1 s apart showed the needle at 96.0 ("Static") and then at 94.9 on KUOW ("Tuning in", TUNED dimly green). No crash.
+- **Volume wheel rolled up and down**: soft `FEEL tick volume` lines on the way up and down, `FEEL click off` and `STOP` (19:52:55.774), then `FEEL stop volume` at the bottom. Rolled up again: `FEEL click on`, `CONNECT KJR-FM`, `PLAYING KJR-FM` (19:52:58.227).
+- **Band switch to CHI**: `STOP`, `FEEL click band`, `LOCK WMBI-FM`, `CONNECT`, `PLAYING`. One click only, no lock click on top of it. `40-pocket-flex.png` and `21-flex.png` were retaken here.
+- **Closed while playing** (`41-pocket-closed.png`): `POSE tent`, `POSE shut`, no `STOP`. The standby face showed "WMBI", "Chicago", both lamps lit, "90.1", the switch at ON. A tap on the switch: `FEEL click off`, `STOP`; the face then showed no name and no line, both lamps unlit.
+- **Book** (`42-pocket-book.png`, `22-book.png`): both lamps lit under "Chicago" on the left panel, clear of the fold.
+- **Flick** with the radio off, after a fresh launch: ticks about 33 to 58 ms apart, `STATIC 0.554`, `FEEL click lock KZOK-FM`, `LOCK KZOK-FM 0.700`, then one more tick 100 ms later; no `CONNECT` (sound follows power alone). A flick in an earlier build of this pass passed five Chicago stations with one lock click each.
 
 ## Pocket radio pass (2026-11-22)
 
@@ -253,7 +284,9 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 - Where the fold line is. It is inferred from screen sizes (the inner screen is two outer-size panels), and the simulator draws no fold line.
 - The screen staying awake while the radio is on. The code asks for it; nobody watched the screen stay on.
 - The iOS 27.2 Duo simulator. The app was built and checked on 27.1.
-- Haptics. The simulator has none.
+- Haptics and the tick and click sounds. The simulator has no haptics and every run here was muted, so nobody has felt the taps or heard the ticks and clicks. Their strength and timing are a first guess.
+- The 120 frames a second drawing on a ProMotion screen. The app asks for it; the simulator does not show it.
+- The audio session while off. With the radio off the app now holds an ambient session (so ticks can sound without stopping other apps' audio) and switches to playback when the radio comes on. This was not checked with another app playing.
 - VoiceOver and Switch Control. The two wheels are adjustable, the volume wheel switches on and off with a double-tap, the band switch reads as a picker, and the standby switch reads as a toggle. All of it was built but not tried.
 - Reduce Motion. The jump instead of the glide was built but not tried.
 - Shutting the phone while the app is in the background, beyond one simulator run. In that run (flex, radio on and playing KING-FM, HOME, `closed`, three seconds, app opened again on the outer screen) the log showed `POSE tent`, `POSE flex`, `POSE shut` within 1.5 seconds of closing, while the app was still in the background, and nothing on return: no new `POSE` line and no `CONNECT`. The outer screen showed the "Closed" card (that card has since been replaced by the standby face). Whether a real phone delivers the hinge change to a background app the same way is not known.

@@ -23,7 +23,7 @@ private let shut = PoseInput(screen: .outer, landscape: false, angle: 0, status:
     #expect(radio.pose == .flex)
     #expect(abs(radio.tuning.needle - 0.5) < 1e-9)
     #expect(radio.station == nil)
-    #expect(radio.display(playback: .idle).title == "Off")
+    #expect(radio.display(playback: .idle).title == "")
 }
 
 @Test func wheelSwitchesOnAtTheClick() {
@@ -96,7 +96,7 @@ private let shut = PoseInput(screen: .outer, landscape: false, angle: 0, status:
     for input in [book, tent, flat, flex] {
         radio.setPose(input)
         #expect(radio.tuning.locked?.frequency == 98.0)
-        #expect(abs(radio.tuning.needle - 0.5) < 1e-9)
+        #expect(abs(radio.tuning.needle - 0.5175) < 1e-9)
     }
 }
 
@@ -104,7 +104,7 @@ private let shut = PoseInput(screen: .outer, landscape: false, angle: 0, status:
     var radio = Radio(file: file)
     radio.tune(toPosition: 0.5175)
     #expect(radio.tuning.locked?.frequency == 98.0)
-    #expect(abs(radio.tuning.needle - 0.5) < 1e-9)
+    #expect(abs(radio.tuning.needle - 0.5175) < 1e-9)
     radio.tune(toPosition: 0.625)
     #expect(radio.tuning.locked == nil)
     #expect(abs(radio.tuning.needle - 0.625) < 1e-9)
@@ -159,7 +159,7 @@ private let shut = PoseInput(screen: .outer, landscape: false, angle: 0, status:
 @Test func displayCopy() {
     var radio = Radio(file: file)
 
-    #expect(radio.display(playback: .idle) == Display(title: "Off", subtitle: "Switch on to listen", lamp: .off, bars: 0))
+    #expect(radio.display(playback: .idle) == Display(title: "", subtitle: "", lamp: .off, bars: 0))
 
     radio.togglePower()
     #expect(radio.display(playback: .connecting)
@@ -220,9 +220,9 @@ private let shut = PoseInput(screen: .outer, landscape: false, angle: 0, status:
 @Test func positionIsTheRawTunedValue() {
     var radio = Radio(file: file)
     #expect(radio.position == 0.5)
-    radio.tune(toPosition: 0.5175)                 // snaps the needle, not the position
+    radio.tune(toPosition: 0.5175)                 // locks, and the needle stays where it was tuned
     #expect(radio.position == 0.5175)
-    #expect(abs(radio.tuning.needle - 0.5) < 1e-9)
+    #expect(abs(radio.tuning.needle - 0.5175) < 1e-9)
     radio.tune(toPosition: 2)
     #expect(radio.position == 1)
     radio.tune(toPosition: .nan)
@@ -235,6 +235,7 @@ private let shut = PoseInput(screen: .outer, landscape: false, angle: 0, status:
     radio.tune(toPosition: (111.4 - 70) / 80)               // the edge of KSEA's zone: locks there
     #expect(radio.tuning.locked?.callSign == "KSEA")
     let mark = radio.scale.marks[0].position
+    #expect(abs(radio.tuning.needle - (111.4 - 70) / 80) < 1e-9)   // off the mark until settled
     radio.settleOnLockedStation()
     #expect(radio.position == mark)
     #expect(radio.tuning.locked?.callSign == "KSEA")
@@ -258,4 +259,38 @@ private let shut = PoseInput(screen: .outer, landscape: false, angle: 0, status:
     #expect(radio.liveMarkPositions == radio.scale.marks.map(\.position))
     radio.markDead("KAAA")
     #expect(radio.liveMarkPositions == [radio.scale.marks[1].position])
+}
+
+@Test func needleFollowsInsideTheZone() {
+    var radio = Radio(file: file)
+    radio.tune(toPosition: 0.5175)                      // inside the 98.0 zone, off the mark
+    #expect(radio.tuning.locked?.callSign == "KSEA")
+    #expect(abs(radio.tuning.needle - 0.5175) < 1e-9)
+    #expect(abs(radio.tuning.frequency - 98.0) < 0.5)
+    #expect(radio.tuning.frequency != 98.0)
+    radio.togglePower()
+    #expect(radio.display(playback: .playing).title == "KSEA Name")   // still shows the station
+}
+
+@Test func settleTargetIsTheLockedMark() {
+    var radio = Radio(file: file)
+    radio.tune(toPosition: 0.5175)
+    #expect(radio.settleTarget == radio.scale.marks[0].position)
+    radio.tune(toPosition: 0.625)
+    #expect(radio.tuning.locked == nil)
+    #expect(radio.settleTarget == nil)
+    #expect(Radio(file: .empty).settleTarget == nil)
+}
+
+@Test func offShowsNoWords() {
+    var radio = Radio(file: file)
+    radio.togglePower()
+    radio.togglePower()
+    for pose in [flex, book, tent, shut] {
+        radio.setPose(pose)
+        let display = radio.display(playback: .idle)
+        #expect(display.title.isEmpty)
+        #expect(display.subtitle.isEmpty)
+        #expect(display.lamp == .off)
+    }
 }

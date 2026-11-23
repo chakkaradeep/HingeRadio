@@ -2,13 +2,16 @@ import AVFoundation
 import Foundation
 import Synchronization
 
-/// Static, a tuning whistle and a lock click, on one `AVAudioEngine`:
-/// looped noise through a 1.7 kHz band-pass, and a sine that also carries the click.
+/// Static, a tuning whistle, a lock click and the wheels' ticks, on one `AVAudioEngine`:
+/// looped noise through a 1.7 kHz band-pass, and a sine that also carries the click and the ticks.
 /// Holds no level rules: levels come from `mix(...)` through `set`.
+///
+/// It runs whenever the app is active, radio on or off, so the wheels tick while switched off.
 @MainActor final class NoiseEngine {
     private let engine = AVAudioEngine()
     private let levels = Levels()
     private var built = false
+    private var configurationObserver: (any NSObjectProtocol)?
 
     /// Safe to call every time the radio goes live: does nothing while the engine is running.
     func start() throws {
@@ -25,6 +28,20 @@ import Synchronization
 
     func click() {
         levels.clicks.add(1, ordering: .relaxed)
+    }
+
+    /// A short, dry tick, quieter than `click()`: `level` 1 is a ridge on the tuning wheel, lower
+    /// is softer (the volume wheel), higher is the firmer stop at the end of a wheel's travel.
+    func tick(level: Float = 1) {
+        levels.tickLevel.store(min(2, max(0, level)).bitPattern, ordering: .relaxed)
+        levels.ticks.add(1, ordering: .relaxed)
+    }
+
+    /// After the audio route or session changes the engine may have stopped: start it again.
+    /// Safe to call at any time; failures are thrown, as from `start()`.
+    func restartIfStopped() throws {
+        guard built, !engine.isRunning else { return }
+        try engine.start()
     }
 
     // MARK: - Graph
@@ -51,6 +68,12 @@ import Synchronization
         try engine.connectNode(bandPass, to: engine.mainMixerNode, format: format)
         try engine.connectNode(tone, to: engine.mainMixerNode, format: format)
         engine.prepare()
+        // A route or session change stops the engine; start it again so ticks keep sounding.
+        configurationObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { try? self?.restartIfStopped() }
+        }
     }
 
     // MARK: - Audio thread
@@ -65,6 +88,8 @@ import Synchronization
         let whistle = Atomic<UInt32>(0)
         let whistleHz = Atomic<UInt32>(Float(180).bitPattern)
         let clicks = Atomic<UInt32>(0)
+        let ticks = Atomic<UInt32>(0)
+        let tickLevel = Atomic<UInt32>(Float(1).bitPattern)
     }
 
     /// One-pole smoothing coefficient reaching ~63 % of a change in `seconds`.
@@ -100,12 +125,25 @@ import Synchronization
         let clickDecay: Float
         var clickEnvelope: Float = 0
         var clickNoise: UInt32 = 0x1234_5678
+        // The tick: a 2.9 kHz ping (the pawl on a ridge) and a burst of high-passed noise, both
+        // gone within 12 ms, so it reads as dry plastic rather than a beep.
+        var seenTicks: UInt32 = 0
+        var tickLeft = 0
+        let tickLength: Int
+        let tickDecay: Float
+        var tickEnvelope: Float = 0
+        var tickPhase: Float = 0
+        var tickPreviousNoise: Float = 0
+        let tickStep: Float
 
         init(rate: Double) {
             self.rate = Float(rate)
             ramp = NoiseEngine.smoothing(seconds: 0.005, rate: rate)
             clickLength = Int(rate * 0.03)
             clickDecay = Float(exp(-1 / (0.006 * rate)))   // falls ~e^-5 over 30 ms
+            tickLength = Int(rate * 0.012)
+            tickDecay = Float(exp(-1 / (0.0018 * rate)))   // falls ~e^-6.7 over 12 ms
+            tickStep = Float(2 * Double.pi * 2_900 / rate)
         }
     }
 
@@ -136,6 +174,13 @@ import Synchronization
                 state.clickLeft = state.clickLength
                 state.clickEnvelope = 0.05
             }
+            let ticks = levels.ticks.load(ordering: .relaxed)
+            if ticks != state.seenTicks {
+                state.seenTicks = ticks
+                state.tickLeft = state.tickLength
+                state.tickEnvelope = 0.016 * Float(bitPattern: levels.tickLevel.load(ordering: .relaxed))
+                state.tickPhase = 0
+            }
             let buffers = UnsafeMutableAudioBufferListPointer(bufferList)
             let twoPi = 2 * Float.pi
             for frame in 0..<Int(frameCount) {
@@ -150,6 +195,17 @@ import Synchronization
                     value += white * state.clickEnvelope
                     state.clickEnvelope *= state.clickDecay
                     state.clickLeft -= 1
+                }
+                if state.tickLeft > 0 {
+                    state.clickNoise = state.clickNoise &* 1_664_525 &+ 1_013_904_223
+                    let white = Float(Int32(bitPattern: state.clickNoise)) / Float(Int32.max)
+                    let edge = white - state.tickPreviousNoise          // a first difference: high-passed
+                    state.tickPreviousNoise = white
+                    state.tickPhase += state.tickStep
+                    if state.tickPhase >= twoPi { state.tickPhase -= twoPi }
+                    value += (0.6 * sin(state.tickPhase) + 0.4 * edge) * state.tickEnvelope
+                    state.tickEnvelope *= state.tickDecay
+                    state.tickLeft -= 1
                 }
                 for buffer in buffers {
                     buffer.mData?.assumingMemoryBound(to: Float.self)[frame] = value

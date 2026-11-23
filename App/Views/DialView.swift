@@ -2,7 +2,7 @@ import SwiftUI
 import RadioCore
 
 /// The lid: name and city, the dial glass, then the station window with the frequency and the
-/// tuned lamp.
+/// power and tuned lamps.
 struct DialView: View {
     let model: RadioModel
     let em: CGFloat
@@ -14,7 +14,6 @@ struct DialView: View {
             glass
                 .opacity(model.radio.powerOn ? 1 : 0.35)
             window(display)
-                .opacity(model.radio.powerOn ? 1 : 0.35)
         }
         .padding(EdgeInsets(top: 0.9 * em, leading: 1.1 * em, bottom: 0.4 * em, trailing: 1.1 * em))
         .foregroundStyle(Face.ink)
@@ -46,42 +45,45 @@ struct DialView: View {
 
     // MARK: - Window
 
-    /// The station name over the line under it; on the right the frequency over the tuned lamp.
+    /// The station name over the line under it; on the right the frequency over the power and
+    /// tuned lamps. Switched off, the name and the line are empty (the unlit power lamp says it),
+    /// and keep their height so nothing moves.
     private func window(_ display: Display) -> some View {
         let printed = Face.printed(em: em)
+        let on = model.radio.powerOn
         return HStack(alignment: .firstTextBaseline, spacing: 0.8 * em) {
             VStack(alignment: .leading, spacing: 0.1 * em) {
-                Text(display.title)
+                Text(display.title.isEmpty ? " " : display.title)
                     .font(.system(size: 1.25 * em, weight: .bold))
                     .tracking(-0.01 * 1.25 * em)
                     .minimumScaleFactor(0.75)
-                Text(display.subtitle)
+                Text(display.subtitle.isEmpty ? " " : display.subtitle)
                     .font(.system(size: 0.74 * em))
                     .foregroundStyle(Face.muted)
             }
             .lineLimit(1)
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            .accessibilityHidden(display.title.isEmpty)
             VStack(alignment: .trailing, spacing: 0.1 * em) {
                 HStack(alignment: .firstTextBaseline, spacing: 0.25 * em) {
                     Text(String(format: "%.1f", model.radio.tuning.frequency))
                         .font(.system(size: 1.25 * em, weight: .medium))
                         .monospacedDigit()
+                        .contentTransition(.identity)
                     Text("MHz")
                         .printed(size: printed)
                         .foregroundStyle(Face.muted)
                 }
-                HStack(spacing: 0.3 * em) {
-                    LampLight(lamp: display.lamp, size: 0.42 * em, glow: 0.25 * em)
-                    Text("TUNED")
-                        .printed(size: printed)
-                        .foregroundStyle(display.lamp == .off ? Face.muted : Face.ink)
-                }
-                .frame(height: 0.74 * em * 1.2)
-                .accessibilityHidden(true)
+                .opacity(on ? 1 : 0.35)
+                .accessibilityElement(children: .combine)
+                LampPair(powerOn: on, display: display, lampSize: 0.42 * em, glow: 0.3 * em,
+                         labelSize: printed, spacing: 0.7 * em)
+                    .frame(height: 0.74 * em * 1.2)
             }
             .fixedSize()
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 }

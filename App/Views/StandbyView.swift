@@ -1,8 +1,8 @@
 import SwiftUI
 import RadioCore
 
-/// Book, tent and shut: the station name, the line under it, the frequency, the tuned lamp and
-/// the on/off switch.
+/// Book, tent and shut: the station name, the line under it, the power and tuned lamps, the
+/// frequency and the on/off switch. Switched off, the name and the line are empty.
 /// `twoPanels` splits them left and right of a vertical fold.
 ///
 /// Sizes come from the screen's short side, so the name and the frequency stay the two biggest
@@ -82,23 +82,26 @@ struct StandbyView: View {
     }
 
     private func name(_ metrics: Metrics) -> some View {
-        Text(model.display.title)
+        Text(model.display.title.isEmpty ? " " : model.display.title)
             .font(.system(size: metrics.name, weight: .bold))
             .tracking(-0.01 * metrics.name)
             .lineLimit(2)
             .minimumScaleFactor(0.6)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityHidden(model.display.title.isEmpty)
     }
 
+    /// The line under the name, then the two lamps on a line of their own.
     private func subtitleAndLamp(_ metrics: Metrics) -> some View {
-        HStack(alignment: .center, spacing: metrics.gap) {
-            Text(model.display.subtitle)
+        VStack(alignment: .leading, spacing: metrics.gap) {
+            Text(model.display.subtitle.isEmpty ? " " : model.display.subtitle)
                 .font(.system(size: metrics.subtitle))
                 .foregroundStyle(Face.muted)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            Spacer(minLength: 0)
-            LampLight(lamp: model.display.lamp, size: metrics.lamp, glow: 0.55 * metrics.lamp)
+                .accessibilityHidden(model.display.subtitle.isEmpty)
+            LampPair(powerOn: model.radio.powerOn, display: model.display, lampSize: metrics.lamp,
+                     glow: 0.6 * metrics.lamp, labelSize: max(13, 0.8 * metrics.unit), spacing: 1.4 * metrics.lamp)
         }
     }
 

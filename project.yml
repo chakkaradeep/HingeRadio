@@ -23,6 +23,8 @@ targets:
       path: App/Info.plist
       properties:
         UILaunchScreen: {}
+        # Lets the wheels, the needle and the glides draw at 120 frames a second on ProMotion.
+        CADisableMinimumFrameDurationOnPhone: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft

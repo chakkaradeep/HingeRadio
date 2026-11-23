@@ -7,6 +7,10 @@ enum Face {
     static let ink = Color(hex: 0x161616)
     static let muted = Color(hex: 0x6A675F)
     static let needle = Color(hex: 0xFF5B1F)
+    /// The power lamp, lit: a signal red, 4.4:1 against `face`.
+    static let lampRed = Color(hex: 0xD7261E)
+    /// The tuned lamp, lit: a signal green, 3.6:1 against `face`.
+    static let lampGreen = Color(hex: 0x17913F)
 
     /// One em, as in the web mock: 5.8% of the screen half's width.
     static func em(forWidth width: CGFloat) -> CGFloat { width * 0.058 }
