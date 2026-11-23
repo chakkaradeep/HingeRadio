@@ -119,11 +119,16 @@ import UIKit
         updatePose()
     }
 
-    /// After a slow release or a band change: eases the needle onto the locked station's mark
-    /// over 0.2 s (at once when `animated` is false), without ticking. With nothing locked the
-    /// needle stays where it is.
-    func settle(animated: Bool) {
-        guard let target = radio.settleTarget, target != radio.position else { return }
+    /// After a band change: eases the needle onto the locked station's mark over 0.2 s (at once
+    /// when `animated` is false), without ticking. With nothing locked the needle stays where it is.
+    func settle(animated: Bool) { ease(to: radio.settleTarget, animated: animated) }
+
+    /// After a slow release on the tuning wheel: the same quiet ease, onto the locked station's
+    /// mark or onto the station whose name shows in its fade zone (`Radio.releaseTarget`).
+    func settleAfterRelease(animated: Bool) { ease(to: radio.releaseTarget, animated: animated) }
+
+    private func ease(to target: Double?, animated: Bool) {
+        guard let target, target != radio.position else { return }
         if animated {
             glide(toPosition: target, duration: 0.2, quiet: true)
         } else {

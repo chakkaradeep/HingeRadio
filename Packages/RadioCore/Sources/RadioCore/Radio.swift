@@ -106,6 +106,16 @@ public struct Radio: Sendable {
         return scale.marks.first { $0.station.callSign == locked.callSign }?.position
     }
 
+    /// Where a slow release on the tuning wheel eases the needle to: the locked station's mark;
+    /// else, while the radio is on and a live station's name shows in its fade zone (the
+    /// candidate, not yet locked), that station's mark; else nil, and the needle stays put.
+    /// Taps, VoiceOver steps and launch still count from `settleTarget` (a lock only).
+    public var releaseTarget: Double? {
+        if let target = settleTarget { return target }
+        guard powerOn, let candidate = tuning.candidate, !dead.contains(candidate.callSign) else { return nil }
+        return scale.marks.first { $0.station.callSign == candidate.callSign }?.position
+    }
+
     /// Tunes straight onto the locked station's mark, so the needle rests there and the next touch
     /// has an even hold on both sides. Does nothing when no station is locked. Used at launch; the
     /// app eases onto `settleTarget` itself after a release or a band change.

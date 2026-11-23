@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import RadioCore
 import os
 
@@ -12,6 +13,8 @@ import os
 struct SideWheels: View {
     let model: RadioModel
     let em: CGFloat
+    /// The tallest the tuning wheel may grow; by default it takes all the height left.
+    var tuningMaxHeight: CGFloat = .infinity
 
     /// How much of the band (0...1) one point of roll on the tuning wheel covers, on every face.
     /// The flex face's tuning wheel on the inner screen (233 pt, measured from the `WHEELS` log
@@ -33,7 +36,7 @@ struct SideWheels: View {
             caption("TUNING", size: size)
                 .padding(.top, wheelGap(size: size) - 2 * captionGap - captionHeight(size))
             tuning(size: size)
-                .frame(minHeight: Self.tuningMinHeight, maxHeight: .infinity)
+                .frame(minHeight: Self.tuningMinHeight, maxHeight: max(Self.tuningMinHeight, tuningMaxHeight))
         }
         .fixedSize(horizontal: true, vertical: false)
         .foregroundStyle(Face.ink)
@@ -43,14 +46,34 @@ struct SideWheels: View {
 
     private var wheelWidth: CGFloat { max(46, 1.25 * em) }
     /// One wheel height is the volume's whole travel, 0 to 1.
-    private var volumeHeight: CGFloat { max(92, 2.4 * em) }
+    private var volumeHeight: CGFloat { Self.volumeHeight(em: em) }
     /// Between a wheel's name and the wheel.
-    private var captionGap: CGFloat { 0.2 * em }
-    private func captionHeight(_ size: CGFloat) -> CGFloat { ceil(1.2 * size) }
+    private var captionGap: CGFloat { Self.captionGap(em: em) }
+    private func captionHeight(_ size: CGFloat) -> CGFloat { Self.captionHeight(size) }
+    private func wheelGap(size: CGFloat) -> CGFloat { Self.wheelGap(em: em, size: size) }
+
+    private static func volumeHeight(em: CGFloat) -> CGFloat { max(92, 2.4 * em) }
+    private static func captionGap(em: CGFloat) -> CGFloat { 0.2 * em }
+    private static func captionHeight(_ size: CGFloat) -> CGFloat { ceil(1.2 * size) }
     /// From the bottom of the volume wheel to the top of the tuning wheel: at least 44 pt, so a
     /// thumb on one never lands on the other. The tuning wheel's name sits in this gap.
-    private func wheelGap(size: CGFloat) -> CGFloat {
-        max(48, 1.25 * em, 2 * captionGap + captionHeight(size) + 0.6 * em)
+    private static func wheelGap(em: CGFloat, size: CGFloat) -> CGFloat {
+        max(48, 1.25 * em, 2 * captionGap(em: em) + captionHeight(size) + 0.6 * em)
+    }
+
+    /// The whole assembly's height with a tuning wheel `tuning` tall.
+    static func height(em: CGFloat, tuning: CGFloat) -> CGFloat {
+        let size = Face.printed(em: em)
+        return captionHeight(size) + captionGap(em: em) + volumeHeight(em: em)
+            + wheelGap(em: em, size: size) + tuning
+    }
+
+    /// From the top of the assembly to the cap top of its first word, VOLUME, so a face can line
+    /// other words up with it.
+    static func captionCapInset(em: CGFloat) -> CGFloat {
+        let size = Face.printed(em: em)
+        let font = UIFont.systemFont(ofSize: size, weight: .bold)
+        return (captionHeight(size) - font.lineHeight) / 2 + font.ascender - font.capHeight
     }
 
     // MARK: - Volume
@@ -100,7 +123,7 @@ struct SideWheels: View {
                           if target != model.position {
                               move(to: target)
                           } else {
-                              model.settle(animated: !reduceMotion)  // a slow release eases onto the mark
+                              model.settleAfterRelease(animated: !reduceMotion)  // a slow release eases onto the mark
                           }
                       },
                       onTap: { upperHalf in step(up: upperHalf) },
@@ -109,7 +132,7 @@ struct SideWheels: View {
                 .onGeometryChange(for: CGFloat.self) { $0.size.height.rounded() } action: { height in
                     let line = String(format: "WHEELS tuning %.0f pt, %.3f of the band", height,
                                       Double(height) * Self.tuningBandPerPoint)
-                    log.notice("\(line, privacy: .public)")
+                    log.debug("\(line, privacy: .public)")
                 }
                 .accessibilityLabel("Tuning")
                 .accessibilityValue(tuningValue)

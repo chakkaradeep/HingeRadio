@@ -345,3 +345,59 @@ private let pair = StationFile(generated: "test", cities: [
     #expect(Radio(file: .empty).stepTarget(up: true) == nil)
     #expect(Radio(file: .empty).stepTarget(up: false) == nil)
 }
+
+// MARK: - Slow release
+
+/// The dial position `units` dial units above KSEA's mark: outside the 1.5 half zone and inside
+/// the 0.75 fade means a candidate that is not locked.
+private func aboveKSEA(_ radio: Radio, units: Double) -> Double {
+    (radio.scale.marks[0].angle + units - 70) / 80
+}
+
+@Test func releaseTargetIsTheLockedMark() {
+    var radio = Radio(file: file)
+    radio.tune(toPosition: 0.5175)                            // inside KSEA's zone, off the mark
+    #expect(radio.tuning.locked?.callSign == "KSEA")
+    #expect(radio.releaseTarget == radio.scale.marks[0].position)
+    radio.togglePower()
+    #expect(radio.releaseTarget == radio.scale.marks[0].position)
+}
+
+@Test func releaseTargetEasesOntoAShownCandidate() {
+    var radio = Radio(file: file)
+    radio.togglePower()
+    radio.tune(toPosition: 0.625)                             // static, so nothing is held
+    radio.tune(toPosition: aboveKSEA(radio, units: 1.9))      // in the fade, not locked
+    #expect(radio.tuning.locked == nil)
+    #expect(radio.tuning.candidate?.callSign == "KSEA")
+    #expect(radio.display(playback: .playing).title == "KSEA Name")
+    #expect(radio.releaseTarget == radio.scale.marks[0].position)
+    #expect(radio.settleTarget == nil)                        // steps and launch still need a lock
+}
+
+@Test func releaseTargetBeyondTheFadeIsNil() {
+    var radio = Radio(file: file)
+    radio.togglePower()
+    radio.tune(toPosition: aboveKSEA(radio, units: 2.5))
+    #expect(radio.tuning.candidate == nil)
+    #expect(radio.releaseTarget == nil)
+    #expect(Radio(file: .empty).releaseTarget == nil)
+}
+
+@Test func releaseTargetForADeadCandidateIsNil() {
+    var radio = Radio(file: file)
+    radio.togglePower()
+    radio.markDead("KSEA")
+    radio.tune(toPosition: 0.625)
+    radio.tune(toPosition: aboveKSEA(radio, units: 1.9))
+    #expect(radio.tuning.candidate?.callSign == "KSEA")
+    #expect(radio.releaseTarget == nil)
+}
+
+@Test func releaseTargetOffIgnoresTheCandidate() {
+    var radio = Radio(file: file)                             // off: no name shows
+    radio.tune(toPosition: 0.625)
+    radio.tune(toPosition: aboveKSEA(radio, units: 1.9))
+    #expect(radio.tuning.candidate?.callSign == "KSEA")
+    #expect(radio.releaseTarget == nil)
+}

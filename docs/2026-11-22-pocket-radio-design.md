@@ -18,6 +18,7 @@ Amends `docs/2026-11-22-hinge-radio-poses-design.md`. Where they disagree this w
 3. **Power is on the side too.** **(my call on the form)** It is the classic volume wheel that clicks on: roll it up past a click and the radio is on; keep rolling and it gets louder; roll it down past the click and it is off. A tap on it also switches on or off.
 4. **Closed keeps playing and shows the standby face**, the same as tent. Closed and off shows that face in its "Off" state. The "Closed" card is gone.
 5. Book, tent and flat are unchanged, except that the standby face's power button is replaced by a tappable on/off switch drawn in the same printed style **(my call)**.
+   Later the same day (task 4) the owner asked for the side knobs in the other poses too: the standby face's on/off switch was replaced by the same side wheels as the flex plate, volume (also power) above tuning, on book, tent and shut. Flat keeps its card.
 
 ## Non-goals
 

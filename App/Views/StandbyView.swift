@@ -25,31 +25,40 @@ struct StandbyView: View {
             let margin = metrics.margin
             // The wheels' em, as flex works it out from the inner screen's width: the same
             // wheels there, a little smaller on the outer screen.
-            let wheels = SideWheels(model: model, em: Face.em(forWidth: metrics.short))
+            let wheelsEm = Face.em(forWidth: metrics.short)
             Group {
                 if twoPanels {
                     // The panels split the whole screen, so the fold stays on the centre line;
-                    // each keeps to the safe area on its outer edge and clear of the fold.
+                    // each keeps to the safe area on its outer edge and clear of the fold. The
+                    // wheels are centred top to bottom, and the name's and the frequency's cap
+                    // tops sit on the same line as VOLUME's, so one top line runs across the fold.
+                    let wheelsHeight = SideWheels.height(em: wheelsEm, tuning: Self.bookTuningHeight)
+                    let top = max(insets.top + margin, (size.height - wheelsHeight) / 2)
+                    let capLine = top + SideWheels.captionCapInset(em: wheelsEm)
                     HStack(spacing: 0) {
                         VStack(alignment: .leading, spacing: metrics.gap) {
                             name(metrics)
                             subtitleAndLamp(metrics)
                         }
                         .animation(.easeOut(duration: 0.3), value: model.radio.powerOn)
-                        .padding(EdgeInsets(top: insets.top + margin, leading: insets.leading + margin,
+                        .padding(.top, capLine - Self.capInset(nameFont(size: metrics.name)))
+                        .padding(EdgeInsets(top: 0, leading: insets.leading + margin,
                                             bottom: insets.bottom + margin, trailing: Face.foldClearance + margin))
-                        .frame(width: size.width / 2, height: size.height, alignment: .leading)
-                        HStack(spacing: margin) {
+                        .frame(width: size.width / 2, height: size.height, alignment: .topLeading)
+                        HStack(alignment: .top, spacing: margin) {
                             VStack(alignment: .leading, spacing: metrics.gap) {
                                 frequency(metrics)
                                 unit(metrics)
                             }
                             .animation(.easeOut(duration: 0.3), value: model.radio.powerOn)
-                            wheels
+                            .padding(.top, capLine - top
+                                     - Self.capInset(frequencyFont(size: frequencySize(metrics))))
+                            SideWheels(model: model, em: wheelsEm, tuningMaxHeight: Self.bookTuningHeight)
+                                .frame(height: min(wheelsHeight, size.height - top - insets.bottom - margin))
                         }
-                        .padding(EdgeInsets(top: insets.top + margin, leading: Face.foldClearance + margin,
+                        .padding(EdgeInsets(top: top, leading: Face.foldClearance + margin,
                                             bottom: insets.bottom + margin, trailing: insets.trailing + margin))
-                        .frame(width: size.width / 2, height: size.height)
+                        .frame(width: size.width / 2, height: size.height, alignment: .top)
                     }
                 } else {
                     HStack(spacing: margin) {
@@ -61,7 +70,7 @@ struct StandbyView: View {
                             unit(metrics)
                         }
                         .animation(.easeOut(duration: 0.3), value: model.radio.powerOn)
-                        wheels
+                        SideWheels(model: model, em: wheelsEm)
                     }
                     .padding(singlePanelPadding(size: size, insets: insets, margin: margin))
                     .frame(width: size.width, height: size.height)
@@ -71,19 +80,33 @@ struct StandbyView: View {
         .foregroundStyle(Face.ink)
     }
 
+    /// The book face's tuning wheel: a little taller than flex's, not the panel's full height.
+    /// The gearing is per point, so this changes only how much of the band one height covers.
+    private static let bookTuningHeight: CGFloat = 300
+
     /// The outer screen's camera sits in one corner, reaching about 66 pt in from both edges, and
     /// the safe area does not report it. Which corner depends on the way up, which is unreliable,
     /// so the single panel keeps both ends of its long side this far in.
     private static let cameraClearance: CGFloat = 80
+    /// Where the wheels meet an end of the long side they keep further in, so the thumb rolling
+    /// them (wider than the wheel) stays clear of the camera: about 38 pt between lens and wheel.
+    private static let wheelCameraClearance: CGFloat = 104
 
+    /// Landscape: the text keeps `cameraClearance` on the left, the wheels `wheelCameraClearance`
+    /// on the right. Upright: the wheels run along the long side, so both its ends keep
+    /// `wheelCameraClearance`, and the text lines up with them.
     private func singlePanelPadding(size: CGSize, insets: EdgeInsets, margin: CGFloat) -> EdgeInsets {
-        let end = Self.cameraClearance
-        return size.width > size.height
-            ? EdgeInsets(top: insets.top + margin, leading: max(insets.leading + margin, end),
-                         bottom: insets.bottom + margin, trailing: max(insets.trailing + margin, end))
-            : EdgeInsets(top: max(insets.top + margin, end), leading: insets.leading + margin,
-                         bottom: max(insets.bottom + margin, end), trailing: insets.trailing + margin)
+        size.width > size.height
+            ? EdgeInsets(top: insets.top + margin, leading: max(insets.leading + margin, Self.cameraClearance),
+                         bottom: insets.bottom + margin,
+                         trailing: max(insets.trailing + margin, Self.wheelCameraClearance))
+            : EdgeInsets(top: max(insets.top + margin, Self.wheelCameraClearance), leading: insets.leading + margin,
+                         bottom: max(insets.bottom + margin, Self.wheelCameraClearance),
+                         trailing: insets.trailing + margin)
     }
+
+    /// From the top of a one-line text in `font` to its cap top.
+    private static func capInset(_ font: UIFont) -> CGFloat { font.ascender - font.capHeight }
 
     /// Sizes from the screen's short side `s`.
     private struct Metrics {
@@ -121,13 +144,12 @@ struct StandbyView: View {
         }
     }
 
-    /// The frequency under the needle, as on the flex dial (the wheels tune here too). Its size
-    /// is set from the widest reading, so it stays put while tuning across 100 MHz, and fits
-    /// beside the wheels.
+    /// The locked station's own frequency, else the needle's (flex's dial follows the needle). Its
+    /// size is set from the widest reading, so it stays put across 100 MHz and fits beside the
+    /// wheels.
     private func frequency(_ metrics: Metrics) -> some View {
-        let fitted = frequencySlot > 0 ? frequencySlot / Self.frequencyWidthPerPoint : metrics.frequency
-        let size = min(metrics.frequency, fitted)
-        return Text(String(format: "%.1f", model.radio.tuning.frequency))
+        let size = frequencySize(metrics)
+        return Text(String(format: "%.1f", model.radio.tuning.locked?.frequency ?? model.radio.tuning.frequency))
             .font(.system(size: size, weight: .medium))
             .monospacedDigit()
             .tracking(-0.02 * size)
@@ -137,6 +159,16 @@ struct StandbyView: View {
             .opacity(model.radio.powerOn ? 1 : 0.35)
             .frame(maxWidth: .infinity, alignment: .leading)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { frequencySlot = $0 }
+    }
+
+    private func frequencySize(_ metrics: Metrics) -> CGFloat {
+        let fitted = frequencySlot > 0 ? frequencySlot / Self.frequencyWidthPerPoint : metrics.frequency
+        return min(metrics.frequency, fitted)
+    }
+
+    private func nameFont(size: CGFloat) -> UIFont { .systemFont(ofSize: size, weight: .bold) }
+    private func frequencyFont(size: CGFloat) -> UIFont {
+        .monospacedDigitSystemFont(ofSize: size, weight: .medium)
     }
 
     /// The width of the widest reading, "000.0", per point of font size.

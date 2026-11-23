@@ -57,7 +57,7 @@ The needle follows the tuning wheel on every move, near a station too, and the f
 The lower half is the front of a pocket radio: a speaker grille, a band switch under it, and two ridged wheels at the right edge. Each wheel has its name printed over it and a short printed scale beside it with a dot that shows where it is turned. A wheel turns only once the finger has moved 6 pt; a touch that lifts before that is a tap.
 
 1. Volume (the small wheel, top). Roll it up past the click and the radio comes on; keep rolling for louder; roll it down past the click and it goes off. Below 0.15 of its travel it is off. A tap on it switches the radio on (at the last volume used) or off. One wheel height of rolling covers the whole range.
-2. Tuning (the tall wheel, bottom). Roll it up to go up the band, down to go down. Every 100 pt of rolling moves about a tenth of the band (the whole band is 932 pt of rolling), on every face; here that is a quarter of the band per wheel height. Near a station it settles on it, the name and its city of licence appear, and the station plays. Between stations the screen says "Static". A slow release on a station eases the needle onto its mark; off a station it stays where you let go. A quick flick carries on and settles on the nearest station. A tap on the upper half of the wheel goes to the next station up, on the lower half to the next one down, counting from the locked station when there is one. On this wheel a tap must lift within 4 pt of where it began; a small nudge between that and 6 pt does nothing.
+2. Tuning (the tall wheel, bottom). Roll it up to go up the band, down to go down. Every 100 pt of rolling moves about a tenth of the band (the whole band is 932 pt of rolling), on every face; here that is a quarter of the band per wheel height. Near a station it settles on it, the name and its city of licence appear, and the station plays. Between stations the screen says "Static". A slow release on a station eases the needle onto its mark, and so does a slow release just short of a station where its name already shows (with the radio on, and not a station marked "No signal"); anywhere else it stays where you let go. A quick flick carries on and settles on the nearest station. A tap on the upper half of the wheel goes to the next station up, on the lower half to the next one down, counting from the locked station when there is one. On this wheel a tap must lift within 4 pt of where it began; a small nudge between that and 6 pt does nothing.
 3. Band. Tap one of the four positions (SEA, NYC, CHI, LA) to slide the switch there. The dial redraws with that city's stations and the old city goes quiet at once. The needle stays where it was, unless one of the new city's stations is under it: then it eases onto that station's mark.
 
 Each control ticks or clicks like a mechanical one, with a small sound and a matching tap you can feel, whether the radio is on or off:
@@ -74,9 +74,9 @@ With VoiceOver: "Volume" is adjustable in steps of a tenth (from off, one step u
 
 ### Book, tent and shut: standby
 
-The same face on all three. It is made to be read from across a room, with the station name and the frequency as the two biggest things on it. Under the name are the same POWER and TUNED lamps as in flex; switched off, the name and the line under it are empty. The frequency is the one under the needle, as on the flex dial, and keeps one size while you tune (it is sized for five figures, so it does not jump at 100 MHz).
+The same face on all three. It is made to be read from across a room, with the station name and the frequency as the two biggest things on it. Under the name are the same POWER and TUNED lamps as in flex; switched off, the name and the line under it are empty. The frequency is the locked station's own; between stations it is the one under the needle. It keeps one size while you tune (it is sized for five figures, so it does not jump at 100 MHz).
 
-At the right edge are the same two wheels as in flex, with the same names, printed scales, ticks, clicks and VoiceOver actions: volume above, tuning below. Volume is also power: roll it up past the click or tap it to switch on, roll it down past the click or tap it again to switch off. Tuning works as in flex, including a tap on its upper or lower half to step a station, and a thumb movement tunes the same amount as in flex; on a taller wheel one wheel height just covers more of the band. In book the wheels sit at the right edge of the right panel, with the frequency to their left. On the outer screen they stay 80 pt in from both short edges, like everything else there, so nothing sits under the camera in any corner. You cannot change city here. Put the phone in flex to do that.
+At the right edge are the same two wheels as in flex, with the same names, printed scales, ticks, clicks and VoiceOver actions: volume above, tuning below. Volume is also power: roll it up past the click or tap it to switch on, roll it down past the click or tap it again to switch off. Tuning works as in flex, including a tap on its upper or lower half to step a station, and a thumb movement tunes the same amount as in flex; on a taller wheel one wheel height just covers more of the band. In book the wheels sit at the right edge of the right panel, with the frequency to their left; the station name, the frequency and the word VOLUME start on one line across the fold, and the tuning wheel is 300 pt tall. The outer screen's camera sits in one corner, and which corner depends on the way up, so there the wheels keep a thumb's width clear of it: they stay about 104 pt in from each end of the long side, where the text keeps 80 pt. You cannot change city here. Put the phone in flex to do that.
 
 Closing the phone keeps the radio playing and shows the standby face on the outer screen, whichever way up it is. If the hinge is nearly shut but the inner screen is still lit, the standby face shows on the half of the inner screen above the fold (or the panel left of it on its side).
 
@@ -122,6 +122,7 @@ xcrun simctl spawn <id> log show --last 3m --style compact --predicate 'subsyste
 - `LOCK <call> <position>` or `STATIC <position>` only when the locked station changes.
 - `CONNECT`, `PLAYING`, `RETRY`, `FAILED` and `STOP` from the player.
 - `FEEL click on|off|band|lock <call>` and `FEEL stop tuning|volume` for each click and stop; `FEEL tick tuning|volume` for each tick, at the info level (add `--info` to see them).
+- `WHEELS tuning <height> pt, <fraction> of the band` when the tuning wheel's height changes, at the debug level (add `--debug` to see it).
 
 ## The stations
 
@@ -148,11 +149,11 @@ At the end of `build`, the hosts of the plain-`http://` streams are compared wit
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 110 tests
+swift test --package-path Packages/RadioCore          # 115 tests
 python3 -m unittest tools/test_build_stations.py      # 19 tests
 ```
 
-On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. With the pocket radio face, the Swift suite passed 85 of 85 and the Python suite 19 of 19. With the smooth needle, ticks and lamps, the Swift suite passed 95 of 95 and the Python suite 19 of 19; after the review fixes that followed, 110 of 110 and 19 of 19. With the side wheels on the standby faces, 110 of 110 and 19 of 19 (no new tests: the change is in the app's views, and the gearing constant carries no rule for RadioCore). One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
+On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. With the pocket radio face, the Swift suite passed 85 of 85 and the Python suite 19 of 19. With the smooth needle, ticks and lamps, the Swift suite passed 95 of 95 and the Python suite 19 of 19; after the review fixes that followed, 110 of 110 and 19 of 19. With the side wheels on the standby faces, 110 of 110 and 19 of 19 (no new tests: the change is in the app's views, and the gearing constant carries no rule for RadioCore); after the review fixes, with five tests for where a slow release eases to, 115 of 115 and 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
 
 ## Side wheels on the standby faces (2026-11-22)
 
@@ -168,6 +169,16 @@ Checked on the iPhone Duo simulator (iOS 27.1), muted. Every touch was scripted.
 - **Tent** (`46-tent-wheels.png`, 678x466): after switching on in shut and bending to 60 degrees, the log had `POSE tent`, `POSE flex` and `POSE tent` within 1.4 s (the known flash) and no `STOP`. This time the camera dot was bottom right, about 15 pt clear of the tuning wheel. The first roll down ended between stations (`STATIC 0.692`), and 6 s later the player logged `STOP`, which is what it does after a few seconds on static, not the pose. A longer roll logged `LOCK WFMT 0.649`, `CONNECT WFMT` and `PLAYING WFMT`. Three taps on the lower half stepped down through WCHI-FM, WLS-FM and WCPY. A tap on the volume wheel logged `FEEL click off` and `STOP`.
 - **The other outer size** (`48-tent-wheels-upright.png`, 466x678): it came up on the third turn on the outer screen. The camera dot was top right; the VOLUME name starts 82 pt from the top, below it. A tap on the tuning wheel's upper half logged `LOCK WFMT 0.621` and a tap on the volume wheel `STOP`.
 - **Same gearing**: from WCPY (92.7, needle on the mark), the same scripted 100 pt roll up, held, read 95.3 during the hold in flex and in tent, and logged the same lines in both (`STATIC 0.501`, `LOCK WLS-FM 0.517`, `LOCK WCHI-FM 0.565`). The dial is not even in MHz, so the same roll elsewhere on the band moves the readout by a different number of MHz, the same on every face.
+
+### Review fixes to that pass (2026-11-22)
+
+A review found that the standby readout had been changed to follow the needle, that the book face's two panels no longer lined up, that on the 678x466 outer screen the camera sat about 15 pt beside a wheel end where a rolling thumb would cover it, and that a slow release just short of a station left the needle beside it. Fixed and checked on the iPhone Duo simulator (iOS 27.1), muted:
+
+- **Readout**: the standby face again shows the locked station's own frequency (the flex dial still follows the needle). In book, at rest on WLS-FM, it read 94.7 (`45-book-wheels.png`).
+- **Book**: the name's, the frequency's and VOLUME's cap tops now share one line, measured at 100.0, 100.3 and 101.0 pt in `45-book-wheels.png`; the wheels are centred top to bottom (tuning wheel 300 pt, foot at about 568 pt) and the lamps follow the name.
+- **Outer screen**: in shut (678x466, camera bottom right) the tuning wheel's rim ended at 573.7 pt and the dot began at 612 pt, 38 pt apart (`47-closed-wheels.png`). In tent the camera came up top left, beside the name, 14 pt clear as before (`46-tent-wheels.png`); a roll there logged `LOCK WCHI-FM 0.567`, `CONNECT WCHI-FM`, `PLAYING WCHI-FM` and no `STOP`. Upright (466x678, `48-tent-wheels-upright.png`) the dot ended at 66 pt and the volume wheel began at 125 pt, 59 pt below it; the tuning wheel ended 104 pt from the bottom. A tap on the volume wheel there logged `FEEL click off`, `STOP`.
+- **Slow release short of a station**: in flex, from WCPY's mark a scripted 37 pt roll up, held 4 s, then lifted. During the hold the log had `STATIC 0.495` and `CONNECT WLS-FM` and no `LOCK`; a capture then showed "94.7 WLS", "Chicago", 93.9 and the needle left of the mark. After the lift: `FEEL click lock WLS-FM` and `LOCK WLS-FM 0.511`, and the needle rested on the mark at 94.7.
+- **Flex**: a new capture of the same WCPY face was pixel for pixel the same as `40-pocket-flex.png` from the first pass, so that file was kept.
 
 ## Wheel touch fix (2026-11-22)
 
@@ -307,7 +318,7 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 ## What has not been verified
 
 - How the wheels feel under a thumb. Every roll in the pocket radio pass was scripted on the simulator. Nobody has rolled them by hand.
-- The wheels on the standby face by hand. On the outer screen they end about 81 pt in from the right edge in 678x466 and 29 pt in 466x678; in book about 43 pt. Whether a thumb finds them easily in a tent, and whether a hand holding the phone in book rolls them by mistake, is not known.
+- The wheels on the standby face by hand. On the outer screen they end about 104 pt in from the right edge in 678x466 and 29 pt in 466x678 (where they stay 104 pt from the top and bottom); in book about 43 pt. Whether a thumb finds them easily in a tent, and whether a hand holding the phone in book rolls them by mistake, is not known.
 - Whether the right edge fights the system's edge gestures on a real phone. The wheels end about 43 pt in from the glass edge; on the simulator no roll was taken by the system, but the simulator's touches are synthetic.
 - How it sounds. Every run was muted except a short unmuted launch at the end; nobody listened.
 - A real phone. Anything on a real iPhone Duo, including how it chooses its lit screen.
