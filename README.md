@@ -41,7 +41,7 @@ The phone has five poses. The app works out which one from the hinge angle, whic
 | Flat | Fully open | A "Fold me" card | Plays |
 | Shut | Closed | A "Closed" card | Silent |
 
-"Plays" means the radio is switched on and the app is in front. Moving between poses never cuts the sound. Only shutting the phone, switching off, or leaving the app does.
+"Plays" means the radio is switched on and the app is in front. The design is that moving between poses never cuts the sound. This held in the moves checked (flex to book, flex to flat, and back); flex to tent without a break was not checked. Only shutting the phone, switching off, or leaving the app does.
 
 ### Flex: the radio
 
@@ -77,7 +77,7 @@ Leaving the app (for example with the Home button) pauses the radio. Coming back
 
 The measurements behind these rules (the shut line at 20 degrees, the flat line at 175, which screen is lit) are in `docs/pose-measurements.md`. The older measurements are in `docs/hinge-measurements.md`.
 
-On the simulator, for about 1.3 seconds after a jump from closed, the app briefly sees the inner screen's size. A passing `POSE flex` and `POSE tent` can show in the log then. They cause no stop and no reconnect.
+On the simulator, for about 1.3 seconds after a jump from closed, the app briefly sees the inner screen's size (that figure is from `docs/pose-measurements.md`; in the poses pass below the passing `POSE flex` came 0.07 s after the first `POSE tent` and the settled `POSE tent` 1.3 s after that). A passing `POSE flex` and `POSE tent` can show in the log then. They cause no stop and no reconnect.
 
 ### Running silently
 
@@ -140,17 +140,17 @@ This pass ran on the final build (commit `8987edd`) on the iPhone Duo simulator 
   - Chicago: `LOCK WFMT` (after `LOCK WKSC-FM` and `LOCK WPNA-FM` on the way past), `CONNECT`, `PLAYING` (2.8 s).
   - Los Angeles: `LOCK KROQ-FM` (after `LOCK KIIS-FM`, `LOCK KOST` and `LOCK KPWR` on the way), `CONNECT`, `PLAYING` (5.8 s).
   - Passing stations logged a `LOCK` each and no `CONNECT` for them. Pressing the city key also gave a `STOP`, then a new `LOCK`, `CONNECT` and `PLAYING` for the station under the needle (WHTZ in New York, WSRB in Chicago).
-- **Flex to book and back.** Turning the simulator logged `POSE book`, then turning back `POSE flex`. No `STOP` and no `CONNECT` between them. The book screen showed "KROQ", "Pasadena", "106.7", "MHz", the green lamp and the power button.
-- **Flat and back.** Hinge to open logged `POSE flat`, then 110 degrees logged `POSE flex`. No `STOP` and no `CONNECT` between. The flat screen showed "Hinge Radio", "Fold me" and "Sit the phone half open to use the radio."
-- **Shut and reopen.** Hinge to closed logged `STOP` and `POSE shut` (with a passing `POSE tent` just before, as the hinge swept down). The screen showed "Closed" and "Open the phone to listen again." From closed, the hinge at 60 degrees logged `CONNECT KROQ-FM` and, 2.7 s later, `PLAYING KROQ-FM`. Passing `POSE flex` and `POSE tent` lines showed in between and caused no extra `STOP` or `CONNECT`.
-- **Tent.** After that 60 degree jump the log settled on `POSE tent` and the outer screen showed the standby face ("KROQ", "Pasadena", "106.7 MHz", green lamp, power button). Moving from flex to tent without a break could not be checked: the outer screen is only reached through closed, which stops the radio.
+- **Flex to book and back.** Turning the simulator logged `POSE book`, then turning back `POSE flex`. No `STOP` and no `CONNECT` between them. In a screenshot the book screen showed "KROQ", "Pasadena", "106.7", "MHz", the green lamp and the power button.
+- **Flat and back.** Hinge to open logged `POSE flat`, then 110 degrees logged `POSE flex`. No `STOP` and no `CONNECT` between. In a screenshot the flat screen showed "Hinge Radio", "Fold me" and "Sit the phone half open to use the radio."
+- **Shut and reopen.** Hinge to closed logged `STOP` and `POSE shut` (with a passing `POSE tent` just before, as the hinge swept down). A screenshot of the outer screen showed "Hinge Radio", "Closed" and "Open the phone to listen again." From closed, the hinge at 60 degrees logged `CONNECT KROQ-FM` and, 2.7 s later, `PLAYING KROQ-FM`. Passing `POSE flex` and `POSE tent` lines showed in between and caused no extra `STOP` or `CONNECT`.
+- **Tent.** After that 60 degree jump the log settled on `POSE tent` and a screenshot showed the standby face on the outer screen ("KROQ", "Pasadena", "106.7 MHz", green lamp, power button). Moving from flex to tent without a break could not be checked: the outer screen is only reached through closed, which stops the radio.
 - **Leaving the app.** Pressing HOME logged `STOP` at 18:33:09.9, about a second or less after the press (the press itself is not in the log). Launching the app again logged `CONNECT KROQ-FM`, then `PLAYING KROQ-FM` 1.9 s later. A passing `POSE tent`, `POSE flex` also appeared after HOME, with no extra `STOP` or `CONNECT`.
-- **No hinge.** Run on the iPhone 17 simulator on iOS 27.2, muted. (A first try on an iPhone 17 on iOS 26.2 could not install the app, which needs iOS 27.1.) Upright, the app showed the full radio: dial on top, then the city keys, readout and power button, then the tape. The log showed no `POSE` line at launch. After switching on and a slow drag on the tape, it logged `STATIC`, `LOCK KZOK-FM`, `CONNECT KZOK-FM` and, 2.1 s later, `PLAYING KZOK-FM`. Turned on its side it logged `POSE book` and showed the standby face ("102.5 KZOK", "Seattle", "102.5 MHz", green lamp, power button). Turned back it logged `POSE flex`. No `STOP` and no `CONNECT` in between. On the sideways face the Dynamic Island covered the left edge of the station name (the "1" of "102.5" and the start of "Seattle"). In the upright view it covered part of the title ("HINGE RADI" and "TTLE" showed). Neither was fixed.
+- **No hinge.** Run on the iPhone 17 simulator on iOS 27.2, muted. (A first try on an iPhone 17 on iOS 26.2 could not install the app, which needs iOS 27.1.) Upright, the app showed the full radio: dial on top, then the city keys, readout and power button, then the tape. The log showed no `POSE` line at launch. After switching on and a slow drag on the tape, it logged `STATIC`, `LOCK KZOK-FM`, `CONNECT KZOK-FM` and, 2.1 s later, `PLAYING KZOK-FM`. Turned on its side it logged `POSE book` and showed the standby face ("102.5 KZOK", "Seattle", "102.5 MHz", green lamp, power button). Turned back it logged `POSE flex`. No `STOP` and no `CONNECT` in between. On the sideways face the Dynamic Island covered the left edge of the station name (the "1" of "102.5" and the start of "Seattle"). In the upright screenshot it covered the middle of the title row ("HINGE RADI" and "TTLE" showed). Neither was fixed.
 
 Two things seen that were not expected, and not fixed here:
 
 - When the radio was first switched on, it played the station already under the needle (`CONNECT KING-FM`) without a `LOCK` line for it. `LOCK` is logged only when the locked station changes.
-- At launch the log had `POSE flat` first, then `POSE flex` about ten seconds later, when the hinge was set to 110.
+- At launch the log had `POSE flat` at 18:29:54.1, then `POSE flex` at 18:30:04.1, when the hinge was set to 110.
 
 Screenshots of the earlier poses are in `docs/check/` (`21` to `30`). No screenshots were retaken in this pass.
 
@@ -217,7 +217,7 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 
 ## What has not been verified
 
-- How the tape feels under a finger. The simulator drags were scripted and slow; nobody tried a flick or a tap by hand in this pass.
+- How the tape feels under a finger. The drags in this pass were scripted and slow. Flicks and taps were not tried in this pass. When the tape was built, a scripted 120 ms flick on the simulator settled on a station and a tap on a station label locked that station (from that task's report). Nobody has tried any of it by hand.
 - How it sounds. Every run was muted except a short unmuted launch at the end; nobody listened.
 - A real phone. Anything on a real iPhone Duo, including how it chooses its lit screen.
 - Moving from flex to tent without a break. The outer screen is only reached through closed on the simulator.
