@@ -23,8 +23,7 @@ import UIKit
 
     @ObservationIgnored private var hingeAngle: Double?
     @ObservationIgnored private var hingeStatus: HingeStatus?
-    /// The dial position (0...1) last tuned to, for the log lines.
-    @ObservationIgnored private var position = 0.5
+    @ObservationIgnored private var glideTask: Task<Void, Never>?
     @ObservationIgnored private let log = Logger(subsystem: "HingeRadio", category: "dial")
     @ObservationIgnored private let soundLog = Logger(subsystem: "HingeRadio", category: "sound")
     @ObservationIgnored private let player = StationPlayer()
@@ -57,12 +56,33 @@ import UIKit
 
     var display: Display { radio.display(playback: audible) }
     var city: City? { radio.cities.first { $0.id == radio.cityID } }
+    /// The dial position (0...1) last tuned to, before any snap.
+    var position: Double { radio.position }
+
+    /// Tunes at once, stopping any glide: a new touch takes over from it.
     func tune(toPosition position: Double) {
-        guard !position.isNaN else { return }
-        let before = radio.tuning.locked?.callSign
-        self.position = min(1, max(0, position))
-        radio.tune(toPosition: position)
-        logLockChange(from: before)
+        stopGlide()
+        step(toPosition: position)
+    }
+
+    /// Steps the tuning to `target` along an ease-out over 0.35 s, locking and clicking on each
+    /// station it passes. A new touch or a city change stops it where it is.
+    func glide(toPosition target: Double) {
+        guard !target.isNaN else { return }
+        stopGlide()
+        let from = radio.position
+        let to = min(1, max(0, target))
+        glideTask = Task { [weak self] in
+            let clock = ContinuousClock()
+            let start = clock.now
+            while !Task.isCancelled {
+                let t = min(1, (clock.now - start) / .seconds(0.35))
+                let eased = 1 - pow(1 - t, 3)
+                self?.step(toPosition: from + (to - from) * eased)
+                if t >= 1 { break }
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+        }
     }
 
     /// `nil, nil` when the phone has no hinge.
@@ -83,6 +103,7 @@ import UIKit
 
     func selectCity(_ id: String) {
         let before = radio.tuning.locked?.callSign
+        stopGlide()
         if id != radio.cityID { player.stop() }   // the old city's station goes silent at once
         radio.selectCity(id)
         logMarks()
@@ -96,6 +117,17 @@ import UIKit
     func appIsActive(_ active: Bool) { radio.setSuspended(!active) }
 
     // MARK: - Private
+
+    private func step(toPosition position: Double) {
+        let before = radio.tuning.locked?.callSign
+        radio.tune(toPosition: position)
+        logLockChange(from: before)
+    }
+
+    private func stopGlide() {
+        glideTask?.cancel()
+        glideTask = nil
+    }
 
     private func radioChanged(from old: Radio) {
         if radio.isLive, !old.isLive { startAudio() }
@@ -173,7 +205,8 @@ import UIKit
     private func logLockChange(from before: String?) {
         let after = radio.tuning.locked?.callSign
         guard after != before else { return }
-        let line = after.map { String(format: "LOCK %@ %.3f", $0, position) } ?? String(format: "STATIC %.3f", position)
+        let line = after.map { String(format: "LOCK %@ %.3f", $0, radio.position) }
+            ?? String(format: "STATIC %.3f", radio.position)
         log.notice("\(line, privacy: .public)")
     }
 }

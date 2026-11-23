@@ -175,3 +175,15 @@ private let shut = PoseInput(screen: .outer, landscape: false, angle: 0, status:
     #expect(abs(radio.tuning.strength - 0.1) < 1e-9)
     #expect(radio.display(playback: .playing).bars == 1)
 }
+
+@Test func positionIsTheRawTunedValue() {
+    var radio = Radio(file: file)
+    #expect(radio.position == 0.5)
+    radio.tune(toPosition: 0.5175)                 // snaps the needle, not the position
+    #expect(radio.position == 0.5175)
+    #expect(abs(radio.tuning.needle - 0.5) < 1e-9)
+    radio.tune(toPosition: 2)
+    #expect(radio.position == 1)
+    radio.tune(toPosition: .nan)
+    #expect(radio.position == 1)
+}

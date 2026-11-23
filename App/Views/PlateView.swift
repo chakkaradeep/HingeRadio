@@ -1,7 +1,7 @@
 import SwiftUI
 import RadioCore
 
-/// The base: city keys, frequency readout and power button, with the tuning strip below.
+/// The base: city keys, frequency readout and power button, with the tape below.
 struct PlateView: View {
     let model: RadioModel
     let em: CGFloat
@@ -14,7 +14,7 @@ struct PlateView: View {
                 readout
                     .frame(maxWidth: .infinity)
             }
-            TuningStrip(model: model, em: em)
+            TapeView(model: model, em: em)
         }
         .padding(EdgeInsets(top: 1 * em, leading: 1.1 * em, bottom: 1 * em, trailing: 1.1 * em))
         .foregroundStyle(Face.ink)

@@ -26,11 +26,12 @@ public struct Radio: Sendable {
     public private(set) var isSuspended = false
     public private(set) var tuning: TuningState
     public private(set) var dead: Set<String> = []
+    /// The position (0...1) last tuned to, before any snap.
+    public private(set) var position = 0.5
 
     private let config: DialConfig
     private let poseConfig: PoseConfig
     private var tuner: Tuner
-    private var position = 0.5
 
     public init(file: StationFile, config: DialConfig = DialConfig(), poseConfig: PoseConfig = PoseConfig()) {
         cities = file.cities
