@@ -77,7 +77,7 @@ Leaving the app (for example with the Home button) pauses the radio. Coming back
 
 The measurements behind these rules (the shut line at 20 degrees, the flat line at 175, which screen is lit) are in `docs/pose-measurements.md`. The older measurements are in `docs/hinge-measurements.md`.
 
-On the simulator, for about 1.3 seconds after a jump from closed, the app briefly sees the inner screen's size (that figure is from `docs/pose-measurements.md`; in the poses pass below the passing `POSE flex` came 0.07 s after the first `POSE tent` and the settled `POSE tent` 1.3 s after that). A passing `POSE flex` and `POSE tent` can show in the log then. They cause no stop and no reconnect.
+On the simulator, for about 1.3 seconds after a jump from closed, the app briefly sees the inner screen's size (that figure is from `docs/pose-measurements.md`; in the poses pass below, on the jump to 60 degrees the log had `POSE tent` at 18:32:40.418, `POSE flex` at 18:32:40.485 and `POSE tent` again at 18:32:41.807). A passing `POSE flex` and `POSE tent` can show in the log then. They cause no stop and no reconnect.
 
 ### Running silently
 
@@ -134,7 +134,7 @@ On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Pyth
 
 This pass ran on the final build (commit `8987edd`) on the iPhone Duo simulator (iOS 27.1), muted, reading the log after each step. What was seen:
 
-- **Flex, one station in each city.** With the tape dragged slowly (about 150 ms between touch samples, and a pause before lifting), each city locked and played:
+- **Flex, one station in each city.** The drag was scripted, with about 150 ms between touch samples and a pause before lifting. Each city locked and played:
   - Seattle: `LOCK KZOK-FM`, `CONNECT KZOK-FM`, `PLAYING KZOK-FM` (1.1 s after connect).
   - New York: `LOCK WQXR-FM`, `CONNECT`, `PLAYING` (2.3 s).
   - Chicago: `LOCK WFMT` (after `LOCK WKSC-FM` and `LOCK WPNA-FM` on the way past), `CONNECT`, `PLAYING` (2.8 s).
@@ -150,7 +150,7 @@ This pass ran on the final build (commit `8987edd`) on the iPhone Duo simulator 
 Two things seen that were not expected, and not fixed here:
 
 - When the radio was first switched on, it played the station already under the needle (`CONNECT KING-FM`) without a `LOCK` line for it. `LOCK` is logged only when the locked station changes.
-- At launch the log had `POSE flat` at 18:29:54.1, then `POSE flex` at 18:30:04.1, when the hinge was set to 110.
+- At launch the log had `POSE flat` at 18:29:54.143, then `POSE flex` at 18:30:04.120, when the hinge was set to 110.
 
 Screenshots of the earlier poses are in `docs/check/` (`21` to `30`). No screenshots were retaken in this pass.
 
