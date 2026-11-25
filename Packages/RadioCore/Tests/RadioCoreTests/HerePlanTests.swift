@@ -132,9 +132,11 @@ private func searched(at place: Place) -> HerePlan {
 
 @Test func aFixNearTheLastPlaceWithAKeptDialCountsAsTheLastPlace() {
     var plan = searched(at: home)
-    let (place, next) = plan.arrive(at: nextCell, at: now) { $0 == home ? dial("Home") : dial("Next") }
+    var asked: [Place] = []
+    let (place, next) = plan.arrive(at: nextCell, at: now) { asked.append($0); return $0 == home ? dial("Home") : dial("Next") }
     #expect(place == home)
     #expect(next == .show(dial("Home"), lookUpTown: false))
+    #expect(asked == [home])             // the fix's own cell is never read
     #expect(plan.lastPlace == home)      // the wobble does not move it
 }
 
@@ -212,10 +214,48 @@ private func searched(at place: Place) -> HerePlan {
     #expect(searched(at: home).noPlace(.refused, at: now) { _ in dial() } == .clear(.locationOff))
 }
 
-@Test func noFixLeavesTheLastPlace() {
-    let plan = searched(at: home)
-    _ = plan.noPlace(.unavailable, at: now) { _ in nil }
+@Test func locationRefusedNeverReadsTheKeptDials() {
+    var asked: [Place] = []
+    _ = searched(at: home).noPlace(.refused, at: now) { asked.append($0); return dial() }
+    _ = HerePlan(lastPlace: home).noPlace(.refused, at: now) { asked.append($0); return dial() }
+    #expect(asked.isEmpty)
+}
+
+// MARK: - Opening on HERE
+
+@Test func openingOnHereShowsTheLastPlacesKeptDialAtOnce() {
+    var asked: [Place] = []
+    let plan = HerePlan(lastPlace: home)
     #expect(plan.lastPlace == home)
+    #expect(plan.opening(at: now) { asked.append($0); return dial("Home") } == dial("Home"))
+    #expect(asked == [home])
+}
+
+@Test func openingOnHereWithNoLastPlaceShowsNothingAndReadsNothing() {
+    var asked: [Place] = []
+    #expect(HerePlan().opening(at: now) { asked.append($0); return dial() } == nil)
+    #expect(HerePlan(lastPlace: nil).opening(at: now) { asked.append($0); return dial() } == nil)
+    #expect(asked.isEmpty)
+}
+
+@Test func openingOnHereShowsNoDialTooOldToShow() {
+    let plan = HerePlan(lastPlace: home)
+    #expect(plan.opening(at: now) { _ in nil } == nil)
+    #expect(plan.opening(at: now) { _ in dial(savedAt: daysAgo(8)) } == nil)
+    #expect(plan.opening(at: now) { _ in dial(savedAt: now.addingTimeInterval(-HereDial.lifetime)) } == nil)
+    let due = dial(count: 3, savedAt: daysAgo(2))           // due a refresh, still shown
+    #expect(plan.opening(at: now) { _ in due } == due)
+}
+
+@Test func aRememberedLastPlaceHoldsAgainstAWobble() {
+    var plan = HerePlan(lastPlace: home)
+    let (place, next) = plan.arrive(at: nextCell, at: now) { $0 == home ? dial("Home") : nil }
+    #expect(place == home)
+    #expect(next == .show(dial("Home"), lookUpTown: false))
+}
+
+@Test func aRememberedLastPlaceAnswersWhenNoFixComes() {
+    #expect(HerePlan(lastPlace: home).noPlace(.unavailable, at: now) { $0 == home ? dial() : nil } == .show(dial()))
 }
 
 // MARK: - What a hunt, a name and a refresh keep
@@ -248,6 +288,16 @@ private func searched(at place: Place) -> HerePlan {
     }
     #expect(HerePlan.refreshed(dial(hereName, count: 2), by: stations(1), at: now)
             == HereDial(town: hereName, stations: stations(1), savedAt: now))
+}
+
+@Test func aShownDialIsRefreshedWhenItIsDue() {
+    for (count, savedAt, due) in [(16, daysAgo(0.5), false), (16, daysAgo(1.01), true),
+                                  (7, now.addingTimeInterval(-9 * 60), false), (7, now.addingTimeInterval(-11 * 60), true),
+                                  (8, now.addingTimeInterval(-11 * 60), false), (8, now.addingTimeInterval(60), true)] {
+        let shown = dial(count: count, savedAt: savedAt)
+        #expect(HerePlan.refreshes(shown, at: now) == due)
+        #expect(HerePlan.refreshes(shown, at: now) == shown.needsRefresh(at: now))
+    }
 }
 
 // MARK: - Whose the needle is

@@ -5,7 +5,7 @@ import RadioCore
 
 /// Runs HERE's searches for the model, one at a time: where the phone is, then the dial kept for
 /// that place, then a hunt for its stations when there is none or it is due a refresh
-/// (`HereDial.needsRefresh`).
+/// (`HerePlan.refreshes`). Opening on HERE first shows the last place's kept dial.
 @MainActor final class HereSearch {
     private weak var model: RadioModel?
     private let locator = Locator()
@@ -17,6 +17,17 @@ import RadioCore
     private let log = Logger(subsystem: "HingeRadio", category: "here")
 
     init(model: RadioModel) { self.model = model }
+
+    /// The radio opened on HERE: the dial kept for the last place, if it may still be shown, shows
+    /// at once with the needle settled on a station under it; the search waits for `chosen()`.
+    func opened() {
+        plan = HerePlan(lastPlace: cache.lastPlace())
+        guard let model, let dial = plan.opening(at: .now, kept: { cache.load($0) }) else { return }
+        log.notice("HERE OPENED \(dial.stations.count) stations")
+        model.setHereStations(dial.stations, town: dial.town)
+        model.setHere(status: .ready)
+        model.settle(animated: false)
+    }
 
     /// HERE was chosen: a search, unless one is already running.
     func chosen() {
@@ -80,11 +91,12 @@ import RadioCore
         }
         guard isCurrent else { return }
         let (place, next) = plan.arrive(at: found, at: .now) { cache.load($0) }
+        cache.keep(lastPlace: place)
         switch next {
         case .show(let dial, let lookUpTown):
             show(dial)
             let dial = lookUpTown ? await named(dial, at: place) : dial
-            if isCurrent, dial.needsRefresh(at: .now) { await refresh(dial, at: place) }
+            if isCurrent, HerePlan.refreshes(dial, at: .now) { await refresh(dial, at: place) }
         case .hunt:
             await hunt(at: place)
         }

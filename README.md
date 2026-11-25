@@ -37,7 +37,7 @@ The phone has five poses. The app works out which one from the hinge angle, whic
 
 | Pose | How the phone is | What the app shows | Sound |
 |---|---|---|---|
-| Flex | Partly folded, inner screen, upright | The full radio, with the band switch (four cities and HERE) and the badge's "About the dial" card | Plays |
+| Flex | Partly folded, inner screen, upright | The full radio, with the band switch (HERE and four cities) and the badge's "About the dial" card | Plays |
 | Book | Partly folded, inner screen, on its side | Standby face: station name, the line under it, power and tuned lamps, frequency, speaker grille, the Hinge Radio badge, and the volume and tuning wheels at the right edge | Plays |
 | Tent | Partly folded, outer screen | The same standby face | Plays |
 | Flat | Fully open | A "Fold me" card | Plays |
@@ -60,13 +60,15 @@ The top half is the dial: the badge, the city name, the needle, a row of dots fo
 
 Switched off, the space for the station name is empty: the unlit POWER lamp says it is off. The dial and the frequency dim; the grille stays as it is. Switched on, the line under the name says the same thing as the lamps in words ("Static", "Tuning in", "No signal" or the station's city). VoiceOver reads the lamps as "Power, on" or "Power, off" and "Tuned, <station>", "Tuning in, <station>" or "Not tuned". The top half does not respond to touch, except for the long press on the badge.
 
-The needle follows the tuning wheel on every move, near a station too, and the frequency under it changes with it. Inside a station's zone the station is locked and its name shows while the needle sits a little either side of the mark. When you let go slowly the needle eases onto the mark in about a fifth of a second, quietly (no ticks). At launch the needle starts on the station's mark. A finger resting on the wheel stops a glide under it.
+The needle follows the tuning wheel on every move, near a station too, and the frequency under it changes with it. Inside a station's zone the station is locked and its name shows while the needle sits a little either side of the mark. When you let go slowly the needle eases onto the mark in about a fifth of a second, quietly (no ticks). A finger resting on the wheel stops a glide under it.
+
+The radio opens where it was left: on the same band, with the needle where it came to rest, and on the station's mark when a station is locked there. It always opens switched off; the volume is not kept. The band and the needle are saved (`HingeRadioBand` and `HingeRadioPosition` in the app's defaults) when the needle comes to rest after a release, a glide or a step, when the band changes and when the app goes to the background, never while it moves and never while HERE's needle sweeps. The first launch, or a saved band this build does not have (HERE in a build without it), opens on Seattle with the needle mid-dial on KING-FM; a saved position that is not a number from 0 to 1 opens that band mid-dial. Opening on HERE is described under "HERE" below.
 
 The lower half is the front of a pocket radio: a speaker grille, a band switch under it, and two ridged wheels at the right edge. Each wheel has its name printed over it and a short printed scale beside it with a dot that shows where it is turned. A wheel turns only once the finger has moved 6 pt; a touch that lifts before that is a tap.
 
 1. Volume (the small wheel, top). Roll it up past the click and the radio comes on; keep rolling for louder; roll it down past the click and it goes off. Below 0.15 of its travel it is off. A tap on it switches the radio on (at the last volume used) or off. One wheel height of rolling covers the whole range.
 2. Tuning (the tall wheel, bottom). Roll it up to go up the band, down to go down. Every 100 pt of rolling moves about a tenth of the band (the whole band is 932 pt of rolling), on every face; here that is a quarter of the band per wheel height. Near a station it settles on it, the name and its city of licence appear, and the station plays. Between stations the screen says "Static". A slow release on a station eases the needle onto its mark, and so does a slow release just short of a station where its name already shows (with the radio on, and not a station marked "No signal"); anywhere else it stays where you let go. A quick flick carries on and settles on the nearest station. A tap on the upper half of the wheel goes to the next station up, on the lower half to the next one down, counting from the locked station when there is one. On this wheel a tap must lift within 4 pt of where it began; a small nudge between that and 6 pt does nothing.
-3. Band. Tap one of the five positions (SEA, NYC, CHI, LA, HERE; four without HERE) to slide the switch there. The dial redraws with that band's stations and the old band goes quiet at once. The needle stays where it was, unless one of the new band's stations is under it: then it eases onto that station's mark.
+3. Band. Tap one of the five positions (HERE, then SEA, NYC, CHI, LA; four without HERE) to slide the switch there. A short printed rule stands between HERE and SEA; a tap on it does nothing. On the iPhone Duo's inner screen each position is 68 pt wide. The dial redraws with that band's stations and the old band goes quiet at once. The needle stays where it was, unless one of the new band's stations is under it: then it eases onto that station's mark.
 
 Each control ticks or clicks like a mechanical one, with a small sound and a matching tap you can feel, whether the radio is on or off:
 
@@ -78,7 +80,7 @@ Each control ticks or clicks like a mechanical one, with a small sound and a mat
 
 Running silently (below) silences these sounds too; the taps you feel still happen.
 
-With VoiceOver: "Volume" is adjustable in steps of a tenth (from off, one step up switches on at the click; a step down past the click switches off) and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and its frequency ("Finding stations" while HERE's needle sweeps); "Band" reads as a picker of the bands, HERE as "Here" with its town once that is known; the badge has an "About the dial" action. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
+With VoiceOver: "Volume" is adjustable in steps of a tenth (from off, one step up switches on at the click; a step down past the click switches off) and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and its frequency ("Finding stations" while HERE's needle sweeps); "Band" reads as a picker of the bands in the switch's order, HERE first, as "Here" with its town once that is known; the badge has an "About the dial" action. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
 
 ### Book, tent and shut: standby
 
@@ -157,7 +159,7 @@ At the end of `build`, the hosts of the plain-`http://` streams are compared wit
 
 ## HERE: the stations around the phone
 
-HERE is a fifth position on the band switch, after SEA, NYC, CHI and LA. Choosing it finds the FM stations licensed around the phone that also stream, at most 16, and puts them on the dial as a city's stations are. The dial's name becomes the nearest town. While it looks, the line under the name says "Finding stations…" and the needle sweeps up the dial, each station's dot appearing as it is confirmed (with Reduce Motion the dots appear without the sweep). When it ends, the needle eases onto a station and it plays. With no stations it says "No stations found here"; with location refused, "Location is off". The other four bands work in each case. It covers the US only, because the list of stations is the FCC's.
+HERE is the first position on the band switch, set apart from SEA, NYC, CHI and LA by a printed rule. Choosing it finds the FM stations licensed around the phone that also stream, at most 16, and puts them on the dial as a city's stations are. The dial's name becomes the nearest town. While it looks, the line under the name says "Finding stations…" and the needle sweeps up the dial, each station's dot appearing as it is confirmed (with Reduce Motion the dots appear without the sweep). When it ends, the needle eases onto a station and it plays. With no stations it says "No stations found here"; with location refused, "Location is off". The other four bands work in each case. It covers the US only, because the list of stations is the FCC's.
 
 How it finds them:
 
@@ -168,6 +170,8 @@ How it finds them:
 5. The whole search takes at most 30 seconds. At the limit it ends with the stations found by then, and they are the dial.
 
 Leaving the app or choosing another band ends a search. The stations found so far are dropped; coming back to the app with HERE chosen searches again. The needle is left where it is for that search if you had a hand on the tuning in the one that was cut short. Choosing HERE yourself starts afresh, and choosing it again tries any of its stations marked "No signal" again. Reduce Motion switched on during the sweep stops the needle there; the search goes on.
+
+Left on HERE, the radio opens on HERE. If a dial is kept for the last place it was used (see below) and is under 7 days old, it shows at once, with the needle where it was left, and there is no sweep. Once the window is up and the app is active, HERE searches as if it had just been chosen: the location prompt, if iOS has not asked yet, comes only then. Near the last place the kept dial stays and is refreshed when due; somewhere new, it is searched for (with the sweep). With location refused the kept dial goes and HERE says "Location is off".
 
 ### What is sent where
 
@@ -188,7 +192,7 @@ The play count goes to Radio Browser only while HERE is the band, once each time
 
 The first time HERE is chosen, iOS asks to use the location while the app is in use, and the app asks for approximate location only. If the answer is no, HERE says "Location is off" and finds its stations when it is allowed again.
 
-Each place's dial is kept on the phone, in the app's cache folder, for 7 days, on a grid of 0.1 degree (about 10 km). A kept dial shows at once. When it is over 24 hours old, or over 10 minutes old with fewer than 8 stations (a poor connection may have cut it short), it is searched for again in the background; the new list is only kept, and shows the next time HERE is chosen, so the station being listened to never moves. A refresh that finds nothing, or fewer than half as many stations, leaves the old dial alone. Each time a dial is kept, files in that folder last written over 7 days ago are removed.
+Each place's dial is kept on the phone, in the app's cache folder, for 7 days, on a grid of 0.1 degree (about 10 km). A kept dial shows at once. When it is over 24 hours old, or over 10 minutes old with fewer than 8 stations (a poor connection may have cut it short), it is searched for again in the background; the new list is only kept, and shows the next time HERE is chosen, so the station being listened to never moves. A refresh that finds nothing, or fewer than half as many stations, leaves the old dial alone. The rounded position of the last place a dial was shown or looked for is kept in the same folder (`last.json`), so the radio can open on HERE with that dial; it is not kept anywhere else. Each time a dial is kept, files in that folder last written over 7 days ago are removed.
 
 ### Building without HERE
 
@@ -208,10 +212,12 @@ HERE depends mostly on iHeart. Its lookup is not documented, and it is used here
 
 On the iPhone Duo simulator (muted, location set to Seattle, no kept dial) HERE found 16 stations in 8.0 seconds (the FCC listed 58 licences, 30 in reach), named the town "Seattle" and played KCMS (`docs/check/61-about.png` is the card in flex; `62-here-after-scan.png` is HERE after the scan). Built with `HERE_CONDITION=` it showed four bands, played KING-FM, and its card named the FCC, Radio Browser and Yellowtail only. Book, closed and flat on a bundled city looked as before.
 
+With HERE first and remembered (2026-11-25, same simulator, muted, flex): the switch reads HERE | SEA NYC CHI LA (`docs/check/63-here-first.png`) and a tap on the rule chose nothing. Left on HERE with a kept Seattle dial, a relaunch logged `OPEN here 0.516` and `HERE OPENED 16 stations` 4 ms apart, before the first layout, then `HERE CACHED 16 stations` once active, and no sweep. Left on Chicago on WCHI-FM, a relaunch opened on Chicago, switched off, the needle on 95.5. With location refused, a relaunch on HERE said "Location is off". With both keys deleted it opened on Seattle; the build without HERE, launched after HERE was saved, opened on Seattle with four positions.
+
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 255 tests
+swift test --package-path Packages/RadioCore          # 276 tests
 python3 -m unittest discover -s tools                 # 19 tests
 ```
 

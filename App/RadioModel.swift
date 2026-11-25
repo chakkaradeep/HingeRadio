@@ -44,9 +44,14 @@ import UIKit
     @ObservationIgnored private var needleIsTaken = false
     /// True from the app going to the background until it is next active.
     @ObservationIgnored private var wasInBackground = false
+    /// Where the radio was left, kept for next time, and what was last written there.
+    @ObservationIgnored private let memory: BandMemory
+    @ObservationIgnored private var lastRemembered: Remembered?
     #if HERE
     @ObservationIgnored private lazy var hereSearch = HereSearch(model: self)
     @ObservationIgnored private var playCount = PlayCount()
+    /// True from opening on HERE until the app is first active, when its search starts.
+    @ObservationIgnored private var searchOnceActive = false
     #endif
     @ObservationIgnored private var sessionObservers: [any NSObjectProtocol] = []
     /// Launch with `-HingeRadioMuted YES` to run silently (for testing). Read once.
@@ -67,15 +72,27 @@ import UIKit
                 .error("STATIONS missing from the app bundle, showing an empty dial")
             file = .empty
         }
+        let memory = BandMemory()
         #if HERE
-        radio = Radio(file: file, here: true)
+        radio = Radio(file: file, here: true, band: memory.band, position: memory.position)
         #else
-        radio = Radio(file: file)
+        radio = Radio(file: file, band: memory.band, position: memory.position)
         #endif
+        self.memory = memory
+        lastRemembered = radio.remembered
+        log.notice("OPEN \(self.radio.cityID, privacy: .public) \(self.radio.position, format: .fixed(precision: 3))")
         player.onPlayback = { [weak self] in self?.reportedPlayback = $0 }
         player.onFailed = { [weak self] in self?.markDead($0.callSign) }
         logMarks()
         observeSession()
+        #if HERE
+        // Opening on HERE shows the last place's kept dial at once; the search, and with it any
+        // location prompt or sweep, waits until the window is up and the app active.
+        if radio.cityID == hereID {
+            hereSearch.opened()
+            searchOnceActive = true
+        }
+        #endif
     }
 
     var display: Display { radio.display(playback: audible) }
@@ -105,6 +122,7 @@ import UIKit
             let t = min(1, max(0, (now - start) / duration))
             let eased = 1 - pow(1 - t, 3)
             self?.step(toPosition: from + (to - from) * eased, quiet: quiet)
+            if t >= 1 { self?.rememberDial() }                 // the needle has come to rest
             return t < 1
         }
     }
@@ -116,8 +134,12 @@ import UIKit
         stopGlide()
     }
 
-    /// The finger left the tuning wheel, or the system took the touch away.
-    func letGo() { wheelIsHeld = false }
+    /// The finger left the tuning wheel, or the system took the touch away. The needle rests
+    /// where it is, unless the release set it gliding.
+    func letGo() {
+        wheelIsHeld = false
+        if !frames.isRunning { rememberDial() }
+    }
 
     /// To the next station up or down the band (see `Radio.stepTarget`): a glide, or a jump when
     /// `animated` is false. Nothing past either end.
@@ -125,7 +147,12 @@ import UIKit
         needleIsTaken = true
         endScan()
         guard let target = radio.stepTarget(up: up) else { return }
-        if animated { glide(toPosition: target) } else { tune(toPosition: target) }
+        if animated {
+            glide(toPosition: target)
+        } else {
+            tune(toPosition: target)
+            rememberDial()
+        }
     }
 
     /// `nil, nil` when the phone has no hinge.
@@ -158,6 +185,7 @@ import UIKit
         } else {
             stopGlide()
             step(toPosition: target, quiet: true)
+            rememberDial()
         }
     }
 
@@ -179,6 +207,7 @@ import UIKit
         logMarks()
         logLockChange(from: before)
         settle(animated: animated)
+        rememberDial()
         #if HERE
         if radio.cityID == hereID { hereSearch.chosen() } else { hereSearch.cancel() }
         #endif
@@ -196,6 +225,10 @@ import UIKit
         for haptic in [tickHaptic, clickHaptic, stopHaptic] { haptic.prepare() }
         #if HERE
         if wasInBackground, radio.cityID == hereID { hereSearch.returned() }
+        if searchOnceActive {
+            searchOnceActive = false
+            if radio.cityID == hereID { hereSearch.chosen() }
+        }
         #endif
         wasInBackground = false
     }
@@ -204,6 +237,7 @@ import UIKit
     /// ends. It starts again on return.
     func enteredBackground() {
         wasInBackground = true
+        rememberDial()                  // before the search ends: a sweep's needle is not kept
         #if HERE
         hereSearch.cancel()
         #endif
@@ -270,6 +304,15 @@ import UIKit
     }
 
     // MARK: - Private
+
+    /// Keeps the band and the needle for next time, when they have changed; never while HERE's
+    /// sweep moves the needle (`Radio.remembered`). Called only where the needle comes to rest.
+    private func rememberDial() {
+        guard let remembered = radio.remembered, remembered != lastRemembered else { return }
+        memory.keep(remembered)
+        lastRemembered = remembered
+        log.notice("REMEMBER \(remembered.band, privacy: .public) \(remembered.position, format: .fixed(precision: 3))")
+    }
 
     /// Tells Radio Browser when a station of HERE's that it listed starts playing (see `PlayCount`).
     private func countPlay() {
@@ -516,6 +559,9 @@ import UIKit
         link.add(to: .main, forMode: .common)
         self.link = link
     }
+
+    /// Whether a body is running.
+    var isRunning: Bool { link != nil }
 
     func stop() {
         link?.invalidate()

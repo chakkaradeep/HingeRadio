@@ -10,7 +10,8 @@ public enum LocatorError: Error, Sendable, Equatable { case refused, unavailable
 public struct HerePlan: Sendable, Equatable {
     /// What starts a search.
     public enum Start: Sendable, Equatable {
-        /// HERE was chosen. Opening on HERE at launch is a choice too: it behaves exactly the same.
+        /// HERE was chosen, or the radio opened on it at launch, once the app is active (the
+        /// last place's kept dial already showing, see `opening`).
         case chosen
         /// The app came back from the background with HERE selected.
         case returned
@@ -44,7 +45,15 @@ public struct HerePlan: Sendable, Equatable {
     /// The place of the last dial shown or hunted for.
     public private(set) var lastPlace: Place?
 
-    public init() {}
+    /// `lastPlace` is the place of the last dial shown or hunted for in an earlier run, if kept.
+    public init(lastPlace: Place? = nil) { self.lastPlace = lastPlace }
+
+    /// The dial to show at once when the radio opens on HERE, before any search: the one kept for
+    /// the last place, while it may be shown. Nil with no last place; no other place is read.
+    public func opening(at date: Date, kept: (Place) -> HereDial?) -> HereDial? {
+        guard let lastPlace, let dial = kept(lastPlace), dial.isUsable(at: date) else { return nil }
+        return dial
+    }
 
     /// Whether to start a search: never while one runs. A choice always does; a return only when the
     /// last search was cut short or ended without a dial.
@@ -109,6 +118,9 @@ public struct HerePlan: Sendable, Equatable {
     public static func named(_ dial: HereDial, town: String?) -> HereDial? {
         town.map { HereDial(town: $0, stations: dial.stations, savedAt: dial.savedAt) }
     }
+
+    /// Whether a shown dial is looked for again: when it is due (see `HereDial.needsRefresh`).
+    public static func refreshes(_ dial: HereDial, at date: Date) -> Bool { dial.needsRefresh(at: date) }
 
     /// A refresh's stations as the dial to keep for next time, under the kept dial's town; nil when
     /// they may not replace it (see `HereDial.mayBeReplaced`).

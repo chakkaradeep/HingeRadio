@@ -16,6 +16,18 @@ public struct Display: Sendable, Equatable {
     }
 }
 
+/// Where the radio was left: its band and needle position (0...1). Power and volume are not kept:
+/// the radio always opens switched off.
+public struct Remembered: Sendable, Equatable {
+    public let band: String
+    public let position: Double
+
+    public init(band: String, position: Double) {
+        self.band = band
+        self.position = position
+    }
+}
+
 /// Volume wheel, pose, city and failed stations, on top of a `Tuner`. The wheel is power and
 /// loudness in one; the pose never affects sound.
 public struct Radio: Sendable {
@@ -47,17 +59,34 @@ public struct Radio: Sendable {
     private var tuner: Tuner
     private var lastOnWheel = 0.6
 
-    /// `here` adds the HERE band last. The radio never starts on it.
+    /// `here` adds the HERE band first, before the bundled cities. The radio opens switched off, on
+    /// `band` at `position` where it was left (see `remembered`), with the needle settled on a
+    /// station locked there. A band not in this build opens as a first launch does: on the first
+    /// bundled city, mid-dial, ignoring the position, which was another band's. A position that is
+    /// not a finite number in 0...1, or none, opens mid-dial. With nothing remembered the radio
+    /// opens on the first bundled city, never on HERE.
     public init(file: StationFile, config: DialConfig = DialConfig(), poseConfig: PoseConfig = PoseConfig(),
-                here: Bool = false) {
-        cities = file.cities + (here ? [City(id: hereID, name: hereName, key: "HERE", stations: [])] : [])
-        cityID = file.cities.first?.id ?? ""
+                here: Bool = false, band: String? = nil, position: Double? = nil) {
+        let cities = (here ? [City(id: hereID, name: hereName, key: "HERE", stations: [])] : []) + file.cities
+        let opening = band.flatMap { band in cities.first { $0.id == band } }
+        self.cities = cities
+        cityID = opening?.id ?? file.cities.first?.id ?? ""
         self.config = config
         self.poseConfig = poseConfig
-        tuner = Tuner(stations: file.cities.first?.stations ?? [], config: config)
+        tuner = Tuner(stations: (opening ?? file.cities.first)?.stations ?? [], config: config)
         tuning = tuner.state
-        tune(toPosition: position)
+        if opening != nil, let position, position.isFinite, (0...1).contains(position) {
+            self.position = position
+        }
+        tune(toPosition: self.position)
         settleOnLockedStation()                 // the needle starts on the station, not beside it
+    }
+
+    /// What to keep of where the radio is, to open there next time: the band and the needle. Nil
+    /// while HERE's sweep moves the needle, which is not where anyone left it, and with no band.
+    public var remembered: Remembered? {
+        guard !isScanning, !cityID.isEmpty else { return nil }
+        return Remembered(band: cityID, position: position)
     }
 
     public var scale: DialScale { tuner.scale }

@@ -3,8 +3,8 @@ import Foundation
 import os
 import RadioCore
 
-/// Keeps each place's dial in the caches folder, one file per 0.1 degree square, for no longer
-/// than it may be shown.
+/// Keeps each place's dial in the caches folder, one file per 0.1 degree square, and the last
+/// place, for no longer than a dial may be shown.
 struct HereCache {
     private let folder = URL.cachesDirectory.appending(path: "here", directoryHint: .isDirectory)
     private let log = Logger(subsystem: "HingeRadio", category: "here")
@@ -17,13 +17,28 @@ struct HereCache {
     }
 
     func save(_ dial: HereDial, for place: Place) {
+        write(dial, to: file(for: place))
+        removeExpired()
+    }
+
+    /// The place of the last dial shown or hunted for (`HerePlan.lastPlace`), so a launch on HERE
+    /// can show its dial at once; nil when none is kept. Kept here, with the dials, and nowhere else.
+    func lastPlace() -> Place? {
+        guard let data = try? Data(contentsOf: lastPlaceFile) else { return nil }
+        return try? JSONDecoder().decode(Place.self, from: data)
+    }
+
+    func keep(lastPlace place: Place) { write(place, to: lastPlaceFile) }
+
+    private var lastPlaceFile: URL { folder.appending(path: "last.json", directoryHint: .notDirectory) }
+
+    private func write(_ value: some Encodable, to file: URL) {
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            try JSONEncoder().encode(dial).write(to: file(for: place), options: .atomic)
+            try JSONEncoder().encode(value).write(to: file, options: .atomic)
         } catch {
             log.notice("HERE CACHE not saved")     // the error holds the file name, which holds the place
         }
-        removeExpired()
     }
 
     /// Removes the files nothing has written to for as long as a dial may be shown.

@@ -36,9 +36,9 @@ private func hereCity(_ radio: Radio) -> City? { radio.cities.first { $0.id == h
     #expect(Radio(file: file, here: false).cities == file.cities)
 }
 
-@Test func hereIsTheLastBandAndLaunchStartsOnTheFirst() {
+@Test func hereIsTheFirstBandAndLaunchStartsOnTheFirstCity() {
     let radio = Radio(file: file, here: true)
-    #expect(radio.cities == file.cities + [City(id: "here", name: "Here", key: "HERE", stations: [])])
+    #expect(radio.cities == [City(id: "here", name: "Here", key: "HERE", stations: [])] + file.cities)
     #expect(radio.cityID == "seattle")
     #expect(radio.tuning.locked?.callSign == "KSEA")
     #expect(radio.hereStatus == .idle)
@@ -163,7 +163,7 @@ private func hereCity(_ radio: Radio) -> City? { radio.cities.first { $0.id == h
     #expect(hereCity(radio)?.spokenName == "Here, Seattle")
     radio.setHereStations([], town: hereName)
     #expect(hereCity(radio)?.spokenName == "Here")
-    #expect(radio.cities.first?.spokenName == "Seattle")
+    #expect(radio.cities.first { $0.id == "seattle" }?.spokenName == "Seattle")
 }
 
 @Test func choosingHereFromAnotherBandBringsItsDeadStationsBack() {
