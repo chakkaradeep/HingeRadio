@@ -7,17 +7,24 @@ public enum HereStatus: Sendable, Equatable { case idle, finding, ready, empty, 
 public let hereID = "here"
 
 /// The most stations a dial holds.
-private let dialLimit = 16
+let dialLimit = 16
+
+extension Licence {
+    /// Whether the frequency is on the dial.
+    var isInBand: Bool {
+        let band = DialConfig()
+        return frequency >= band.minFrequency && frequency <= band.maxFrequency
+    }
+}
 
 /// HERE's dial from what was found: each licence with the stream offered for it and the address
 /// that answered. The most clearly local stations within the band, at most 16, one per call sign
 /// and one per frequency, sorted by frequency.
 public func hereStations(_ found: [(Licence, StreamChoice, URL)]) -> [Station] {
-    let band = DialConfig()
     var callSigns = Set<String>()
     var frequencies = Set<Double>()
     return found
-        .filter { $0.0.frequency >= band.minFrequency && $0.0.frequency <= band.maxFrequency }
+        .filter { $0.0.isInBand }
         .sorted { $0.0.isMoreLocal(than: $1.0) }
         .filter { callSigns.insert($0.0.callSign).inserted }
         .filter { frequencies.insert($0.0.frequency).inserted }

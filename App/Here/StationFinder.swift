@@ -5,7 +5,8 @@ import RadioCore
 
 /// Finds the FM stations around a place that stream: asks the FCC who is licensed there, the
 /// stream sources for an address, and each address whether it answers.
-/// Holds no rules about stations of its own: reading, matching, ranking and judging are `RadioCore`'s.
+/// Holds no rules about stations of its own: reading, matching, ranking, judging, and what to look
+/// up next and when to stop (`Hunt`) are `RadioCore`'s.
 /// The position goes to the FCC only, and is never logged.
 actor StationFinder {
     private let session = URLSession(configuration: StationFinder.configuration,
@@ -75,6 +76,8 @@ actor StationFinder {
     /// The first address that answers with a playable stream, asking each source in order.
     private func confirm(_ licence: Licence) async -> Found? {
         for source in StreamSource.allCases {
+            // Cancelled, nothing more is started: no host pick, no lookup, no probe.
+            guard !Task.isCancelled else { return nil }
             // Only Radio Browser's address uses the host, so only it waits for one to be picked.
             let host = source == .radioBrowser ? await radioBrowserHost() : ""
             guard !Task.isCancelled else { return nil }
@@ -82,6 +85,7 @@ actor StationFinder {
             guard let data = await fetch(url),
                   let choice = streamChoice(source, from: data, for: licence) else { continue }
             for streamURL in choice.urls {
+                guard !Task.isCancelled else { return nil }
                 if await answers(streamURL) {
                     log.notice("HERE \(licence.callSign, privacy: .public) \(String(describing: source), privacy: .public)")
                     return (licence, choice, streamURL)
@@ -142,56 +146,6 @@ actor StationFinder {
 
 /// A confirmed station: its licence, the stream offered for it and the address that answered.
 private typealias Found = (Licence, StreamChoice, URL)
-
-/// How far a search has got through the licences in reach, best ranked first.
-private struct Hunt {
-    let licences: [Licence]
-    private var nextIndex = 0
-    private var settled: [Int: Found?] = [:]
-
-    private static let dialSize = 16
-
-    /// `ranked` is best first. Frequencies off the dial are dropped, so they never count towards 16.
-    init(_ ranked: [Licence]) {
-        let band = DialConfig()
-        licences = ranked.filter { $0.frequency >= band.minFrequency && $0.frequency <= band.maxFrequency }
-    }
-
-    var confirmed: [Found] { settled.values.compactMap { $0 } }
-
-    private var confirmedFrequencies: Set<Double> { Set(confirmed.map { $0.0.frequency }) }
-
-    /// The next licence worth looking up. Everything confirmed so far ranks ahead of it, so it is
-    /// passed over when its frequency is taken, and there is none once the dial is full.
-    mutating func next() -> (Int, Licence)? {
-        let taken = confirmedFrequencies
-        guard taken.count < Self.dialSize else { return nil }
-        while nextIndex < licences.count {
-            defer { nextIndex += 1 }
-            if !taken.contains(licences[nextIndex].frequency) { return (nextIndex, licences[nextIndex]) }
-        }
-        return nil
-    }
-
-    mutating func settle(_ index: Int, with found: Found?) {
-        settled.updateValue(found, forKey: index)
-    }
-
-    /// Whether nothing still open could change the best 16: the 16th distinct frequency is
-    /// confirmed, and each licence ahead of it is settled or on a frequency a better one holds.
-    var isDecided: Bool {
-        var taken = Set<Double>()
-        for (index, licence) in licences.enumerated() {
-            switch settled[index] {
-            case .some(.some): taken.insert(licence.frequency)
-            case .some(.none): continue
-            case .none: if !taken.contains(licence.frequency) { return false }
-            }
-            if taken.count == Self.dialSize { return true }
-        }
-        return true
-    }
-}
 
 /// Keeps every redirect on https, and one that would carry the position off the FCC's servers
 /// from being followed at all. A refused redirect leaves the 3xx answer, which nothing accepts.
