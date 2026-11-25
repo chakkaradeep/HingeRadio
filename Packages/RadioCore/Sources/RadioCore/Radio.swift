@@ -144,6 +144,12 @@ public struct Radio: Sendable {
         return scale.marks.first { $0.station.callSign == candidate.callSign }?.position
     }
 
+    /// Where the needle eases to once HERE has its stations: the locked station's mark, else the
+    /// nearest live one; nil with neither.
+    public var arrivalTarget: Double? {
+        settleTarget ?? liveMarkPositions.min { abs($0 - position) < abs($1 - position) }
+    }
+
     /// Tunes straight onto the locked station's mark, so the needle rests there and the next touch
     /// has an even hold on both sides. Does nothing when no station is locked. Used at launch; the
     /// app eases onto `settleTarget` itself after a release or a band change.

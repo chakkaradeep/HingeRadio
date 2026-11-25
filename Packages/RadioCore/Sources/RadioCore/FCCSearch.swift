@@ -24,6 +24,12 @@ public struct Place: Hashable, Codable, Sendable {
         "\(Self.round(latitude, to: 10)),\(Self.round(longitude, to: 10))"
     }
 
+    /// Whether the two share a grid cell or sit in neighbouring ones.
+    public func isWithinOneCell(of other: Place) -> Bool {
+        func apart(_ a: Double, _ b: Double) -> Double { abs((a * 10).rounded() - (b * 10).rounded()) }
+        return apart(latitude, other.latitude) <= 1 && apart(longitude, other.longitude) <= 1
+    }
+
     /// Rounds to `1 / scale` of a degree; adding zero turns -0.0 into 0.0.
     private static func round(_ value: Double, to scale: Double) -> Double {
         (value * scale).rounded() / scale + 0.0

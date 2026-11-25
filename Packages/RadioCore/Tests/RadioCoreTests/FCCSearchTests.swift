@@ -63,6 +63,15 @@ private func licence(_ call: String, class stationClass: String = "C", distance:
     #expect(!south.contains("-"))
 }
 
+@Test func aNeighbouringCellIsNearAndTheNextOneIsNot() {
+    let home = Place(latitude: 47.61, longitude: -122.33)
+    #expect(home.isWithinOneCell(of: home))
+    #expect(home.isWithinOneCell(of: Place(latitude: 47.71, longitude: -122.43)))
+    #expect(Place(latitude: 47.51, longitude: -122.23).isWithinOneCell(of: home))
+    #expect(!home.isWithinOneCell(of: Place(latitude: 47.81, longitude: -122.33)))
+    #expect(!home.isWithinOneCell(of: Place(latitude: 47.61, longitude: -122.13)))
+}
+
 @Test func fixtureParsesSeattleStations() throws {
     let all = licences(fromFCC: try fixtureText())
     let kexp = try #require(all.first { $0.callSign == "KEXP-FM" })

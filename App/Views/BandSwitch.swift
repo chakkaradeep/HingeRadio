@@ -1,8 +1,9 @@
 import SwiftUI
 import RadioCore
 
-/// A four-position slide switch for the cities, with each city's key printed under its
-/// position. Tapping a position slides the knob there. VoiceOver reads it as a picker.
+/// A five-position slide switch for the bands, the four cities and HERE (four without HERE), with
+/// each band's key printed under its position. Tapping a position slides the knob there. VoiceOver
+/// reads it as a picker, HERE by its town once that is known.
 struct BandSwitch: View {
     let model: RadioModel
     let em: CGFloat

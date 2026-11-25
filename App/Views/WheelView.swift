@@ -16,6 +16,8 @@ struct WheelView: View {
     let ridge: Double
     /// A finger came down on the wheel (before any slop): a real wheel stops under the thumb.
     var onTouchDown: () -> Void = {}
+    /// That finger left, or the system took the touch away.
+    var onTouchUp: () -> Void = {}
     /// A new value while dragging.
     let onChange: (Double) -> Void
     /// The finger lifted after a drag, with the value the drag's momentum would carry it to.
@@ -63,8 +65,9 @@ struct WheelView: View {
                 .gesture(gesture(height: size.height))
         }
         .onChange(of: touching) { _, down in
-            if !down { drag = nil; downAt = nil }
+            if !down { touchEnded() }
         }
+        .onDisappear { touchEnded() }        // a fold can take the wheel from under the finger
         .accessibilityElement()
     }
 
@@ -108,6 +111,12 @@ struct WheelView: View {
     }
 
     // MARK: - Touch
+
+    private func touchEnded() {
+        if downAt != nil { onTouchUp() }
+        drag = nil
+        downAt = nil
+    }
 
     private func gesture(height: CGFloat) -> some Gesture {
         let perPoint = gearing.perPoint(height: height)

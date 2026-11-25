@@ -116,6 +116,7 @@ struct SideWheels: View {
             WheelView(value: model.position, gearing: .perPoint(Self.tuningBandPerPoint),
                       ridge: Radio.tuningRidge,
                       onTouchDown: { model.holdStill() },
+                      onTouchUp: { model.letGo() },
                       onChange: { model.tune(toPosition: $0) },
                       onRelease: { predicted in
                           let target = flickTarget(from: model.position, predicted: predicted,

@@ -29,6 +29,8 @@ targets:
         UILaunchScreen: {}
         # Lets the wheels, the needle and the glides draw at 120 frames a second on ProMotion.
         CADisableMinimumFrameDurationOnPhone: true
+        NSLocationWhenInUseUsageDescription: "Hinge Radio uses your approximate location to find the FM stations around you."
+        NSLocationDefaultAccuracyReduced: true
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft

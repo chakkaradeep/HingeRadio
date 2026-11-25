@@ -337,3 +337,32 @@ private func hoursLater(_ hours: Double) -> Date { savedAt.addingTimeInterval(ho
     let again = try JSONDecoder().decode(HereDial.self, from: JSONEncoder().encode(dial))
     #expect(again == dial)
 }
+
+// MARK: - Arriving on a station
+
+@Test func withNothingLockedTheNeedleArrivesOnTheNearestLiveStation() {
+    var radio = radioOnHere()
+    radio.setHereStations([station("KLOW", 90.1), station("KMID", 101.1), station("KTOP", 107.7)], town: nil)
+    #expect(radio.tuning.locked == nil)
+    let marks = radio.scale.marks.map(\.position)
+    #expect(radio.arrivalTarget == marks[1])
+    radio.markDead("KMID")
+    #expect(radio.arrivalTarget == marks.filter { $0 != marks[1] }.min { abs($0 - 0.5) < abs($1 - 0.5) })
+}
+
+@Test func aLockedStationIsWhereTheNeedleArrives() {
+    var radio = radioOnHere()
+    radio.setHereStations([station("KLOW", 90.1), station("KHER", 98.0)], town: nil)
+    #expect(radio.tuning.locked?.callSign == "KHER")
+    #expect(radio.arrivalTarget == radio.settleTarget)
+    radio.markDead("KHER")
+    #expect(radio.arrivalTarget == radio.settleTarget)
+}
+
+@Test func withNoLiveStationTheNeedleStaysPut() {
+    var radio = radioOnHere()
+    #expect(radio.arrivalTarget == nil)
+    radio.setHereStations([station("KLOW", 90.1)], town: nil)
+    radio.markDead("KLOW")
+    #expect(radio.arrivalTarget == nil)
+}

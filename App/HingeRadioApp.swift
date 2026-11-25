@@ -14,6 +14,7 @@ struct HingeRadioApp: App {
             RootView(model: model)
                 .onChange(of: scenePhase, initial: true) { _, phase in
                     model.appIsActive(phase == .active)
+                    if phase == .background { model.enteredBackground() }
                 }
         }
     }

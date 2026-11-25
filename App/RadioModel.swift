@@ -37,6 +37,16 @@ import UIKit
     @ObservationIgnored private var quietTicks = false
     /// The session's move to `.ambient` after switching off, waiting for the off click to ring out.
     @ObservationIgnored private var offSession: Task<Void, Never>?
+    /// True while a finger is on the tuning wheel.
+    @ObservationIgnored private var wheelIsHeld = false
+    /// Whether the owner has had a hand on the tuning since HERE's search began: the needle is
+    /// then theirs, and does not move when stations arrive.
+    @ObservationIgnored private var needleIsTaken = false
+    /// True from the app going to the background until it is next active.
+    @ObservationIgnored private var wasInBackground = false
+    #if HERE
+    @ObservationIgnored private lazy var hereSearch = HereSearch(model: self)
+    #endif
     @ObservationIgnored private var sessionObservers: [any NSObjectProtocol] = []
     /// Launch with `-HingeRadioMuted YES` to run silently (for testing). Read once.
     @ObservationIgnored private let muted = UserDefaults.standard.bool(forKey: "HingeRadioMuted")
@@ -56,7 +66,11 @@ import UIKit
                 .error("STATIONS missing from the app bundle, showing an empty dial")
             file = .empty
         }
+        #if HERE
+        radio = Radio(file: file, here: true)
+        #else
         radio = Radio(file: file)
+        #endif
         player.onPlayback = { [weak self] in self?.reportedPlayback = $0 }
         player.onFailed = { [weak self] in self?.markDead($0.callSign) }
         logMarks()
@@ -95,11 +109,19 @@ import UIKit
     }
 
     /// A finger came down on a wheel: whatever glide is running stops under it.
-    func holdStill() { stopGlide() }
+    func holdStill() {
+        wheelIsHeld = true
+        needleIsTaken = true
+        stopGlide()
+    }
+
+    /// The finger left the tuning wheel, or the system took the touch away.
+    func letGo() { wheelIsHeld = false }
 
     /// To the next station up or down the band (see `Radio.stepTarget`): a glide, or a jump when
     /// `animated` is false. Nothing past either end.
     func stepStation(up: Bool, animated: Bool) {
+        needleIsTaken = true
         guard let target = radio.stepTarget(up: up) else { return }
         if animated { glide(toPosition: target) } else { tune(toPosition: target) }
     }
@@ -143,7 +165,8 @@ import UIKit
     func setWheel(_ value: Double) { radio.setWheel(value) }
 
     /// Changes city; if a station of the new city is locked under the needle, the needle then
-    /// settles onto its mark (at once when `animated` is false).
+    /// settles onto its mark (at once when `animated` is false). Choosing HERE starts a search for
+    /// its stations; choosing any other band ends it.
     func selectCity(_ id: String, animated: Bool) {
         let before = radio.tuning.locked?.callSign
         stopGlide()
@@ -152,6 +175,9 @@ import UIKit
         logMarks()
         logLockChange(from: before)
         settle(animated: animated)
+        #if HERE
+        if radio.cityID == hereID { hereSearch.chosen() } else { hereSearch.cancel() }
+        #endif
     }
 
     func markDead(_ callSign: String) { radio.markDead(callSign) }
@@ -164,7 +190,47 @@ import UIKit
         guard active else { return }
         if !radio.isLive { startAudio(live: false) }   // going live already started it
         for haptic in [tickHaptic, clickHaptic, stopHaptic] { haptic.prepare() }
+        #if HERE
+        if wasInBackground, radio.cityID == hereID { hereSearch.returned() }
+        #endif
+        wasInBackground = false
     }
+
+    /// The app went to the background, not merely inactive as under a system prompt: HERE's search
+    /// ends. It starts again on return.
+    func enteredBackground() {
+        wasInBackground = true
+        #if HERE
+        hereSearch.cancel()
+        #endif
+    }
+
+    #if HERE
+    // MARK: - HERE
+
+    /// A search began: the needle may move onto a station at its end, unless a finger has it.
+    func hereSearchBegan() { needleIsTaken = wheelIsHeld }
+
+    func setHere(status: HereStatus) {
+        guard status != radio.hereStatus else { return }
+        radio.setHere(status: status)
+        log.notice("HERE \(String(describing: status), privacy: .public)")
+    }
+
+    /// HERE's stations, in frequency order, and its name (nil keeps it).
+    func setHereStations(_ stations: [Station], town: String?) {
+        let before = radio.tuning.locked?.callSign
+        radio.setHereStations(stations, town: town)
+        logMarks()
+        logLockChange(from: before)
+    }
+
+    /// Eases the needle onto a station (`Radio.arrivalTarget`), unless the owner has a hand on it.
+    func arriveOnStation() {
+        guard !needleIsTaken else { return }
+        ease(to: radio.arrivalTarget, animated: !UIAccessibility.isReduceMotionEnabled)
+    }
+    #endif
 
     // MARK: - Private
 
