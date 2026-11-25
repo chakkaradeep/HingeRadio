@@ -130,8 +130,40 @@ private func hereCity(_ radio: Radio) -> City? { radio.cities.first { $0.id == h
     radio.setHereStations([station("KHER", 98.0)], town: nil)
     radio.markDead("KHER")
     radio.setHereStations([station("KHER", 98.0)], town: "Ballard")
-    radio.selectCity(hereID)                                         // already there: nothing newly shown
     #expect(radio.dead == ["KHER"])
+    #expect(radio.tuning.locked?.callSign == "KHER")
+    #expect(radio.station == nil)
+}
+
+@Test func choosingHereAgainBringsItsDeadStationsBack() {
+    var radio = radioOnHere()
+    radio.setHereStations([station("KHER", 98.0)], town: "Ballard")
+    radio.markDead("KHER")
+    radio.markDead("WCHI")
+    #expect(radio.station == nil)
+    #expect(changed(radio) { $0.selectCity(hereID) } == nil)         // no click: the band did not change
+    radio.selectCity(hereID)
+    #expect(radio.dead == ["WCHI"])
+    #expect(radio.station?.callSign == "KHER")
+    #expect(hereCity(radio)?.name == "Ballard")
+}
+
+@Test func choosingAnotherBandAgainKeepsItsDeadStationsDead() {
+    var radio = Radio(file: file, here: true)
+    radio.togglePower()
+    radio.markDead("KSEA")
+    radio.selectCity("seattle")
+    #expect(radio.dead == ["KSEA"])
+}
+
+@Test func theBandIsReadAloudWithItsTown() throws {
+    var radio = radioOnHere()
+    #expect(hereCity(radio)?.spokenName == "Here")
+    radio.setHereStations([], town: "Seattle")
+    #expect(hereCity(radio)?.spokenName == "Here, Seattle")
+    radio.setHereStations([], town: hereName)
+    #expect(hereCity(radio)?.spokenName == "Here")
+    #expect(radio.cities.first?.spokenName == "Seattle")
 }
 
 @Test func choosingHereFromAnotherBandBringsItsDeadStationsBack() {
@@ -211,6 +243,27 @@ private func hereCity(_ radio: Radio) -> City? { radio.cities.first { $0.id == h
     #expect(radio.display(playback: .playing) == before.display(playback: .playing))
     radio.tune(toPosition: 0.45)
     #expect(changed(radio) { $0.tune(toPosition: 0.5) } == .lockClick(callSign: "KSEA"))
+}
+
+@Test func scanningHereShowsNoLock() {
+    var radio = radioOnHere()
+    radio.setHereStations([station("KHER", 98.0)], town: nil)
+    #expect(radio.lockToShow?.callSign == "KHER")
+    radio.setScanning(true)
+    #expect(radio.tuning.locked?.callSign == "KHER")
+    #expect(radio.lockToShow == nil)
+    #expect(radio.isScanningHere)
+    radio.setScanning(false)
+    #expect(radio.lockToShow?.callSign == "KHER")
+    radio.tune(toPosition: 0.2)
+    #expect(radio.lockToShow == nil)
+}
+
+@Test func aScanLeftOnElsewhereHidesNoLock() {
+    var radio = Radio(file: file, here: true)
+    radio.setScanning(true)
+    #expect(!radio.isScanningHere)
+    #expect(radio.lockToShow?.callSign == "KSEA")
 }
 
 // MARK: - Feel
@@ -371,25 +424,46 @@ private func found(_ call: String, _ mhz: Double, distance: Double = 10, kilowat
 // MARK: - The saved dial
 
 private let savedAt = Date(timeIntervalSinceReferenceDate: 800_000_000.25)
-private let dial = HereDial(town: "Ballard", stations: [station("KHER", 98.0)], savedAt: savedAt)
+private func stations(_ count: Int) -> [Station] { (0..<count).map { station("K\($0)", 90.1 + Double($0)) } }
+private func dial(_ count: Int) -> HereDial { HereDial(town: "Ballard", stations: stations(count), savedAt: savedAt) }
 private func hoursLater(_ hours: Double) -> Date { savedAt.addingTimeInterval(hours * 3600) }
+private func minutesLater(_ minutes: Double) -> Date { hoursLater(minutes / 60) }
 
 @Test func aSavedDialIsUsableForSevenDays() {
-    #expect(dial.isUsable(at: savedAt))
-    #expect(dial.isUsable(at: hoursLater(6 * 24 + 23)))
-    #expect(!dial.isUsable(at: hoursLater(7 * 24)))
-    #expect(!dial.isUsable(at: hoursLater(7 * 24 + 1)))
+    #expect(dial(8).isUsable(at: savedAt))
+    #expect(dial(8).isUsable(at: hoursLater(6 * 24 + 23)))
+    #expect(!dial(8).isUsable(at: hoursLater(7 * 24)))
+    #expect(!dial(8).isUsable(at: hoursLater(7 * 24 + 1)))
+    #expect(HereDial.lifetime == 7 * 24 * 3600)
 }
 
 @Test func aSavedDialNeedsARefreshAfterADay() {
-    #expect(!dial.needsRefresh(at: hoursLater(23)))
-    #expect(!dial.needsRefresh(at: hoursLater(24)))
-    #expect(dial.needsRefresh(at: hoursLater(25)))
+    #expect(!dial(8).needsRefresh(at: savedAt))
+    #expect(!dial(8).needsRefresh(at: hoursLater(23)))
+    #expect(!dial(8).needsRefresh(at: hoursLater(24)))
+    #expect(dial(8).needsRefresh(at: hoursLater(25)))
+    #expect(dial(16).needsRefresh(at: hoursLater(25)))
+}
+
+@Test func aThinDialNeedsARefreshAfterTenMinutes() {
+    #expect(!dial(7).needsRefresh(at: savedAt))
+    #expect(!dial(7).needsRefresh(at: minutesLater(9)))
+    #expect(!dial(7).needsRefresh(at: minutesLater(10)))
+    #expect(dial(7).needsRefresh(at: minutesLater(11)))
+    #expect(dial(1).needsRefresh(at: minutesLater(11)))
+    #expect(!dial(8).needsRefresh(at: minutesLater(11)))
+}
+
+@Test func aDialSavedInTheFutureIsUsableButNotFresh() {
+    for count in [1, 8, 16] {
+        #expect(dial(count).isUsable(at: hoursLater(-1)))
+        #expect(dial(count).needsRefresh(at: hoursLater(-1)))
+        #expect(dial(count).isUsable(at: hoursLater(-24 * 30)))
+        #expect(dial(count).needsRefresh(at: hoursLater(-24 * 30)))
+    }
 }
 
 @Test func aRefreshWithUnderHalfTheStationsNeverReplacesADial() {
-    func stations(_ count: Int) -> [Station] { (0..<count).map { station("K\($0)", 90.1 + Double($0)) } }
-    func dial(_ count: Int) -> HereDial { HereDial(town: "Ballard", stations: stations(count), savedAt: savedAt) }
     #expect(dial(16).mayBeReplaced(by: stations(16)))
     #expect(dial(16).mayBeReplaced(by: stations(8)))
     #expect(!dial(16).mayBeReplaced(by: stations(7)))
@@ -401,8 +475,8 @@ private func hoursLater(_ hours: Double) -> Date { savedAt.addingTimeInterval(ho
 }
 
 @Test func aSavedDialSurvivesARoundTrip() throws {
-    let again = try JSONDecoder().decode(HereDial.self, from: JSONEncoder().encode(dial))
-    #expect(again == dial)
+    let again = try JSONDecoder().decode(HereDial.self, from: JSONEncoder().encode(dial(8)))
+    #expect(again == dial(8))
 }
 
 // MARK: - Arriving on a station

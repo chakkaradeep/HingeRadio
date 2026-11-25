@@ -184,21 +184,18 @@ struct StandbyView: View {
             }
     }
 
-    /// The locked station's own frequency, else the needle's (flex's dial follows the needle). Its
-    /// size is set from the widest reading, so it stays put across 100 MHz and fits beside the
-    /// wheels.
+    /// The reading at a size set from the widest one, so it stays put across 100 MHz and fits
+    /// beside the wheels.
     private func frequency(_ metrics: Metrics) -> some View {
         frequencyText(size: frequencySize(metrics))
             .frame(maxWidth: .infinity, alignment: .leading)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { frequencySlot = $0 }
     }
 
-    /// The locked station's own frequency, otherwise the one under the needle, as it is while
-    /// HERE's sweep passes its stations.
+    /// The locked station's own frequency, else the needle's (flex's dial follows the needle).
     private func frequencyText(size: CGFloat) -> some View {
-        let tuning = model.radio.tuning
-        let locked = model.radio.isScanning ? nil : tuning.locked
-        return Text(String(format: "%.1f", locked?.frequency ?? tuning.frequency))
+        let mhz = model.radio.lockToShow?.frequency ?? model.radio.tuning.frequency
+        return Text(String(format: "%.1f", mhz))
             .font(.system(size: size, weight: .medium))
             .monospacedDigit()
             .tracking(-0.02 * size)

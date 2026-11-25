@@ -168,7 +168,8 @@ import UIKit
 
     /// Changes city; if a station of the new city is locked under the needle, the needle then
     /// settles onto its mark (at once when `animated` is false). Choosing HERE starts a search for
-    /// its stations; choosing any other band ends it. Choosing HERE again leaves its sweep running.
+    /// its stations; choosing any other band ends it. Choosing HERE again tries its dead stations
+    /// again, but leaves its sweep running.
     func selectCity(_ id: String, animated: Bool) {
         if radio.isScanning, id == radio.cityID { return }
         let before = radio.tuning.locked?.callSign
@@ -212,14 +213,16 @@ import UIKit
     // MARK: - HERE
 
     /// A search began: the needle may sweep, and move onto a station at its end, unless a finger
-    /// has it. Any sweep of the last search is over.
-    func hereSearchBegan() {
+    /// has it or, with the app back from the background, the owner had a hand on it before. Any
+    /// sweep of the last search is over.
+    func hereSearchBegan(isReturn: Bool) {
         endScan()
-        needleIsTaken = wheelIsHeld
+        needleIsTaken = wheelIsHeld || (isReturn && needleIsTaken)
     }
 
     /// Sweeps the needle over the dial (see `Sweep`) until `stopGlide`, ticking on the way up.
-    /// Not with Reduce Motion, nor once the owner has had a hand on the needle.
+    /// Not with Reduce Motion, which ends a sweep it is switched on in, nor once the owner has had
+    /// a hand on the needle.
     func beginScan() {
         guard !needleIsTaken, !UIAccessibility.isReduceMotionEnabled else { return }
         stopGlide()
@@ -229,6 +232,10 @@ import UIKit
         let start = CACurrentMediaTime()
         frames.run { [weak self] now in
             guard let self, self.radio.isScanning else { return false }
+            guard !UIAccessibility.isReduceMotionEnabled else {
+                self.endScan()
+                return false
+            }
             let next = sweep.step(at: now - start)
             self.step(toPosition: next.position, quiet: next.isReturning || self.radio.isSuspended)
             return true

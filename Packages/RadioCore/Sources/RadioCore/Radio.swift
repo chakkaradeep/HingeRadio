@@ -50,7 +50,7 @@ public struct Radio: Sendable {
     /// `here` adds the HERE band last. The radio never starts on it.
     public init(file: StationFile, config: DialConfig = DialConfig(), poseConfig: PoseConfig = PoseConfig(),
                 here: Bool = false) {
-        cities = file.cities + (here ? [City(id: hereID, name: "Here", key: "HERE", stations: [])] : [])
+        cities = file.cities + (here ? [City(id: hereID, name: hereName, key: "HERE", stations: [])] : [])
         cityID = file.cities.first?.id ?? ""
         self.config = config
         self.poseConfig = poseConfig
@@ -69,8 +69,12 @@ public struct Radio: Sendable {
     }
     public var isLive: Bool { powerOn && !isSuspended }
 
-    /// Whether the scan is what the owner sees and feels: silent, no lock clicks.
-    var isScanningHere: Bool { isScanning && cityID == hereID }
+    /// Whether the scan is what the owner sees and feels: no station shows, plays or clicks, while
+    /// the static and the ticks go on.
+    public var isScanningHere: Bool { isScanning && cityID == hereID }
+
+    /// The locked station, for a face to show; nil while HERE's sweep passes its stations.
+    public var lockToShow: Station? { isScanningHere ? nil : tuning.locked }
 
     public var station: Station? {
         guard isLive, !isScanningHere,
@@ -90,10 +94,10 @@ public struct Radio: Sendable {
 
     public mutating func setSuspended(_ suspended: Bool) { isSuspended = suspended }
 
-    /// Coming to HERE from another band, its stations are tried afresh: none of them is dead.
+    /// Choosing HERE, even while on it, tries its stations afresh: none of them is dead.
     public mutating func selectCity(_ id: String) {
         guard let city = cities.first(where: { $0.id == id }) else { return }
-        if id == hereID, cityID != hereID { dead.subtract(city.stations.map(\.callSign)) }
+        if id == hereID { dead.subtract(city.stations.map(\.callSign)) }
         cityID = id
         tuner = Tuner(stations: city.stations, config: config)
         tune(toPosition: position)

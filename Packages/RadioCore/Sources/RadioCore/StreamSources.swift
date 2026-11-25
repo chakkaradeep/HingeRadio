@@ -73,7 +73,8 @@ private struct IHeartHit: Decodable {
     let callLetters: String?
     let band: String?
     let freq: Number?
-    let streams: [String: String]?
+    /// A null or other value that is not text costs only itself.
+    let streams: [String: Lenient<String>]?
 }
 
 private func iHeartChoice(_ data: Data, _ licence: Licence) -> StreamChoice? {
@@ -85,7 +86,7 @@ private func iHeartChoice(_ data: Data, _ licence: Licence) -> StreamChoice? {
               let name = hit.name
         else { continue }
         let urls = ["secure_hls_stream", "secure_shoutcast_stream"]
-            .compactMap { hit.streams?[$0] }
+            .compactMap { hit.streams?[$0]?.value }
             .compactMap(httpsURL)
         if !urls.isEmpty { return StreamChoice(name: name, urls: urls, radioBrowserID: nil) }
     }
@@ -181,7 +182,7 @@ private func holdsWhole(_ word: String, in text: String) -> Bool {
 
 // MARK: - Shared
 
-/// One list element that decodes to nil instead of failing the whole list.
+/// One list element or dictionary value that decodes to nil instead of failing the whole.
 private struct Lenient<Value: Decodable>: Decodable {
     let value: Value?
 

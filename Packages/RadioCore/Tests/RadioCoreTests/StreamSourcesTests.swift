@@ -69,6 +69,20 @@ private func data(_ text: String) -> Data { Data(text.utf8) }
     #expect(streamChoice(.iHeart, from: mixed, for: licence("KZOK-FM", frequency: 102.5))?.urls.count == 1)
 }
 
+@Test(arguments: ["null", "7", "true", "[]", #"{"url":"https://a.example/x"}"#])
+func iHeartKeepsTheHitAroundAStreamThatIsNotText(value: String) {
+    func hit(_ streams: String) -> Data {
+        data(#"{"hits":[{"name":"102.5 KZOK","callLetters":"KZOK-FM","band":"FM","freq":"102.5","streams":{\#(streams)}}]}"#)
+    }
+    let kzok = licence("KZOK-FM", frequency: 102.5)
+    // A stream nobody reads, then the better of the two read.
+    let other = hit(#""pls_stream":\#(value),"secure_shoutcast_stream":"https://a.example/s""#)
+    #expect(streamChoice(.iHeart, from: other, for: kzok)?.urls.map(\.absoluteString) == ["https://a.example/s"])
+    let better = hit(#""secure_hls_stream":\#(value),"secure_shoutcast_stream":"https://a.example/s""#)
+    #expect(streamChoice(.iHeart, from: better, for: kzok)?.urls.map(\.absoluteString) == ["https://a.example/s"])
+    #expect(streamChoice(.iHeart, from: hit(#""secure_hls_stream":\#(value)"#), for: kzok) == nil)
+}
+
 // MARK: - NPR
 
 @Test func nprGivesPrimaryHTTPSAudioFirst() throws {

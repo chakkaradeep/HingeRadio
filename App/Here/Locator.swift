@@ -77,7 +77,8 @@ enum LocatorError: Error { case refused, unavailable }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last, location.horizontalAccuracy >= 0 else {
+        guard let location = locations.last, location.horizontalAccuracy >= 0,
+              CLLocationCoordinate2DIsValid(location.coordinate) else {
             finish(.failure(.unavailable))
             return
         }

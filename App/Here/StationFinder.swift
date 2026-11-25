@@ -17,14 +17,19 @@ actor StationFinder {
     private static let lookupsAtOnce = 6
     /// Seconds allowed for any one request, from start to end.
     private static let deadline: TimeInterval = 8
+    /// The whole search ends here with what it has confirmed, however many lookups are still open.
+    private static let searchLimit = Duration.seconds(30)
+    /// The most addresses tried for one station from one source.
+    private static let probesPerChoice = 3
 
     deinit { session.finishTasksAndInvalidate() }
 
-    /// The stations around `place`, best ranked 16 at most, sorted by frequency. `onFound` gets the
-    /// list so far each time it changes. Cancelled, it stops every request, calls `onFound` no more
-    /// and returns an empty list.
+    /// The stations around `place`, best ranked 16 at most, sorted by frequency; at `searchLimit`,
+    /// those confirmed by then. `onFound` gets the list so far each time it changes. Cancelled, it
+    /// stops every request, calls `onFound` no more and returns an empty list.
     func find(at place: Place, onFound: @Sendable ([Station]) async -> Void) async -> [Station] {
         let began = ContinuousClock.now
+        let end = began + Self.searchLimit
         hostPick = nil       // a fresh pick each search, so a host that has gone is not kept
         let listed = await licences(near: place)
         guard !Task.isCancelled else { return [] }
@@ -32,9 +37,13 @@ actor StationFinder {
         log.notice("HERE FCC \(listed.count) licences, \(hunt.licences.count) in reach")
 
         var stations: [Station] = []
-        await withTaskGroup(of: (Int, Found?).self) { group in
-            for _ in 0..<Self.lookupsAtOnce { lookUpNext(&hunt, in: &group) }
-            for await (index, found) in group {
+        await withTaskGroup(of: Lookup?.self) { group in
+            group.addTask {          // ends the wait below even when no lookup ever answers
+                try? await Task.sleep(until: end, clock: .continuous)
+                return nil
+            }
+            for _ in 0..<Self.lookupsAtOnce { lookUpNext(&hunt, until: end, in: &group) }
+            while !hunt.isDecided, let (index, found) = await group.next() ?? nil {
                 guard !Task.isCancelled else { return }
                 hunt.settle(index, with: found)
                 let soFar = hereStations(hunt.confirmed)
@@ -42,11 +51,13 @@ actor StationFinder {
                     stations = soFar
                     await onFound(soFar)
                 }
-                if hunt.isDecided { group.cancelAll(); return }
-                lookUpNext(&hunt, in: &group)
+                if ContinuousClock.now >= end { break }
+                lookUpNext(&hunt, until: end, in: &group)
             }
+            group.cancelAll()
         }
         guard !Task.isCancelled else { return [] }
+        if ContinuousClock.now >= end { log.notice("HERE TIME UP") }
         let seconds = (ContinuousClock.now - began) / .seconds(1)
         log.notice("HERE TOTAL \(stations.count) stations in \(seconds, format: .fixed(precision: 1)) s")
         return stations
@@ -62,9 +73,10 @@ actor StationFinder {
 
     // MARK: - Search
 
-    private func lookUpNext(_ hunt: inout Hunt, in group: inout TaskGroup<(Int, Found?)>) {
+    private func lookUpNext(_ hunt: inout Hunt, until end: ContinuousClock.Instant,
+                            in group: inout TaskGroup<Lookup?>) {
         guard let (index, licence) = hunt.next() else { return }
-        group.addTask { (index, await self.confirm(licence)) }
+        group.addTask { (index, await self.confirm(licence, until: end)) }
     }
 
     private func licences(near place: Place) async -> [Licence] {
@@ -74,25 +86,26 @@ actor StationFinder {
     }
 
     /// The first address that answers with a playable stream, asking each source in order.
-    private func confirm(_ licence: Licence) async -> Found? {
+    private func confirm(_ licence: Licence, until end: ContinuousClock.Instant) async -> Found? {
+        // Cancelled, or out of time, nothing more is started: no host pick, no lookup, no probe.
+        var isOver: Bool { Task.isCancelled || ContinuousClock.now >= end }
         for source in StreamSource.allCases {
-            // Cancelled, nothing more is started: no host pick, no lookup, no probe.
-            guard !Task.isCancelled else { return nil }
+            guard !isOver else { return nil }
             // Only Radio Browser's address uses the host, so only it waits for one to be picked.
             let host = source == .radioBrowser ? await radioBrowserHost() : ""
-            guard !Task.isCancelled else { return nil }
+            guard !isOver else { return nil }
             let url = lookupURL(source, for: licence, radioBrowserHost: host)
             guard let data = await fetch(url),
                   let choice = streamChoice(source, from: data, for: licence) else { continue }
-            for streamURL in choice.urls {
-                guard !Task.isCancelled else { return nil }
+            for streamURL in choice.urls.prefix(Self.probesPerChoice) {
+                guard !isOver else { return nil }
                 if await answers(streamURL) {
                     log.notice("HERE \(licence.callSign, privacy: .public) \(String(describing: source), privacy: .public)")
                     return (licence, choice, streamURL)
                 }
             }
         }
-        if !Task.isCancelled { log.notice("HERE \(licence.callSign, privacy: .public) none") }
+        if !isOver { log.notice("HERE \(licence.callSign, privacy: .public) none") }
         return nil
     }
 
@@ -146,6 +159,9 @@ actor StationFinder {
 
 /// A confirmed station: its licence, the stream offered for it and the address that answered.
 private typealias Found = (Licence, StreamChoice, URL)
+
+/// The end of one lookup: the licence's place in the hunt, and what was found for it.
+private typealias Lookup = (Int, Found?)
 
 /// Keeps every redirect on https, and one that would carry the position off the FCC's servers
 /// from being followed at all. A refused redirect leaves the 3xx answer, which nothing accepts.

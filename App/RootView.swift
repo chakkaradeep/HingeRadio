@@ -11,6 +11,10 @@ struct RootView: View {
     @State private var aboutShown = false
     @State private var windowHeight: CGFloat = 0
 
+    /// How much taller than its detent a sheet shows (its margins, the space under the window),
+    /// measured on the simulator.
+    private static let sheetExtra: CGFloat = 8
+
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
@@ -75,11 +79,9 @@ struct RootView: View {
         .statusBarHidden()
         .hingeReadings(into: model)
         .sheet(isPresented: $aboutShown) {
-            // The sheet's top edge sits a clear band below the fold. A sheet shows taller than its
-            // detent (its margins, the space under the window): 8 pt comes off, measured on the
-            // simulator.
+            // The sheet's top edge sits a clear band below the fold.
             AboutCard()
-                .presentationDetents([.height(windowHeight / 2 - Face.foldClearance - 8)])
+                .presentationDetents([.height(max(windowHeight / 2 - Face.foldClearance - Self.sheetExtra, 0))])
         }
         // The card is for flex, where the dial is: it goes when the phone leaves it.
         .onChange(of: model.radio.pose) { _, pose in

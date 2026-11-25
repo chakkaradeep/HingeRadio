@@ -3,7 +3,7 @@ import RadioCore
 
 /// A five-position slide switch for the bands, the four cities and HERE (four without HERE), with
 /// each band's key printed under its position. Tapping a position slides the knob there. VoiceOver
-/// reads it as a picker, HERE by its town once that is known.
+/// reads it as a picker, HERE with its town once that is known.
 struct BandSwitch: View {
     let model: RadioModel
     let em: CGFloat
@@ -68,7 +68,7 @@ struct BandSwitch: View {
             Picker("Band", selection: Binding(get: { model.radio.cityID },
                                               set: { model.selectCity($0, animated: !reduceMotion) })) {
                 ForEach(cities) { city in
-                    Text(city.name).tag(city.id)
+                    Text(city.spokenName).tag(city.id)
                 }
             }
         }

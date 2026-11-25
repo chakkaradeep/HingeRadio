@@ -78,7 +78,7 @@ Each control ticks or clicks like a mechanical one, with a small sound and a mat
 
 Running silently (below) silences these sounds too; the taps you feel still happen.
 
-With VoiceOver: "Volume" is adjustable in steps of a tenth (from off, one step up switches on at the click; a step down past the click switches off) and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and its frequency; "Band" reads as a picker of the bands; the badge has an "About the dial" action. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
+With VoiceOver: "Volume" is adjustable in steps of a tenth (from off, one step up switches on at the click; a step down past the click switches off) and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and its frequency ("Finding stations" while HERE's needle sweeps); "Band" reads as a picker of the bands, HERE as "Here" with its town once that is known; the badge has an "About the dial" action. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
 
 ### Book, tent and shut: standby
 
@@ -130,7 +130,7 @@ xcrun simctl spawn <id> log show --last 3m --style compact --predicate 'subsyste
 - `LOCK <call> <position>` or `STATIC <position>` only when the locked station changes.
 - `CONNECT`, `PLAYING`, `RETRY`, `FAILED` and `STOP` from the player.
 - `FEEL click on|off|band|lock <call>` and `FEEL stop tuning|volume` for each click and stop; `FEEL tick tuning|volume` for each tick, at the info level (add `--info` to see them).
-- `HERE ...` lines from HERE's search (`FCC <n> licences`, one line per call sign with the source that gave its stream or `none`, `TOTAL`, `SAVED`, `NAMED`, `CACHED`, `REFRESHED`, `CANCELLED`, `PLAY COUNTED`), and `SCAN` and `SCAN END` for the needle's sweep. Positions are never logged.
+- `HERE ...` lines from HERE's search (`FCC <n> licences`, one line per call sign with the source that gave its stream or `none`, `TOTAL`, `SAVED`, `NAMED`, `CACHED`, `REFRESHED`, `TIME UP`, `CANCELLED`, `PLAY SENT`), and `SCAN` and `SCAN END` for the needle's sweep. The position and the town's name are never logged, but the call signs are, as they are for every band, so someone reading the phone's system log could tell the metro area.
 - `WHEELS tuning <height> pt, <fraction> of the band` when the tuning wheel's height changes, at the debug level (add `--debug` to see it).
 
 ## The stations
@@ -164,7 +164,10 @@ How it finds them:
 1. The position is rounded to 0.01 degree (about 1 km) before anything is done with it.
 2. The FCC's list of licensed FM stations within 100 km of it. Only licensed stations (status `LIC`, service `FM`) count, one per call sign, and only those whose class reach covers the phone (class A 28 km, B1 and C3 39, B and C2 52, C1 72, C0 83, C 92, D 10). They are ranked by distance divided by reach, smallest first, then higher power, then lower frequency. At most 16, one to a frequency, within 88 to 108 MHz.
 3. A stream for each, asked of iHeart, then NPR, then Radio Browser, and the first `https` one wins. Radio Browser counts only when the entry's name holds both the call sign and the frequency and its own check says the stream works.
-4. Each stream is tried (one byte is enough) before its station goes on the dial. A request takes at most 8 seconds and at most 6 run at once. Every request says `User-Agent: HingeRadio/1.0`.
+4. Each stream is tried (one byte is enough) before its station goes on the dial. At most 3 addresses are tried for one station from one source. A request takes at most 8 seconds and at most 6 run at once. Every request says `User-Agent: HingeRadio/1.0`.
+5. The whole search takes at most 30 seconds. At the limit it ends with the stations found by then, and they are the dial.
+
+Leaving the app or choosing another band ends a search. The stations found so far are dropped; coming back to the app with HERE chosen searches again. The needle is left where it is for that search if you had a hand on the tuning in the one that was cut short. Choosing HERE yourself starts afresh, and choosing it again tries any of its stations marked "No signal" again. Reduce Motion switched on during the sweep stops the needle there; the search goes on.
 
 ### What is sent where
 
@@ -174,7 +177,7 @@ How it finds them:
 | Apple (MapKit's place lookup) | The rounded position | The town's name |
 | iHeart (`us.api.iheart.com`) | A call sign | The stream address |
 | NPR (`station.api.npr.org`) | A call sign | The stream address |
-| Radio Browser (its `api.radio-browser.info` servers, found with a DNS lookup of `all.api.radio-browser.info`) | A call sign; and, when a station it listed plays, that station's id, as it asks | The stream address and its play count |
+| Radio Browser (its `api.radio-browser.info` servers, found with a DNS lookup of `all.api.radio-browser.info`, or `de1.api.radio-browser.info` when that names none in time) | A call sign; and, when a station it listed plays, that station's id, as it asks | The stream address and its play count |
 | Each station's own stream server | An ordinary request for its stream, so it sees the phone's address | The sound |
 
 Only the FCC and Apple get the position. Nothing is sent to anyone else, and there is no server of ours. No request carries an account, a device identifier or a cookie.
@@ -185,7 +188,7 @@ The play count goes to Radio Browser only while HERE is the band, once each time
 
 The first time HERE is chosen, iOS asks to use the location while the app is in use, and the app asks for approximate location only. If the answer is no, HERE says "Location is off" and finds its stations when it is allowed again.
 
-Each place's dial is kept on the phone, in the app's cache folder, for 7 days, on a grid of 0.1 degree (about 10 km). A kept dial shows at once. When it is over 24 hours old it is searched for again in the background; the new list is only kept, and shows the next time HERE is chosen, so the station being listened to never moves. A refresh that finds nothing, or fewer than half as many stations, leaves the old dial alone.
+Each place's dial is kept on the phone, in the app's cache folder, for 7 days, on a grid of 0.1 degree (about 10 km). A kept dial shows at once. When it is over 24 hours old, or over 10 minutes old with fewer than 8 stations (a poor connection may have cut it short), it is searched for again in the background; the new list is only kept, and shows the next time HERE is chosen, so the station being listened to never moves. A refresh that finds nothing, or fewer than half as many stations, leaves the old dial alone. Each time a dial is kept, files in that folder last written over 7 days ago are removed.
 
 ### Building without HERE
 
@@ -208,7 +211,7 @@ On the iPhone Duo simulator (muted, location set to Seattle, no kept dial) HERE 
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 221 tests
+swift test --package-path Packages/RadioCore          # 229 tests
 python3 -m unittest discover -s tools                 # 19 tests
 ```
 
@@ -381,7 +384,9 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 - Whether the right edge fights the system's edge gestures on a real phone. The wheels end about 43 pt in from the glass edge; on the simulator no roll was taken by the system, but the simulator's touches are synthetic.
 - How it sounds. Every run was muted except a short unmuted launch at the end; nobody listened.
 - A real phone. Anything on a real iPhone Duo, including how it chooses its lit screen.
-- HERE anywhere but the simulator's Seattle (and the earlier London, which found nothing). It was not tried on a phone with a real position.
+- HERE on a phone with a real position. On the simulator it was tried in Seattle, Fargo, Chicago and London (which finds nothing).
+- HERE with location restricted or switched off for the whole phone, and with no network at all. The 30 second limit was tried on the simulator with lookups that never answered.
+- What VoiceOver reads for HERE: "Here, <town>" in the band picker, and "Finding stations" for Tuning during the sweep.
 - The play count sent to Radio Browser. None of Seattle's 16 stations came from Radio Browser, so no count was sent; the rule for when to count is tested in `PlayCountTests.swift`, and the call from the app to `reportPlay` has not been seen working.
 - The About card with VoiceOver, and with the largest text sizes.
 - The standby face on the inner screen when nearly shut. On the simulator a jump to 15 degrees lit the outer screen, so that layout was never seen.

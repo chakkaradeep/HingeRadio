@@ -4,7 +4,8 @@ import os
 import RadioCore
 
 /// Runs HERE's searches for the model, one at a time: where the phone is, then the dial kept for
-/// that place, then a hunt for its stations when there is none or it is over a day old.
+/// that place, then a hunt for its stations when there is none or it is due a refresh
+/// (`HereDial.needsRefresh`).
 @MainActor final class HereSearch {
     private weak var model: RadioModel?
     private let locator = Locator()
@@ -17,30 +18,30 @@ import RadioCore
     private var lastPlace: Place?
     private let log = Logger(subsystem: "HingeRadio", category: "here")
 
-    /// HERE's name until its town is known.
-    private static let unnamed = "Here"
-
     init(model: RadioModel) { self.model = model }
 
     /// HERE was chosen: a search, unless one is already running.
     func chosen() {
-        if task == nil { start() }
+        if task == nil { start(isReturn: false) }
     }
 
     /// The app came back with HERE selected: a search, if the last one did not end with a dial.
     func returned() {
         guard task == nil, let status = model?.radio.hereStatus else { return }
-        if wasCancelled || status == .locationOff || status == .empty { start() }
+        if wasCancelled || status == .locationOff || status == .empty { start(isReturn: true) }
     }
 
     /// A station Radio Browser listed started playing: tells it, as it asks. Its own task, so no
     /// band change or cancelled search stops it; a failure is ignored.
     func played(radioBrowserID: String) {
-        log.notice("HERE PLAY COUNTED")
+        log.notice("HERE PLAY SENT")
         Task { [finder] in await finder.reportPlay(radioBrowserID: radioBrowserID) }
     }
 
+    /// Ends the search, and drops the part of a dial it had found: nobody should tune it, and the
+    /// next search starts afresh. A dial that was kept, or is whole, stays.
     func cancel() {
+        if model?.radio.hereStatus == .finding { clear(.idle) }
         model?.endScan()
         guard let task else { return }
         task.cancel()
@@ -51,10 +52,10 @@ import RadioCore
 
     // MARK: - Private
 
-    private func start() {
+    private func start(isReturn: Bool) {
         task?.cancel()
         wasCancelled = false
-        model?.hereSearchBegan()
+        model?.hereSearchBegan(isReturn: isReturn)
         if model?.radio.hereStatus != .ready { model?.setHere(status: .finding) }
         task = Task {
             await search()
@@ -79,7 +80,7 @@ import RadioCore
         lastPlace = place
         if let dial {
             show(dial)
-            let dial = dial.town == Self.unnamed ? await named(dial, at: place) : dial
+            let dial = dial.town == hereName ? await named(dial, at: place) : dial
             if isCurrent, dial.needsRefresh(at: .now) { await refresh(dial, at: place) }
         } else {
             await hunt(at: place)
@@ -111,7 +112,7 @@ import RadioCore
     }
 
     private func clear(_ status: HereStatus) {
-        model?.setHereStations([], town: Self.unnamed)
+        model?.setHereStations([], town: hereName)
         model?.setHere(status: status)
     }
 
@@ -127,7 +128,7 @@ import RadioCore
             model?.setHere(status: .empty)
             return
         }
-        let dial = HereDial(town: Self.unnamed, stations: stations, savedAt: .now)
+        let dial = HereDial(town: hereName, stations: stations, savedAt: .now)
         cache.save(dial, for: place)
         log.notice("HERE SAVED")
         model?.setHere(status: .ready)
