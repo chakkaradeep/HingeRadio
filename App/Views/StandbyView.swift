@@ -193,8 +193,12 @@ struct StandbyView: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { frequencySlot = $0 }
     }
 
+    /// The locked station's own frequency, otherwise the one under the needle, as it is while
+    /// HERE's sweep passes its stations.
     private func frequencyText(size: CGFloat) -> some View {
-        Text(String(format: "%.1f", model.radio.tuning.locked?.frequency ?? model.radio.tuning.frequency))
+        let tuning = model.radio.tuning
+        let locked = model.radio.isScanning ? nil : tuning.locked
+        return Text(String(format: "%.1f", locked?.frequency ?? tuning.frequency))
             .font(.system(size: size, weight: .medium))
             .monospacedDigit()
             .tracking(-0.02 * size)

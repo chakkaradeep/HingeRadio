@@ -148,9 +148,9 @@ struct SideWheels: View {
     }
 
     /// The station name and its own frequency when a station is locked, otherwise the frequency
-    /// under the needle.
+    /// under the needle, as it is while HERE's sweep passes its stations.
     private var tuningValue: String {
-        guard let station = model.radio.tuning.locked else {
+        guard !model.radio.isScanning, let station = model.radio.tuning.locked else {
             return String(format: "%.1f megahertz", model.radio.tuning.frequency)
         }
         return "\(station.shownName), " + String(format: "%.1f megahertz", station.frequency)

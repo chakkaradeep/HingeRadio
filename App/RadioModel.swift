@@ -108,7 +108,7 @@ import UIKit
         }
     }
 
-    /// A finger came down on a wheel: whatever glide is running stops under it.
+    /// A finger came down on a wheel: whatever glide is running, or HERE's sweep, stops under it.
     func holdStill() {
         wheelIsHeld = true
         needleIsTaken = true
@@ -122,6 +122,7 @@ import UIKit
     /// `animated` is false. Nothing past either end.
     func stepStation(up: Bool, animated: Bool) {
         needleIsTaken = true
+        endScan()
         guard let target = radio.stepTarget(up: up) else { return }
         if animated { glide(toPosition: target) } else { tune(toPosition: target) }
     }
@@ -166,8 +167,9 @@ import UIKit
 
     /// Changes city; if a station of the new city is locked under the needle, the needle then
     /// settles onto its mark (at once when `animated` is false). Choosing HERE starts a search for
-    /// its stations; choosing any other band ends it.
+    /// its stations; choosing any other band ends it. Choosing HERE again leaves its sweep running.
     func selectCity(_ id: String, animated: Bool) {
+        if radio.isScanning, id == radio.cityID { return }
         let before = radio.tuning.locked?.callSign
         stopGlide()
         if id != radio.cityID { player.stop() }   // the old city's station goes silent at once
@@ -208,8 +210,29 @@ import UIKit
     #if HERE
     // MARK: - HERE
 
-    /// A search began: the needle may move onto a station at its end, unless a finger has it.
-    func hereSearchBegan() { needleIsTaken = wheelIsHeld }
+    /// A search began: the needle may sweep, and move onto a station at its end, unless a finger
+    /// has it. Any sweep of the last search is over.
+    func hereSearchBegan() {
+        endScan()
+        needleIsTaken = wheelIsHeld
+    }
+
+    /// Sweeps the needle over the dial (see `Sweep`) until `stopGlide`, ticking on the way up.
+    /// Not with Reduce Motion, nor once the owner has had a hand on the needle.
+    func beginScan() {
+        guard !needleIsTaken, !UIAccessibility.isReduceMotionEnabled else { return }
+        stopGlide()
+        radio.setScanning(true)
+        log.notice("SCAN \(self.radio.position, format: .fixed(precision: 3))")
+        let sweep = Sweep(from: radio.position)
+        let start = CACurrentMediaTime()
+        frames.run { [weak self] now in
+            guard let self, self.radio.isScanning else { return false }
+            let next = sweep.step(at: now - start)
+            self.step(toPosition: next.position, quiet: next.isReturning || self.radio.isSuspended)
+            return true
+        }
+    }
 
     func setHere(status: HereStatus) {
         guard status != radio.hereStatus else { return }
@@ -233,6 +256,11 @@ import UIKit
     }
     #endif
 
+    /// Ends HERE's sweep, if it is running; a glide is left alone.
+    func endScan() {
+        if radio.isScanning { stopGlide() }
+    }
+
     // MARK: - Private
 
     private func step(toPosition position: Double, quiet: Bool = false) {
@@ -243,7 +271,15 @@ import UIKit
         logLockChange(from: before)
     }
 
-    private func stopGlide() { frames.stop() }
+    /// The one place a sweep ends: `isScanning` is on only while its frames run, and every move of
+    /// the needle stops them here first.
+    private func stopGlide() {
+        frames.stop()
+        guard radio.isScanning else { return }
+        radio.setScanning(false)
+        log.notice("SCAN END \(self.radio.position, format: .fixed(precision: 3))")
+        logLockChange(from: nil)
+    }
 
     private func radioChanged(from old: Radio) {
         if radio.isLive, !old.isLive {
@@ -438,7 +474,9 @@ import UIKit
         }
     }
 
+    /// Nothing while the needle sweeps: it locks onto no station.
     private func logLockChange(from before: String?) {
+        guard !radio.isScanning else { return }
         let after = radio.tuning.locked?.callSign
         guard after != before else { return }
         let line = after.map { String(format: "LOCK %@ %.3f", $0, radio.position) }

@@ -34,6 +34,7 @@ import RadioCore
     }
 
     func cancel() {
+        model?.endScan()
         guard let task else { return }
         task.cancel()
         self.task = nil
@@ -107,12 +108,14 @@ import RadioCore
         model?.setHere(status: status)
     }
 
-    /// Shows stations as they are found, and keeps the list at once: its town may be slow to come,
-    /// or not come at all.
+    /// Shows stations as they are found, the needle sweeping the dial meanwhile, and keeps the list
+    /// at once: its town may be slow to come, or not come at all.
     private func hunt(at place: Place) async {
         clear(.finding)
+        model?.beginScan()
         let stations = await finder.find(at: place) { [weak self] in await self?.show($0) }
-        guard isCurrent else { return }
+        guard isCurrent else { return }          // whatever ended this search ended its sweep
+        model?.endScan()
         guard !stations.isEmpty else {
             model?.setHere(status: .empty)
             return

@@ -245,6 +245,22 @@ private func hereCity(_ radio: Radio) -> City? { radio.cities.first { $0.id == h
     #expect(changed(radio) { $0.setScanning(true) } == nil)
 }
 
+@Test(arguments: [0.0, 1.0])
+func aScanReachesTheEndsOfTheDialWithoutAStop(end: Double) {
+    var radio = radioOnHere()
+    radio.tune(toPosition: abs(end - 0.001))
+    radio.setScanning(true)
+    #expect(changed(radio) { $0.tune(toPosition: end) } != .tuningStop)
+    radio.setScanning(false)                                         // the owner's own wheel
+    #expect(changed(radio) { $0.tune(toPosition: end) } == .tuningStop)
+}
+
+@Test func aScanLeftOnElsewhereDoesNotSilenceTheStops() {
+    var radio = Radio(file: file, here: true)
+    radio.setScanning(true)
+    #expect(changed(radio) { $0.tune(toPosition: 1) } == .tuningStop)
+}
+
 // MARK: - Display
 
 @Test(arguments: [(HereStatus.finding, "Finding stations…"), (.empty, "No stations found here"),

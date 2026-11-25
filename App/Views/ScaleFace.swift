@@ -7,6 +7,8 @@ struct ScaleFace: View {
     let model: RadioModel
     let em: CGFloat
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         let inset = 0.7 * em
         GeometryReader { proxy in
@@ -15,8 +17,8 @@ struct ScaleFace: View {
             ZStack(alignment: .topLeading) {
                 scale(width: width, height: height, inset: inset)
                     .frame(width: proxy.size.width, height: height)
-                marks(width: width, height: height)
-                    .offset(x: inset)
+                marks(width: width, height: height, inset: inset)
+                    .frame(width: proxy.size.width, height: height)
                 Capsule()
                     .fill(Face.needle)
                     .frame(width: 2, height: height * 0.92)
@@ -52,22 +54,38 @@ struct ScaleFace: View {
     }
 
     /// One dot per mark: orange for the candidate, struck through when dead. No labels; not tappable.
-    private func marks(width: CGFloat, height: CGFloat) -> some View {
+    /// As HERE's stations change, dots fade and grow in and slide to their new places (with Reduce
+    /// Motion they only fade). Another band's dots are there at once: the id starts them afresh.
+    private func marks(width: CGFloat, height: CGFloat, inset: CGFloat) -> some View {
         let dot = 0.4 * em
         let candidate = model.radio.powerOn ? model.radio.tuning.candidate?.callSign : nil
-        return ForEach(model.radio.scale.marks, id: \.station.callSign) { mark in
-            let dead = model.radio.dead.contains(mark.station.callSign)
-            Circle()
-                .fill(mark.station.callSign == candidate ? Face.needle : Face.ink)
-                .frame(width: dot, height: dot)
-                .overlay {
-                    if dead {
-                        Rectangle().fill(Face.ink).frame(width: dot * 2, height: 1.5)
+        let y = height * 0.16
+        let full = width + 2 * inset
+        return ZStack {
+            ForEach(model.radio.scale.marks, id: \.station.callSign) { mark in
+                let dead = model.radio.dead.contains(mark.station.callSign)
+                let x = inset + mark.position * width
+                Circle()
+                    .fill(mark.station.callSign == candidate ? Face.needle : Face.ink)
+                    .frame(width: dot, height: dot)
+                    .overlay {
+                        if dead {
+                            Rectangle().fill(Face.ink).frame(width: dot * 2, height: 1.5)
+                        }
                     }
-                }
-                .opacity(dead ? 0.3 : 1)
-                .position(x: mark.position * width, y: height * 0.16)
+                    .opacity(dead ? 0.3 : 1)
+                    .position(x: x, y: y)
+                    .animation(reduceMotion ? nil : Self.arrival, value: mark.position)
+                    .transition(reduceMotion
+                        ? AnyTransition.opacity
+                        : .opacity.combined(with: .scale(scale: 0.01, anchor: UnitPoint(
+                            x: full > 0 ? x / full : 0, y: 0.16))))
+            }
         }
+        .animation(Self.arrival, value: model.radio.scale.marks)
+        .id(model.radio.cityID)
         .allowsHitTesting(false)
     }
+
+    private static let arrival = Animation.easeOut(duration: 0.25)
 }
