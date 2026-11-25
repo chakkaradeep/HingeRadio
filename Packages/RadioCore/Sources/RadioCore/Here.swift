@@ -51,6 +51,12 @@ public struct HereDial: Codable, Sendable, Equatable {
     /// Under 7 days old.
     public func isUsable(at date: Date) -> Bool { date.timeIntervalSince(savedAt) < 7 * 24 * 3600 }
 
+    /// Whether a refresh that found `stations` may take its place: any, and at least half as many,
+    /// so a search that went badly never thins a good dial.
+    public func mayBeReplaced(by stations: [Station]) -> Bool {
+        !stations.isEmpty && stations.count * 2 >= self.stations.count
+    }
+
     /// Over 24 hours old.
     public func needsRefresh(at date: Date) -> Bool { date.timeIntervalSince(savedAt) > 24 * 3600 }
 }

@@ -103,9 +103,47 @@ private func hereCity(_ radio: Radio) -> City? { radio.cities.first { $0.id == h
     radio.markDead("KHER")
     radio.markDead("WCHI")
     #expect(radio.station == nil)
-    radio.setHereStations([station("KHER", 98.0)], town: nil)
+    radio.setHereStations([station("KHER", 98.0), station("KLOW", 101.1)], town: nil)
     #expect(radio.station?.callSign == "KHER")
     #expect(radio.dead == ["WCHI"])                                  // only the ones it brings
+}
+
+@Test func aTownOnlyUpdateKeepsALockHeldOnlyByTheReleaseMargin() throws {
+    var radio = radioOnHere()
+    radio.setHereStations([station("KHER", 98.0)], town: nil)
+    let mark = try #require(radio.scale.marks.first)
+    radio.tune(toPosition: mark.position)
+    radio.tune(toPosition: mark.position + 1.75 / 80)                // past the zone, within the margin
+    #expect(radio.tuning.locked?.callSign == "KHER")
+    let tuning = radio.tuning
+
+    radio.setHereStations([station("KHER", 98.0)], town: "Ballard")
+    #expect(radio.tuning == tuning)
+    #expect(hereCity(radio)?.name == "Ballard")
+    radio.setHereStations([station("KHER", 98.0), station("KLOW", 90.1)].sorted { $0.frequency < $1.frequency },
+                          town: nil)
+    #expect(radio.tuning.locked == nil)                              // a rebuilt dial forgets the hold
+}
+
+@Test func aTownOnlyUpdateKeepsDeadStationsDead() {
+    var radio = radioOnHere()
+    radio.setHereStations([station("KHER", 98.0)], town: nil)
+    radio.markDead("KHER")
+    radio.setHereStations([station("KHER", 98.0)], town: "Ballard")
+    radio.selectCity(hereID)                                         // already there: nothing newly shown
+    #expect(radio.dead == ["KHER"])
+}
+
+@Test func choosingHereFromAnotherBandBringsItsDeadStationsBack() {
+    var radio = radioOnHere()
+    radio.setHereStations([station("KHER", 98.0)], town: nil)
+    radio.markDead("KHER")
+    radio.markDead("WCHI")
+    radio.selectCity("chicago")
+    #expect(radio.dead == ["KHER", "WCHI"])
+    radio.selectCity(hereID)
+    #expect(radio.dead == ["WCHI"])
+    #expect(radio.station?.callSign == "KHER")
 }
 
 @Test func hereStationsOnAnotherBandLeaveItsDeadStationDead() {
@@ -331,6 +369,19 @@ private func hoursLater(_ hours: Double) -> Date { savedAt.addingTimeInterval(ho
     #expect(!dial.needsRefresh(at: hoursLater(23)))
     #expect(!dial.needsRefresh(at: hoursLater(24)))
     #expect(dial.needsRefresh(at: hoursLater(25)))
+}
+
+@Test func aRefreshWithUnderHalfTheStationsNeverReplacesADial() {
+    func stations(_ count: Int) -> [Station] { (0..<count).map { station("K\($0)", 90.1 + Double($0)) } }
+    func dial(_ count: Int) -> HereDial { HereDial(town: "Ballard", stations: stations(count), savedAt: savedAt) }
+    #expect(dial(16).mayBeReplaced(by: stations(16)))
+    #expect(dial(16).mayBeReplaced(by: stations(8)))
+    #expect(!dial(16).mayBeReplaced(by: stations(7)))
+    #expect(dial(5).mayBeReplaced(by: stations(3)))
+    #expect(!dial(5).mayBeReplaced(by: stations(2)))
+    #expect(dial(1).mayBeReplaced(by: stations(1)))
+    #expect(!dial(1).mayBeReplaced(by: []))
+    #expect(!dial(0).mayBeReplaced(by: []))
 }
 
 @Test func aSavedDialSurvivesARoundTrip() throws {

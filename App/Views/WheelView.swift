@@ -112,6 +112,9 @@ struct WheelView: View {
 
     // MARK: - Touch
 
+    /// Runs once or twice for a touch: at its end, and when `touching` resets, which comes alone
+    /// when the system takes the touch away and not at all when the touch is over within one
+    /// update. The second time does nothing.
     private func touchEnded() {
         if downAt != nil { onTouchUp() }
         drag = nil
@@ -137,7 +140,7 @@ struct WheelView: View {
                 onChange(drag.value - Double(touch.translation.height - drag.anchor) * perPoint)
             }
             .onEnded { touch in
-                defer { drag = nil }
+                defer { touchEnded() }
                 guard height > 0 else { return }
                 if let drag, drag.location == touch.startLocation {
                     onRelease(drag.value

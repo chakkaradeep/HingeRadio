@@ -71,7 +71,8 @@ import RadioCore
         lastPlace = place
         if let dial {
             show(dial)
-            if dial.needsRefresh(at: .now) { await refresh(dial, at: place) }
+            let dial = dial.town == Self.unnamed ? await named(dial, at: place) : dial
+            if isCurrent, dial.needsRefresh(at: .now) { await refresh(dial, at: place) }
         } else {
             await hunt(at: place)
         }
@@ -106,7 +107,8 @@ import RadioCore
         model?.setHere(status: status)
     }
 
-    /// Shows stations as they are found, then keeps the list with its town.
+    /// Shows stations as they are found, and keeps the list at once: its town may be slow to come,
+    /// or not come at all.
     private func hunt(at place: Place) async {
         clear(.finding)
         let stations = await finder.find(at: place) { [weak self] in await self?.show($0) }
@@ -115,11 +117,22 @@ import RadioCore
             model?.setHere(status: .empty)
             return
         }
+        let dial = HereDial(town: Self.unnamed, stations: stations, savedAt: .now)
+        cache.save(dial, for: place)
+        log.notice("HERE SAVED")
         model?.setHere(status: .ready)
         model?.arriveOnStation()
-        let town = await locator.town(for: place) ?? Self.unnamed
-        cache.save(HereDial(town: town, stations: stations, savedAt: .now), for: place)
-        if isCurrent { model?.setHereStations(stations, town: town) }
+        _ = await named(dial, at: place)
+    }
+
+    /// The dial on screen with its town looked up, shown and kept; unchanged when no name comes.
+    private func named(_ dial: HereDial, at place: Place) async -> HereDial {
+        guard let town = await locator.town(for: place), isCurrent else { return dial }
+        let named = HereDial(town: town, stations: dial.stations, savedAt: dial.savedAt)
+        cache.save(named, for: place)
+        log.notice("HERE NAMED")
+        model?.setHereStations(named.stations, town: town)
+        return named
     }
 
     private func show(_ stations: [Station]) {
@@ -127,12 +140,11 @@ import RadioCore
     }
 
     /// Only keeps the new list, for the next time HERE is chosen: the dial being listened to does
-    /// not move. Finding nothing keeps the old one.
+    /// not move. Finding nothing, or far fewer stations, keeps the old one.
     private func refresh(_ dial: HereDial, at place: Place) async {
         let stations = await finder.find(at: place) { _ in }
-        guard isCurrent, !stations.isEmpty else { return }
-        let town = await locator.town(for: place) ?? dial.town
-        cache.save(HereDial(town: town, stations: stations, savedAt: .now), for: place)
+        guard isCurrent, dial.mayBeReplaced(by: stations) else { return }
+        cache.save(HereDial(town: dial.town, stations: stations, savedAt: .now), for: place)
         log.notice("HERE REFRESHED \(stations.count) stations")
     }
 }

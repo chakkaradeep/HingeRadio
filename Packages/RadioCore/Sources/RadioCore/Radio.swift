@@ -90,8 +90,10 @@ public struct Radio: Sendable {
 
     public mutating func setSuspended(_ suspended: Bool) { isSuspended = suspended }
 
+    /// Coming to HERE from another band, its stations are tried afresh: none of them is dead.
     public mutating func selectCity(_ id: String) {
         guard let city = cities.first(where: { $0.id == id }) else { return }
+        if id == hereID, cityID != hereID { dead.subtract(city.stations.map(\.callSign)) }
         cityID = id
         tuner = Tuner(stations: city.stations, config: config)
         tune(toPosition: position)
@@ -102,13 +104,15 @@ public struct Radio: Sendable {
     public mutating func setScanning(_ on: Bool) { isScanning = on }
 
     /// Gives HERE its stations, in frequency order as `hereStations` makes them, and the town as its
-    /// name (nil keeps the name). While HERE is selected its dial is rebuilt around a needle that
-    /// stays put. The stations it brings are no longer dead, except any that are also on another
-    /// selected band, so nothing on that dial changes. Does nothing without the HERE band.
+    /// name (nil keeps the name). The stations it already has only change the name. Otherwise, while
+    /// HERE is selected its dial is rebuilt around a needle that stays put, and the stations it
+    /// brings are no longer dead, except any that are also on another selected band, so nothing on
+    /// that dial changes. Does nothing without the HERE band.
     public mutating func setHereStations(_ stations: [Station], town: String?) {
         guard let index = cities.firstIndex(where: { $0.id == hereID }) else { return }
         let old = cities[index]
         cities[index] = City(id: old.id, name: town ?? old.name, key: old.key, stations: stations)
+        guard stations != old.stations else { return }
         let shownElsewhere = cityID == hereID ? [] : scale.marks.map(\.station.callSign)
         dead.subtract(Set(stations.map(\.callSign)).subtracting(shownElsewhere))
         if cityID == hereID { selectCity(hereID) }

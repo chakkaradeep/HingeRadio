@@ -220,8 +220,9 @@ import UIKit
     /// HERE's stations, in frequency order, and its name (nil keeps it).
     func setHereStations(_ stations: [Station], town: String?) {
         let before = radio.tuning.locked?.callSign
+        let marks = radio.scale.marks
         radio.setHereStations(stations, town: town)
-        logMarks()
+        if radio.scale.marks != marks { logMarks() }
         logLockChange(from: before)
     }
 

@@ -16,10 +16,13 @@ enum LocatorError: Error { case refused, unavailable }
         return manager
     }()
     /// The one `place()` call waiting for an answer.
-    private var waiting: (id: UUID, answer: CheckedContinuation<Result<Place, LocatorError>, Never>)?
+    private var waiting: (id: UUID, answer: Answer)?
     private var timeLimit: Task<Void, Never>?
 
+    private typealias Answer = CheckedContinuation<Result<Place, LocatorError>, Never>
+
     private static let fixLimit = Duration.seconds(10)
+    private static let townLimit = Duration.seconds(8)
 
     /// Where the phone is, from one fix. The time limit starts once location is allowed, so the
     /// prompt may be answered late. Cancelled, it throws `.unavailable`. A call still waiting when
@@ -28,11 +31,15 @@ enum LocatorError: Error { case refused, unavailable }
         guard await Self.servicesAreOn() else { throw .refused }
         let id = UUID()
         let result = await withTaskCancellationHandler {
-            await withCheckedContinuation { answer in
+            await withCheckedContinuation { (answer: Answer) in
+                // Cancelled before it could wait, it must not end a newer call or ask for anything.
+                guard !Task.isCancelled else {
+                    answer.resume(returning: .failure(.unavailable))
+                    return
+                }
                 finish(.failure(.unavailable))
                 waiting = (id, answer)
-                // Cancelled already, it must not ask for anything.
-                if Task.isCancelled { finish(.failure(.unavailable)) } else { proceed() }
+                proceed()
             }
         } onCancel: {
             Task { @MainActor in self.cancel(id) }
@@ -40,11 +47,26 @@ enum LocatorError: Error { case refused, unavailable }
         return try result.get()
     }
 
-    /// The town at `place`, or nil when Apple's reverse geocoder has no name or no answer.
+    /// The town at `place`, or nil when Apple's reverse geocoder has no name, or no answer within
+    /// the time limit. Cancelled, it gives nil at once.
     func town(for place: Place) async -> String? {
         let location = CLLocation(latitude: place.latitude, longitude: place.longitude)
         guard let request = MKReverseGeocodingRequest(location: location) else { return nil }
-        return (try? await request.mapItems)?.first?.addressRepresentations?.cityName
+        let (names, feed) = AsyncStream.makeStream(of: String?.self)
+        ask(request) { town in
+            feed.yield(town)
+            feed.finish()
+        }
+        let limit = Task {
+            try? await Task.sleep(for: Self.townLimit)
+            feed.finish()
+        }
+        defer {
+            limit.cancel()
+            request.cancel()
+        }
+        for await name in names { return name }
+        return nil
     }
 
     // MARK: - CLLocationManagerDelegate
@@ -68,6 +90,11 @@ enum LocatorError: Error { case refused, unavailable }
     }
 
     // MARK: - Private
+
+    /// A callback, so a lookup that hangs holds up nobody.
+    private func ask(_ request: MKReverseGeocodingRequest, then: @escaping @MainActor (String?) -> Void) {
+        request.getMapItems { items, _ in then(items?.first?.addressRepresentations?.cityName) }
+    }
 
     /// Takes the waiting call as far as the permission allows: the prompt, a fix, or the end.
     private func proceed() {
