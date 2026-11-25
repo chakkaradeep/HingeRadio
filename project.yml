@@ -19,6 +19,9 @@ targets:
         SWIFT_VERSION: "6"
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Compiles the HERE band in. Build with HERE_CONDITION= to leave it and every lookup out.
+        HERE_CONDITION: HERE
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) $(HERE_CONDITION)"
     # The one source of Info.plist keys: XcodeGen writes App/Info.plist from this block.
     info:
       path: App/Info.plist
