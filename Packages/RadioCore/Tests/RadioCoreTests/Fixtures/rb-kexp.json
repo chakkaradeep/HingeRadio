@@ -1,0 +1,37 @@
+[
+  {
+    "stationuuid": "399ca326-0f67-4015-a51b-d7ba2bd4ebbe",
+    "name": "KEXP",
+    "url_resolved": "https://kexp-mp3-128.streamguys1.com/kexp128.mp3",
+    "lastcheckok": 1,
+    "ssl_error": 0
+  },
+  {
+    "stationuuid": "42c0308b-908d-4243-92e5-05d658ecb781",
+    "name": "KEXP",
+    "url_resolved": "https://kexp.streamguys1.com/kexp160.aac?listenerid=f4bcb5c771d830fbdd4195088a946ea6&awparams=companionAds%3Atrue",
+    "lastcheckok": 1,
+    "ssl_error": 0
+  },
+  {
+    "stationuuid": "a509502d-1ba7-4d51-9791-0be5a7d5ec34",
+    "name": "KEXP 90.3 FM Seattle, WA",
+    "url_resolved": "http://live-mp3-128.kexp.org/kexp128.mp3",
+    "lastcheckok": 1,
+    "ssl_error": 0
+  },
+  {
+    "stationuuid": "961166a8-0601-11e8-ae97-52543be04c81",
+    "name": "KEXP 90.3 Seattle, WA",
+    "url_resolved": "http://live-aacplus-64.kexp.org/kexp64.aac",
+    "lastcheckok": 1,
+    "ssl_error": 0
+  },
+  {
+    "stationuuid": "dd02972f-8d91-449d-8d64-bd636a4a9ed0",
+    "name": "KEXP: The greatest radio station in the galaxy",
+    "url_resolved": "https://kexp.streamguys1.com/kexp160.aac",
+    "lastcheckok": 1,
+    "ssl_error": 0
+  }
+]

@@ -1,0 +1,41 @@
+{
+  "items": [
+    {
+      "attributes": {
+        "brand": {
+          "band": "FM",
+          "call": "KUOW",
+          "frequency": "94.9",
+          "name": "KUOW"
+        },
+        "streamsV2": [
+          {
+            "primary": true,
+            "urls": [
+              {
+                "rel": "stream-mp3-audio",
+                "content-type": "audio/mp3",
+                "href": "https://playerservices.streamtheworld.com/api/livestream-redirect/KUOWFM_HIGH_MP3.mp3?dist=NPR"
+              },
+              {
+                "rel": "stream-aac-audio",
+                "content-type": "audio/aac",
+                "href": "https://playerservices.streamtheworld.com/api/livestream-redirect/KUOWFM_AAC.aac?dist=NPR"
+              }
+            ]
+          },
+          {
+            "primary": false,
+            "urls": [
+              {
+                "rel": "stream-mp3-audio",
+                "content-type": "audio/mp3",
+                "href": "https://playerservices.streamtheworld.com/api/livestream-redirect/KUOWFM_LOW_MP3.mp3?dist=NPR"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

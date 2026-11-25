@@ -9,6 +9,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "RadioCore"),
-        .testTarget(name: "RadioCoreTests", dependencies: ["RadioCore"])
+        .testTarget(name: "RadioCoreTests", dependencies: ["RadioCore"], exclude: ["Fixtures"])
     ]
 )
