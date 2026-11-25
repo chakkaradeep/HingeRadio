@@ -72,6 +72,16 @@ private func licence(_ call: String, class stationClass: String = "C", distance:
     #expect(!home.isWithinOneCell(of: Place(latitude: 47.61, longitude: -122.13)))
 }
 
+// Asked with 0 degrees in either field (London, or anywhere on the equator), the FCC ignores the
+// position and lists the whole country, every row at 0.00 km.
+@Test func anAnswerThatIgnoredThePositionHasNoLicences() {
+    let row = "|KRUA        |88.1  MHz |FM |201 |ND  |                    |A  |-  |LIC    |ANCHORAGE                |AK |US |"
+        + "0000207895          |0.32   kW |0.32   kW |297.0   |297.0   |69007      |N |61 |20 |8.8   |W |149 |30 |56.2  |"
+        + "UNIVERSITY OF ALASKA      |   0.00 km |   0.00 mi |  0.00 deg |619.   m|"
+    #expect(licences(fromFCC: row).isEmpty)
+    #expect(licences(fromFCC: row.replacing("   0.00 km", with: "   0.01 km")).map(\.callSign) == ["KRUA"])
+}
+
 @Test func fixtureParsesSeattleStations() throws {
     let all = licences(fromFCC: try fixtureText())
     let kexp = try #require(all.first { $0.callSign == "KEXP-FM" })

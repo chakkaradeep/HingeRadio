@@ -111,6 +111,8 @@ public func fccSearchURL(_ place: Place) -> URL {
 
 /// Reads the FCC's pipe-separated answer. Keeps licensed FM rows only (not STA, MOD or CP), one per
 /// call sign. Anything that is not a whole row, such as an HTML error page, is skipped, never a crash.
+/// So is a row at 0.00 km: with 0 degrees in a field, as in London, the FCC ignores the position and
+/// lists the whole country at no distance.
 public func licences(fromFCC text: String) -> [Licence] {
     var seen = Set<String>()
     var found: [Licence] = []
@@ -120,7 +122,7 @@ public func licences(fromFCC text: String) -> [Licence] {
         guard fields.count > 14, fields[3] == "FM", fields[9] == "LIC",
               let frequency = number(fields[2]), let kilowatts = number(fields[14]),
               let distanceField = fields.first(where: { $0.hasSuffix(" km") }),
-              let distance = number(distanceField),
+              let distance = number(distanceField), distance > 0,
               !fields[1].isEmpty, seen.insert(fields[1]).inserted else { continue }
         found.append(Licence(callSign: fields[1], city: fields[10].capitalized,
                              stationClass: fields[7], frequency: frequency,
