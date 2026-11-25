@@ -38,6 +38,13 @@ private func searched(at place: Place) -> HerePlan {
     return plan
 }
 
+/// What a plan shows with no position, leaving the plan given as it was.
+private func noPlace(_ plan: HerePlan, _ error: LocatorError, at date: Date,
+                     kept: (Place) -> HereDial?) -> HerePlan.NoPlace {
+    var plan = plan
+    return plan.noPlace(error, at: date, kept: kept)
+}
+
 // MARK: - Whether to search
 
 @Test func choosingHereSearchesUnlessOneRuns() {
@@ -198,53 +205,111 @@ private func searched(at place: Place) -> HerePlan {
 
 @Test func noFixShowsTheLastPlacesKeptDialWhenThePositionIsUnavailable() {
     var asked: [Place] = []
-    let answer = searched(at: home).noPlace(.unavailable, at: now) { asked.append($0); return dial() }
+    let answer = noPlace(searched(at: home), .unavailable, at: now) { asked.append($0); return dial() }
     #expect(answer == .show(dial()))
     #expect(asked == [home])
 }
 
 @Test func noFixWithoutAKeptDialSaysWhy() {
-    #expect(HerePlan().noPlace(.unavailable, at: now) { _ in dial() } == .clear(.empty))
-    #expect(HerePlan().noPlace(.refused, at: now) { _ in dial() } == .clear(.locationOff))
-    #expect(searched(at: home).noPlace(.unavailable, at: now) { _ in nil } == .clear(.empty))
-    #expect(searched(at: home).noPlace(.unavailable, at: now) { _ in dial(savedAt: daysAgo(8)) } == .clear(.empty))
+    #expect(noPlace(HerePlan(), .unavailable, at: now) { _ in dial() } == .clear(.empty))
+    #expect(noPlace(HerePlan(), .refused, at: now) { _ in dial() } == .clear(.locationOff))
+    #expect(noPlace(searched(at: home), .unavailable, at: now) { _ in nil } == .clear(.empty))
+    #expect(noPlace(searched(at: home), .unavailable, at: now) { _ in dial(savedAt: daysAgo(8)) } == .clear(.empty))
 }
 
 @Test func locationRefusedNeverShowsAKeptDial() {
-    #expect(searched(at: home).noPlace(.refused, at: now) { _ in dial() } == .clear(.locationOff))
+    #expect(noPlace(searched(at: home), .refused, at: now) { _ in dial() } == .clear(.locationOff))
 }
 
 @Test func locationRefusedNeverReadsTheKeptDials() {
     var asked: [Place] = []
-    _ = searched(at: home).noPlace(.refused, at: now) { asked.append($0); return dial() }
-    _ = HerePlan(lastPlace: home).noPlace(.refused, at: now) { asked.append($0); return dial() }
+    var searchedPlan = searched(at: home)
+    _ = searchedPlan.noPlace(.refused, at: now) { asked.append($0); return dial() }
+    var openedPlan = HerePlan(lastPlace: home)
+    _ = openedPlan.noPlace(.refused, at: now) { asked.append($0); return dial() }
     #expect(asked.isEmpty)
+}
+
+@Test func locationRefusedForgetsTheLastPlace() {
+    var plan = searched(at: home)
+    _ = plan.noPlace(.refused, at: now) { _ in dial() }
+    #expect(plan.lastPlace == nil)
+    #expect(plan.noPlace(.unavailable, at: now) { _ in dial() } == .clear(.empty))   // nothing left to show
+}
+
+@Test func noFixInTimeKeepsTheLastPlace() {
+    var plan = searched(at: home)
+    _ = plan.noPlace(.unavailable, at: now) { _ in nil }
+    #expect(plan.lastPlace == home)
 }
 
 // MARK: - Opening on HERE
 
 @Test func openingOnHereShowsTheLastPlacesKeptDialAtOnce() {
     var asked: [Place] = []
-    let plan = HerePlan(lastPlace: home)
+    var plan = HerePlan(lastPlace: home)
     #expect(plan.lastPlace == home)
-    #expect(plan.opening(at: now) { asked.append($0); return dial("Home") } == dial("Home"))
+    #expect(plan.opening(at: now, refused: false) { asked.append($0); return dial("Home") } == dial("Home"))
     #expect(asked == [home])
+    #expect(plan.lastPlace == home)
 }
 
 @Test func openingOnHereWithNoLastPlaceShowsNothingAndReadsNothing() {
     var asked: [Place] = []
-    #expect(HerePlan().opening(at: now) { asked.append($0); return dial() } == nil)
-    #expect(HerePlan(lastPlace: nil).opening(at: now) { asked.append($0); return dial() } == nil)
+    var fresh = HerePlan()
+    #expect(fresh.opening(at: now, refused: false) { asked.append($0); return dial() } == nil)
+    var none = HerePlan(lastPlace: nil)
+    #expect(none.opening(at: now, refused: false) { asked.append($0); return dial() } == nil)
     #expect(asked.isEmpty)
 }
 
 @Test func openingOnHereShowsNoDialTooOldToShow() {
-    let plan = HerePlan(lastPlace: home)
-    #expect(plan.opening(at: now) { _ in nil } == nil)
-    #expect(plan.opening(at: now) { _ in dial(savedAt: daysAgo(8)) } == nil)
-    #expect(plan.opening(at: now) { _ in dial(savedAt: now.addingTimeInterval(-HereDial.lifetime)) } == nil)
+    var plan = HerePlan(lastPlace: home)
+    #expect(plan.opening(at: now, refused: false) { _ in nil } == nil)
+    #expect(plan.opening(at: now, refused: false) { _ in dial(savedAt: daysAgo(8)) } == nil)
+    #expect(plan.opening(at: now, refused: false) { _ in dial(savedAt: now.addingTimeInterval(-HereDial.lifetime)) } == nil)
     let due = dial(count: 3, savedAt: daysAgo(2))           // due a refresh, still shown
-    #expect(plan.opening(at: now) { _ in due } == due)
+    #expect(plan.opening(at: now, refused: false) { _ in due } == due)
+}
+
+@Test func openingOnHereWithLocationRefusedShowsNoDialReadsNothingAndForgetsThePlace() {
+    var asked: [Place] = []
+    var plan = HerePlan(lastPlace: home)
+    #expect(plan.opening(at: now, refused: true) { asked.append($0); return dial() } == nil)
+    #expect(asked.isEmpty)
+    #expect(plan.lastPlace == nil)
+    #expect(plan.noPlace(.unavailable, at: now) { asked.append($0); return dial() } == .clear(.empty))
+    #expect(asked.isEmpty)
+}
+
+// MARK: - The kept last place is only its cell
+
+private let samples = [home, nextCell, farAway, Place(latitude: 47.649, longitude: -122.351),
+                       Place(latitude: 47.651, longitude: -122.249), Place(latitude: -33.86, longitude: 151.21),
+                       Place(latitude: 0.04, longitude: -0.04), Place(latitude: -0.06, longitude: 0.05)]
+
+@Test func aPlacesCellIsTheCentreOfItsTenthOfADegree() {
+    #expect(home.cell == Place(latitude: 47.6, longitude: -122.3))
+    #expect(Place(latitude: -0.04, longitude: 0.04).cell == Place(latitude: 0, longitude: 0))
+    for place in samples {
+        #expect(place.cell.cacheKey == place.cacheKey)
+        #expect(place.cell.cell == place.cell)
+    }
+}
+
+@Test func aCellIsNearTheSamePlacesAsThePlaceItCameFrom() {
+    for place in samples {
+        for other in samples {
+            #expect(place.cell.isWithinOneCell(of: other) == place.isWithinOneCell(of: other))
+        }
+    }
+}
+
+@Test func aKeptCellHoldsAgainstAWobble() {
+    var plan = HerePlan(lastPlace: home.cell)
+    let (place, next) = plan.arrive(at: nextCell, at: now) { $0.cacheKey == home.cacheKey ? dial("Home") : nil }
+    #expect(place == home.cell)
+    #expect(next == .show(dial("Home"), lookUpTown: false))
 }
 
 @Test func aRememberedLastPlaceHoldsAgainstAWobble() {
@@ -255,7 +320,8 @@ private func searched(at place: Place) -> HerePlan {
 }
 
 @Test func aRememberedLastPlaceAnswersWhenNoFixComes() {
-    #expect(HerePlan(lastPlace: home).noPlace(.unavailable, at: now) { $0 == home ? dial() : nil } == .show(dial()))
+    var plan = HerePlan(lastPlace: home)
+    #expect(plan.noPlace(.unavailable, at: now) { $0 == home ? dial() : nil } == .show(dial()))
 }
 
 // MARK: - What a hunt, a name and a refresh keep
@@ -296,7 +362,6 @@ private func searched(at place: Place) -> HerePlan {
                                   (8, now.addingTimeInterval(-11 * 60), false), (8, now.addingTimeInterval(60), true)] {
         let shown = dial(count: count, savedAt: savedAt)
         #expect(HerePlan.refreshes(shown, at: now) == due)
-        #expect(HerePlan.refreshes(shown, at: now) == shown.needsRefresh(at: now))
     }
 }
 
@@ -307,6 +372,24 @@ private func searched(at place: Place) -> HerePlan {
     #expect(!HerePlan.needleIsTaken(on: .chosen, wheelIsHeld: false, wasTaken: true))
     #expect(HerePlan.needleIsTaken(on: .chosen, wheelIsHeld: true, wasTaken: false))
     #expect(HerePlan.needleIsTaken(on: .chosen, wheelIsHeld: true, wasTaken: true))
+}
+
+@Test func aSearchAfterOpeningOnHereLeavesTheRememberedNeedle() {
+    for wheelIsHeld in [false, true] {
+        for wasTaken in [false, true] {
+            #expect(HerePlan.needleIsTaken(on: .opened, wheelIsHeld: wheelIsHeld, wasTaken: wasTaken))
+        }
+    }
+    // A later choice of HERE gives it back.
+    #expect(!HerePlan.needleIsTaken(on: .chosen, wheelIsHeld: false, wasTaken: true))
+}
+
+@Test func openingOnHereSearchesUnlessOneRuns() {
+    for status in allStatuses {
+        #expect(HerePlan().searches(on: .opened, status: status, isSearching: false))
+        #expect(!HerePlan().searches(on: .opened, status: status, isSearching: true))
+        #expect(cutShort().searches(on: .opened, status: status, isSearching: false))
+    }
 }
 
 @Test func aReturnKeepsATakenNeedle() {

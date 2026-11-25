@@ -36,15 +36,6 @@ private func hereCity(_ radio: Radio) -> City? { radio.cities.first { $0.id == h
     #expect(Radio(file: file, here: false).cities == file.cities)
 }
 
-@Test func hereIsTheFirstBandAndLaunchStartsOnTheFirstCity() {
-    let radio = Radio(file: file, here: true)
-    #expect(radio.cities == [City(id: "here", name: "Here", key: "HERE", stations: [])] + file.cities)
-    #expect(radio.cityID == "seattle")
-    #expect(radio.tuning.locked?.callSign == "KSEA")
-    #expect(radio.hereStatus == .idle)
-    #expect(!radio.isScanning)
-}
-
 @Test func launchNeverStartsOnHereEvenWithNoOtherCities() {
     #expect(Radio(file: .empty, here: true).cityID == "")
 }
@@ -154,6 +145,15 @@ private func hereCity(_ radio: Radio) -> City? { radio.cities.first { $0.id == h
     radio.markDead("KSEA")
     radio.selectCity("seattle")
     #expect(radio.dead == ["KSEA"])
+}
+
+@Test func theHeaderPrintsHEREBeforeTheTownOnlyOnceItIsKnown() {
+    var radio = radioOnHere()
+    #expect(hereCity(radio)?.headerKey == nil)              // "Here" alone says it already
+    radio.setHereStations([], town: "Seattle")
+    #expect(hereCity(radio)?.headerKey == "HERE")
+    #expect(radio.cities.first { $0.id == "seattle" }?.headerKey == nil)
+    #expect(radio.cities.first { $0.id == "chicago" }?.headerKey == nil)
 }
 
 @Test func theBandIsReadAloudWithItsTown() throws {

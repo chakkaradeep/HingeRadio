@@ -33,8 +33,20 @@ struct DialView: View {
                 .accessibilityAction(named: "About the dial", about)
                 .onLongPressGesture(perform: about)
             Spacer(minLength: 0)
-            Text(model.city?.name.uppercased() ?? "")
-                .lineLimit(1)
+            // On HERE, a small printed HERE before the town; the town shrinks before it overlaps.
+            HStack(alignment: .firstTextBaseline, spacing: 0.4 * size) {
+                if let key = model.city?.headerKey {
+                    Text(key.uppercased())
+                        .printed(size: Face.printed(em: em))
+                        .foregroundStyle(Face.muted)
+                        .fixedSize()
+                }
+                Text(model.city?.name.uppercased() ?? "")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(model.city?.spokenName ?? "")
         }
         .font(.system(size: size, weight: .bold))
         .tracking(0.12 * size)

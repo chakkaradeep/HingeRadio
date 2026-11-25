@@ -14,23 +14,38 @@ import RadioCore
     private var task: Task<Void, Never>?
     /// The rules, and what they remember from one search to the next.
     private var plan = HerePlan()
+    /// Whether the last place kept from an earlier run has been read in this one.
+    private var recalled = false
     private let log = Logger(subsystem: "HingeRadio", category: "here")
 
     init(model: RadioModel) { self.model = model }
 
     /// The radio opened on HERE: the dial kept for the last place, if it may still be shown, shows
-    /// at once with the needle settled on a station under it; the search waits for `chosen()`.
+    /// at once under the needle where it was left; with location refused, no dial and "Location is
+    /// off". The search waits for `openedAndActive()`.
     func opened() {
-        plan = HerePlan(lastPlace: cache.lastPlace())
-        guard let model, let dial = plan.opening(at: .now, kept: { cache.load($0) }) else { return }
+        let (dial, refused) = recall()
+        guard let model else { return }
+        if refused {
+            log.notice("HERE OPENED refused")
+            model.setHere(status: .locationOff)
+            return
+        }
+        guard let dial else { return }
         log.notice("HERE OPENED \(dial.stations.count) stations")
         model.setHereStations(dial.stations, town: dial.town)
         model.setHere(status: .ready)
-        model.settle(animated: false)
+    }
+
+    /// The radio opened on HERE and the app is now active: a search, which leaves the needle alone.
+    func openedAndActive() {
+        let status = model?.radio.hereStatus ?? .idle
+        if plan.searches(on: .opened, status: status, isSearching: task != nil) { start(.opened) }
     }
 
     /// HERE was chosen: a search, unless one is already running.
     func chosen() {
+        _ = recall()
         let status = model?.radio.hereStatus ?? .idle
         if plan.searches(on: .chosen, status: status, isSearching: task != nil) { start(.chosen) }
     }
@@ -63,6 +78,19 @@ import RadioCore
     }
 
     // MARK: - Private
+
+    /// The first time HERE is opened or chosen in this run: the last place kept from an earlier
+    /// one, and the dial kept there if it may show (`HerePlan.opening`). With location refused the
+    /// place is forgotten and its file removed. Later calls give nothing.
+    private func recall() -> (dial: HereDial?, refused: Bool) {
+        guard !recalled else { return (nil, false) }
+        recalled = true
+        let refused = locator.isRefused
+        plan = HerePlan(lastPlace: cache.lastPlace())
+        let dial = plan.opening(at: .now, refused: refused) { cache.load($0) }
+        if refused { cache.forgetLastPlace() }
+        return (dial, refused)
+    }
 
     private func start(_ start: HerePlan.Start) {
         task?.cancel()
@@ -103,6 +131,7 @@ import RadioCore
     }
 
     private func showNoPlace(_ error: LocatorError) {
+        if error == .refused { cache.forgetLastPlace() }
         switch plan.noPlace(error, at: .now, kept: { cache.load($0) }) {
         case .show(let dial): show(dial)
         case .clear(let status): clear(status)

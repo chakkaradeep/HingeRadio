@@ -24,6 +24,12 @@ public struct Place: Hashable, Codable, Sendable {
         "\(Self.round(latitude, to: 10)),\(Self.round(longitude, to: 10))"
     }
 
+    /// The centre of its 0.1 degree grid cell: all of the place that is kept from one run to the
+    /// next. It has the same `cacheKey`, and is near the same places.
+    public var cell: Place {
+        Place(latitude: Self.round(latitude, to: 10), longitude: Self.round(longitude, to: 10))
+    }
+
     /// Whether the two share a grid cell or sit in neighbouring ones.
     public func isWithinOneCell(of other: Place) -> Bool {
         func apart(_ a: Double, _ b: Double) -> Double { abs((a * 10).rounded() - (b * 10).rounded()) }

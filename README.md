@@ -159,7 +159,7 @@ At the end of `build`, the hosts of the plain-`http://` streams are compared wit
 
 ## HERE: the stations around the phone
 
-HERE is the first position on the band switch, set apart from SEA, NYC, CHI and LA by a printed rule. Choosing it finds the FM stations licensed around the phone that also stream, at most 16, and puts them on the dial as a city's stations are. The dial's name becomes the nearest town. While it looks, the line under the name says "Finding stations…" and the needle sweeps up the dial, each station's dot appearing as it is confirmed (with Reduce Motion the dots appear without the sweep). When it ends, the needle eases onto a station and it plays. With no stations it says "No stations found here"; with location refused, "Location is off". The other four bands work in each case. It covers the US only, because the list of stations is the FCC's.
+HERE is the first position on the band switch, set apart from SEA, NYC, CHI and LA by a printed rule. Choosing it finds the FM stations licensed around the phone that also stream, at most 16, and puts them on the dial as a city's stations are. The dial's name becomes the nearest town, printed in the header after a small muted HERE ("HERE SEATTLE"; VoiceOver reads "Here, Seattle"); a long name shrinks to fit rather than run into the badge. While it looks, the line under the name says "Finding stations…" and the needle sweeps up the dial, each station's dot appearing as it is confirmed (with Reduce Motion the dots appear without the sweep). When it ends, the needle eases onto a station and it plays. With no stations it says "No stations found here"; with location refused, "Location is off". The other four bands work in each case. It covers the US only, because the list of stations is the FCC's.
 
 How it finds them:
 
@@ -171,7 +171,7 @@ How it finds them:
 
 Leaving the app or choosing another band ends a search. The stations found so far are dropped; coming back to the app with HERE chosen searches again. The needle is left where it is for that search if you had a hand on the tuning in the one that was cut short. Choosing HERE yourself starts afresh, and choosing it again tries any of its stations marked "No signal" again. Reduce Motion switched on during the sweep stops the needle there; the search goes on.
 
-Left on HERE, the radio opens on HERE. If a dial is kept for the last place it was used (see below) and is under 7 days old, it shows at once, with the needle where it was left, and there is no sweep. Once the window is up and the app is active, HERE searches as if it had just been chosen: the location prompt, if iOS has not asked yet, comes only then. Near the last place the kept dial stays and is refreshed when due; somewhere new, it is searched for (with the sweep). With location refused the kept dial goes and HERE says "Location is off".
+Left on HERE, the radio opens on HERE with the needle exactly where it was left, on a station or in static. If a dial is kept for the last place it was used (see below) and is under 7 days old, it shows at once. Once the window is up and the app is active, HERE searches as a choice does (the location prompt, if iOS has not asked yet, comes only then), except that the needle is left alone: it neither sweeps nor eases onto a station in that first search. Near the last place the kept dial stays and is refreshed when due; somewhere new, it is searched for and its dots appear without the sweep. With location refused (denied or restricted) no dial shows at all, the last place is forgotten, and HERE says "Location is off". Choosing HERE yourself later gives the needle back as usual. The first time HERE is chosen in a run, the last place is read too, so with no position in time it can still show that place's dial.
 
 ### What is sent where
 
@@ -192,7 +192,7 @@ The play count goes to Radio Browser only while HERE is the band, once each time
 
 The first time HERE is chosen, iOS asks to use the location while the app is in use, and the app asks for approximate location only. If the answer is no, HERE says "Location is off" and finds its stations when it is allowed again.
 
-Each place's dial is kept on the phone, in the app's cache folder, for 7 days, on a grid of 0.1 degree (about 10 km). A kept dial shows at once. When it is over 24 hours old, or over 10 minutes old with fewer than 8 stations (a poor connection may have cut it short), it is searched for again in the background; the new list is only kept, and shows the next time HERE is chosen, so the station being listened to never moves. A refresh that finds nothing, or fewer than half as many stations, leaves the old dial alone. The rounded position of the last place a dial was shown or looked for is kept in the same folder (`last.json`), so the radio can open on HERE with that dial; it is not kept anywhere else. Each time a dial is kept, files in that folder last written over 7 days ago are removed.
+Each place's dial is kept on the phone, in the app's cache folder, for 7 days, on a grid of 0.1 degree (about 10 km). A kept dial shows at once. When it is over 24 hours old, or over 10 minutes old with fewer than 8 stations (a poor connection may have cut it short), it is searched for again in the background; the new list is only kept, and shows the next time HERE is chosen, so the station being listened to never moves. A refresh that finds nothing, or fewer than half as many stations, leaves the old dial alone. The last place a dial was shown or looked for is kept in the same folder (`last.json`) as its 0.1 degree cell only, the centre of the square its dial is filed under (for example 47.6, -122.3), so the radio can open on HERE with that dial; it is not kept anywhere else. It is rewritten each time HERE gets a position, deleted as soon as location is found refused (at launch or in a search), and removed with the other files once nothing has written it for 7 days. Each time a dial is kept, files in that folder last written over 7 days ago are removed.
 
 ### Building without HERE
 
@@ -214,10 +214,12 @@ On the iPhone Duo simulator (muted, location set to Seattle, no kept dial) HERE 
 
 With HERE first and remembered (2026-11-25, same simulator, muted, flex): the switch reads HERE | SEA NYC CHI LA (`docs/check/63-here-first.png`) and a tap on the rule chose nothing. Left on HERE with a kept Seattle dial, a relaunch logged `OPEN here 0.516` and `HERE OPENED 16 stations` 4 ms apart, before the first layout, then `HERE CACHED 16 stations` once active, and no sweep. Left on Chicago on WCHI-FM, a relaunch opened on Chicago, switched off, the needle on 95.5. With location refused, a relaunch on HERE said "Location is off". With both keys deleted it opened on Seattle; the build without HERE, launched after HERE was saved, opened on Seattle with four positions.
 
+After the review fixes (same day): the header on HERE reads a small HERE before the town (`docs/check/64-here-header.png`); "MISSION VIEJO" fitted at full size. Left on HERE in static at 98.9, a relaunch logged `OPEN here 0.541` and `HERE OPENED 16 stations` 8 ms apart, then `HERE CACHED 16 stations`, with no lock, no ease and no sweep; the needle stayed at 98.9. With location refused, a relaunch on HERE logged `HERE OPENED refused` and `HERE locationOff` before the first layout, showed no dots, said "Location is off", and `last.json` was gone.
+
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 276 tests
+swift test --package-path Packages/RadioCore          # 284 tests
 python3 -m unittest discover -s tools                 # 19 tests
 ```
 

@@ -207,7 +207,7 @@ import UIKit
         logMarks()
         logLockChange(from: before)
         settle(animated: animated)
-        rememberDial()
+        if !frames.isRunning { rememberDial() }     // else at the settle's end
         #if HERE
         if radio.cityID == hereID { hereSearch.chosen() } else { hereSearch.cancel() }
         #endif
@@ -227,7 +227,7 @@ import UIKit
         if wasInBackground, radio.cityID == hereID { hereSearch.returned() }
         if searchOnceActive {
             searchOnceActive = false
-            if radio.cityID == hereID { hereSearch.chosen() }
+            if radio.cityID == hereID { hereSearch.openedAndActive() }
         }
         #endif
         wasInBackground = false

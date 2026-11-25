@@ -67,6 +67,10 @@ import RadioCore
         return nil
     }
 
+    /// Whether location is known to be refused for this app (denied or restricted). Asks nothing:
+    /// making the manager does not prompt. False while undecided.
+    var isRefused: Bool { [.denied, .restricted].contains(manager.authorizationStatus) }
+
     // MARK: - CLLocationManagerDelegate
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {

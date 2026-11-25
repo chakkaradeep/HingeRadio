@@ -10,9 +10,12 @@ public enum LocatorError: Error, Sendable, Equatable { case refused, unavailable
 public struct HerePlan: Sendable, Equatable {
     /// What starts a search.
     public enum Start: Sendable, Equatable {
-        /// HERE was chosen, or the radio opened on it at launch, once the app is active (the
-        /// last place's kept dial already showing, see `opening`).
+        /// HERE was chosen.
         case chosen
+        /// The radio opened on HERE and the app is now active (the last place's kept dial already
+        /// showing, see `opening`). It searches as a choice does, but the needle stays where it
+        /// was left.
+        case opened
         /// The app came back from the background with HERE selected.
         case returned
     }
@@ -45,12 +48,15 @@ public struct HerePlan: Sendable, Equatable {
     /// The place of the last dial shown or hunted for.
     public private(set) var lastPlace: Place?
 
-    /// `lastPlace` is the place of the last dial shown or hunted for in an earlier run, if kept.
+    /// `lastPlace` is the place (its cell) of the last dial shown or hunted for in an earlier run,
+    /// if kept.
     public init(lastPlace: Place? = nil) { self.lastPlace = lastPlace }
 
     /// The dial to show at once when the radio opens on HERE, before any search: the one kept for
-    /// the last place, while it may be shown. Nil with no last place; no other place is read.
-    public func opening(at date: Date, kept: (Place) -> HereDial?) -> HereDial? {
+    /// the last place, while it may be shown. Nil with no last place; no other place is read. With
+    /// location refused nothing is read or shown, and the last place is forgotten.
+    public mutating func opening(at date: Date, refused: Bool, kept: (Place) -> HereDial?) -> HereDial? {
+        if refused { lastPlace = nil }
         guard let lastPlace, let dial = kept(lastPlace), dial.isUsable(at: date) else { return nil }
         return dial
     }
@@ -60,7 +66,7 @@ public struct HerePlan: Sendable, Equatable {
     public func searches(on start: Start, status: HereStatus, isSearching: Bool) -> Bool {
         guard !isSearching else { return false }
         switch start {
-        case .chosen: return true
+        case .chosen, .opened: return true
         case .returned: return wasCancelled || status == .locationOff || status == .empty
         }
     }
@@ -100,8 +106,9 @@ public struct HerePlan: Sendable, Equatable {
     }
 
     /// No position came. Without an answer in time the last place's kept dial shows, if any;
-    /// otherwise HERE says why it has nothing.
-    public func noPlace(_ error: LocatorError, at date: Date, kept: (Place) -> HereDial?) -> NoPlace {
+    /// otherwise HERE says why it has nothing. Location refused forgets the last place.
+    public mutating func noPlace(_ error: LocatorError, at date: Date, kept: (Place) -> HereDial?) -> NoPlace {
+        if error == .refused { lastPlace = nil }
         if error == .unavailable, let lastPlace, let dial = kept(lastPlace), dial.isUsable(at: date) {
             return .show(dial)
         }
@@ -129,8 +136,13 @@ public struct HerePlan: Sendable, Equatable {
     }
 
     /// Whether the needle is the owner's as a search begins, so it neither sweeps nor moves onto a
-    /// station: while a finger has it, and after a return also if they had a hand on it before.
+    /// station: while a finger has it, after a return also if they had a hand on it before, and
+    /// always after opening on HERE, where it was left.
     public static func needleIsTaken(on start: Start, wheelIsHeld: Bool, wasTaken: Bool) -> Bool {
-        wheelIsHeld || (start == .returned && wasTaken)
+        switch start {
+        case .opened: true
+        case .chosen: wheelIsHeld
+        case .returned: wheelIsHeld || wasTaken
+        }
     }
 }

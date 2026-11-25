@@ -21,14 +21,18 @@ struct HereCache {
         removeExpired()
     }
 
-    /// The place of the last dial shown or hunted for (`HerePlan.lastPlace`), so a launch on HERE
-    /// can show its dial at once; nil when none is kept. Kept here, with the dials, and nowhere else.
+    /// The cell of the last dial shown or hunted for (`HerePlan.lastPlace`), so the next run can
+    /// show its dial at once; nil when none is kept. Kept here, with the dials, and nowhere else.
     func lastPlace() -> Place? {
         guard let data = try? Data(contentsOf: lastPlaceFile) else { return nil }
         return try? JSONDecoder().decode(Place.self, from: data)
     }
 
-    func keep(lastPlace place: Place) { write(place, to: lastPlaceFile) }
+    /// Keeps only the place's 0.1 degree cell (`Place.cell`), the grain the dials are kept on.
+    func keep(lastPlace place: Place) { write(place.cell, to: lastPlaceFile) }
+
+    /// Location was refused: the last place goes.
+    func forgetLastPlace() { try? FileManager.default.removeItem(at: lastPlaceFile) }
 
     private var lastPlaceFile: URL { folder.appending(path: "last.json", directoryHint: .notDirectory) }
 
