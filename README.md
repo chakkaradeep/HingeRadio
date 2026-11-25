@@ -1,6 +1,6 @@
 # Hinge Radio
 
-Hinge Radio is a small SwiftUI app for the iPhone Duo, a folding iPhone. It is an FM radio with a dial. You pick one of four cities (Seattle, New York, Chicago or Los Angeles) and tune across that city's real FM stations, which play over the internet. The lower half of the inner screen is drawn like a 1960s pocket radio: a speaker grille, a band switch for the city, and two thumbwheels on the right edge, one for volume and power and one for tuning. The hinge does not tune. It only tells the app how the phone is folded, and the app shows a different face for each way of folding. It is a prototype.
+Hinge Radio is a small SwiftUI app for the iPhone Duo, a folding iPhone. It is an FM radio with a dial. You pick one of four cities (Seattle, New York, Chicago or Los Angeles), or HERE, which finds the stations around the phone (see "HERE" below), and tune across that band's real FM stations, which play over the internet. The lower half of the inner screen is drawn like a 1960s pocket radio: a speaker grille, a band switch for the city and HERE, and two thumbwheels on the right edge, one for volume and power and one for tuning. The hinge does not tune. It only tells the app how the phone is folded, and the app shows a different face for each way of folding. It is a prototype.
 
 ## How to run it
 
@@ -29,13 +29,15 @@ xcrun simctl install <id> build/DerivedData/Build/Products/Debug-iphonesimulator
 xcrun simctl launch <id> com.example.HingeRadio
 ```
 
+The build setting `HERE_CONDITION` (default `HERE`) compiles the HERE band in. Add `HERE_CONDITION=` to the `xcodebuild` line to build without it (see "HERE" below).
+
 ## How to use it
 
 The phone has five poses. The app works out which one from the hinge angle, which screen is lit and which way up the screen is. Each pose is written to the log as `POSE <name>` when it changes.
 
 | Pose | How the phone is | What the app shows | Sound |
 |---|---|---|---|
-| Flex | Partly folded, inner screen, upright | The full radio | Plays |
+| Flex | Partly folded, inner screen, upright | The full radio, with the band switch (four cities and HERE) and the badge's "About the dial" card | Plays |
 | Book | Partly folded, inner screen, on its side | Standby face: station name, the line under it, power and tuned lamps, frequency, speaker grille, the Hinge Radio badge, and the volume and tuning wheels at the right edge | Plays |
 | Tent | Partly folded, outer screen | The same standby face | Plays |
 | Flat | Fully open | A "Fold me" card | Plays |
@@ -49,12 +51,14 @@ A name that contains the station's own frequency shows without it, because the f
 
 The badge and the app icon are drawn by `tools/build_badge.py`; their letters are adapted from the font Yellowtail (Apache 2.0, see `App/Resources/Yellowtail-LICENSE.txt`).
 
+A long press on the badge opens a sheet, "About the dial", with a Done button. It says where the stations and frequencies (the FCC), the streams (Radio Browser; with HERE also iHeart and NPR), the town's name (Apple, with HERE only) and the lettering (Yellowtail) come from, and that the station names belong to their broadcasters and the app is not affiliated with them. It is set in the face's colours and its text follows the text-size setting. It sits on the lower half, clear of the fold, and goes away by itself when the phone leaves flex. To VoiceOver the badge still reads "Hinge Radio", with an "About the dial" action.
+
 The top half is the dial: the badge, the city name, the needle, a row of dots for the stations, then the station name with its frequency beside it and two small lamps with their names printed beside them:
 
 - POWER is red while the radio is on and unlit when it is off.
 - TUNED is green while a station plays, glows dimly green while one tunes in, and is unlit off a station.
 
-Switched off, the space for the station name is empty: the unlit POWER lamp says it is off. The dial and the frequency dim; the grille stays as it is. Switched on, the line under the name says the same thing as the lamps in words ("Static", "Tuning in", "No signal" or the station's city). VoiceOver reads the lamps as "Power, on" or "Power, off" and "Tuned, <station>", "Tuning in, <station>" or "Not tuned". The top half does not respond to touch.
+Switched off, the space for the station name is empty: the unlit POWER lamp says it is off. The dial and the frequency dim; the grille stays as it is. Switched on, the line under the name says the same thing as the lamps in words ("Static", "Tuning in", "No signal" or the station's city). VoiceOver reads the lamps as "Power, on" or "Power, off" and "Tuned, <station>", "Tuning in, <station>" or "Not tuned". The top half does not respond to touch, except for the long press on the badge.
 
 The needle follows the tuning wheel on every move, near a station too, and the frequency under it changes with it. Inside a station's zone the station is locked and its name shows while the needle sits a little either side of the mark. When you let go slowly the needle eases onto the mark in about a fifth of a second, quietly (no ticks). At launch the needle starts on the station's mark. A finger resting on the wheel stops a glide under it.
 
@@ -62,7 +66,7 @@ The lower half is the front of a pocket radio: a speaker grille, a band switch u
 
 1. Volume (the small wheel, top). Roll it up past the click and the radio comes on; keep rolling for louder; roll it down past the click and it goes off. Below 0.15 of its travel it is off. A tap on it switches the radio on (at the last volume used) or off. One wheel height of rolling covers the whole range.
 2. Tuning (the tall wheel, bottom). Roll it up to go up the band, down to go down. Every 100 pt of rolling moves about a tenth of the band (the whole band is 932 pt of rolling), on every face; here that is a quarter of the band per wheel height. Near a station it settles on it, the name and its city of licence appear, and the station plays. Between stations the screen says "Static". A slow release on a station eases the needle onto its mark, and so does a slow release just short of a station where its name already shows (with the radio on, and not a station marked "No signal"); anywhere else it stays where you let go. A quick flick carries on and settles on the nearest station. A tap on the upper half of the wheel goes to the next station up, on the lower half to the next one down, counting from the locked station when there is one. On this wheel a tap must lift within 4 pt of where it began; a small nudge between that and 6 pt does nothing.
-3. Band. Tap one of the four positions (SEA, NYC, CHI, LA) to slide the switch there. The dial redraws with that city's stations and the old city goes quiet at once. The needle stays where it was, unless one of the new city's stations is under it: then it eases onto that station's mark.
+3. Band. Tap one of the five positions (SEA, NYC, CHI, LA, HERE; four without HERE) to slide the switch there. The dial redraws with that band's stations and the old band goes quiet at once. The needle stays where it was, unless one of the new band's stations is under it: then it eases onto that station's mark.
 
 Each control ticks or clicks like a mechanical one, with a small sound and a matching tap you can feel, whether the radio is on or off:
 
@@ -74,7 +78,7 @@ Each control ticks or clicks like a mechanical one, with a small sound and a mat
 
 Running silently (below) silences these sounds too; the taps you feel still happen.
 
-With VoiceOver: "Volume" is adjustable in steps of a tenth (from off, one step up switches on at the click; a step down past the click switches off) and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and its frequency; "Band" reads as a picker of four cities. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
+With VoiceOver: "Volume" is adjustable in steps of a tenth (from off, one step up switches on at the click; a step down past the click switches off) and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and its frequency; "Band" reads as a picker of the bands; the badge has an "About the dial" action. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
 
 ### Book, tent and shut: standby
 
@@ -126,11 +130,12 @@ xcrun simctl spawn <id> log show --last 3m --style compact --predicate 'subsyste
 - `LOCK <call> <position>` or `STATIC <position>` only when the locked station changes.
 - `CONNECT`, `PLAYING`, `RETRY`, `FAILED` and `STOP` from the player.
 - `FEEL click on|off|band|lock <call>` and `FEEL stop tuning|volume` for each click and stop; `FEEL tick tuning|volume` for each tick, at the info level (add `--info` to see them).
+- `HERE ...` lines from HERE's search (`FCC <n> licences`, one line per call sign with the source that gave its stream or `none`, `TOTAL`, `SAVED`, `NAMED`, `CACHED`, `REFRESHED`, `CANCELLED`, `PLAY COUNTED`), and `SCAN` and `SCAN END` for the needle's sweep. Positions are never logged.
 - `WHEELS tuning <height> pt, <fraction> of the band` when the tuning wheel's height changes, at the debug level (add `--debug` to see it).
 
 ## The stations
 
-There are 55 stations: 10 in Seattle, 15 in New York, 16 in Chicago and 14 in Los Angeles. Frequencies and licence cities come from the FCC's public FM list. The stream addresses come from the Radio Browser directory. The finished list is `App/Resources/Stations.json`.
+There are 55 stations: 10 in Seattle, 15 in New York, 16 in Chicago and 14 in Los Angeles. Frequencies and licence cities come from the FCC's public FM list. The stream addresses come from the Radio Browser directory. The finished list is `App/Resources/Stations.json`. These are the four bundled cities; HERE's stations are found on the phone (next section).
 
 To rebuild it (needs the internet; the Python tools use only the standard library):
 
@@ -150,11 +155,61 @@ Any other key (a misspelling, say) prints a warning naming the file, the key and
 
 At the end of `build`, the hosts of the plain-`http://` streams are compared with the hosts the app allows (see "Stations on plain http"). If they differ, it prints which hosts to add to or remove from `project.yml`.
 
+## HERE: the stations around the phone
+
+HERE is a fifth position on the band switch, after SEA, NYC, CHI and LA. Choosing it finds the FM stations licensed around the phone that also stream, at most 16, and puts them on the dial as a city's stations are. The dial's name becomes the nearest town. While it looks, the line under the name says "Finding stations…" and the needle sweeps up the dial, each station's dot appearing as it is confirmed (with Reduce Motion the dots appear without the sweep). When it ends, the needle eases onto a station and it plays. With no stations it says "No stations found here"; with location refused, "Location is off". The other four bands work in each case. It covers the US only, because the list of stations is the FCC's.
+
+How it finds them:
+
+1. The position is rounded to 0.01 degree (about 1 km) before anything is done with it.
+2. The FCC's list of licensed FM stations within 100 km of it. Only licensed stations (status `LIC`, service `FM`) count, one per call sign, and only those whose class reach covers the phone (class A 28 km, B1 and C3 39, B and C2 52, C1 72, C0 83, C 92, D 10). They are ranked by distance divided by reach, smallest first, then higher power, then lower frequency. At most 16, one to a frequency, within 88 to 108 MHz.
+3. A stream for each, asked of iHeart, then NPR, then Radio Browser, and the first `https` one wins. Radio Browser counts only when the entry's name holds both the call sign and the frequency and its own check says the stream works.
+4. Each stream is tried (one byte is enough) before its station goes on the dial. A request takes at most 8 seconds and at most 6 run at once. Every request says `User-Agent: HingeRadio/1.0`.
+
+### What is sent where
+
+| To | What | For |
+|---|---|---|
+| The FCC (`transition.fcc.gov`) | The rounded position | The stations licensed around it |
+| Apple (MapKit's place lookup) | The rounded position | The town's name |
+| iHeart (`us.api.iheart.com`) | A call sign | The stream address |
+| NPR (`station.api.npr.org`) | A call sign | The stream address |
+| Radio Browser (its `api.radio-browser.info` servers, found with a DNS lookup of `all.api.radio-browser.info`) | A call sign; and, when a station it listed plays, that station's id, as it asks | The stream address and its play count |
+| Each station's own stream server | An ordinary request for its stream, so it sees the phone's address | The sound |
+
+Only the FCC and Apple get the position. Nothing is sent to anyone else, and there is no server of ours. No request carries an account, a device identifier or a cookie.
+
+The play count goes to Radio Browser only while HERE is the band, once each time a station it listed starts playing: not again after a stall, a retry or a volume change, but again if the station is left and chosen again. A failed request is ignored.
+
+### The prompt and the cache
+
+The first time HERE is chosen, iOS asks to use the location while the app is in use, and the app asks for approximate location only. If the answer is no, HERE says "Location is off" and finds its stations when it is allowed again.
+
+Each place's dial is kept on the phone, in the app's cache folder, for 7 days, on a grid of 0.1 degree (about 10 km). A kept dial shows at once. When it is over 24 hours old it is searched for again in the background; the new list is only kept, and shows the next time HERE is chosen, so the station being listened to never moves. A refresh that finds nothing, or fewer than half as many stations, leaves the old dial alone.
+
+### Building without HERE
+
+The build setting `HERE_CONDITION` is `HERE` by default. Build with it empty to leave HERE, and every lookup, out of the app:
+
+```
+xcodebuild -project HingeRadio.xcodeproj -scheme HingeRadio \
+  -destination 'platform=iOS Simulator,id=<id>' \
+  -derivedDataPath build/DerivedData HERE_CONDITION= build
+```
+
+That build has four bands, never asks for the location and never contacts iHeart, NPR or Apple, and its About card does not name them. It still contains two things it does not use: the addresses of the FCC, iHeart and NPR lookups, which are in the rules package (`RadioCore`) that both builds link, and the location usage string in `App/Info.plist`. A build made for review should know that.
+
+### What HERE depends on
+
+HERE depends mostly on iHeart. Its lookup is not documented, and it is used here without permission. In a dry run against the live sources (2026-11-25), iHeart gave the stream for 23 of the 25 Seattle stations that had one, 14 of 15 in Fargo and 21 of 21 in Denver; without it HERE would have found 3 to 5 stations in each. NPR's lookup is not documented either, and Radio Browser's entries are the only source that is open. If iHeart changes or goes, HERE finds few stations. None of the streams is licensed to this app; a shipped version would need permission from each broadcaster and from iHeart and NPR (see `docs/2026-11-22-local-stations-design.md`).
+
+On the iPhone Duo simulator (muted, location set to Seattle, no kept dial) HERE found 16 stations in 8.0 seconds (the FCC listed 58 licences, 30 in reach), named the town "Seattle" and played KCMS (`docs/check/61-about.png` is the card in flex; `62-here-after-scan.png` is HERE after the scan). Built with `HERE_CONDITION=` it showed four bands, played KING-FM, and its card named the FCC, Radio Browser and Yellowtail only. Book, closed and flat on a bundled city looked as before.
+
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 115 tests
-python3 -m unittest tools/test_build_stations.py      # 19 tests
+swift test --package-path Packages/RadioCore          # 221 tests
+python3 -m unittest discover -s tools                 # 19 tests
 ```
 
 On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. With the pocket radio face, the Swift suite passed 85 of 85 and the Python suite 19 of 19. With the smooth needle, ticks and lamps, the Swift suite passed 95 of 95 and the Python suite 19 of 19; after the review fixes that followed, 110 of 110 and 19 of 19. With the side wheels on the standby faces, 110 of 110 and 19 of 19 (no new tests: the change is in the app's views, and the gearing constant carries no rule for RadioCore); after the review fixes, with five tests for where a slow release eases to, 115 of 115 and 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
@@ -326,6 +381,9 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 - Whether the right edge fights the system's edge gestures on a real phone. The wheels end about 43 pt in from the glass edge; on the simulator no roll was taken by the system, but the simulator's touches are synthetic.
 - How it sounds. Every run was muted except a short unmuted launch at the end; nobody listened.
 - A real phone. Anything on a real iPhone Duo, including how it chooses its lit screen.
+- HERE anywhere but the simulator's Seattle (and the earlier London, which found nothing). It was not tried on a phone with a real position.
+- The play count sent to Radio Browser. None of Seattle's 16 stations came from Radio Browser, so no count was sent; the rule for when to count is tested in `PlayCountTests.swift`, and the call from the app to `reportPlay` has not been seen working.
+- The About card with VoiceOver, and with the largest text sizes.
 - The standby face on the inner screen when nearly shut. On the simulator a jump to 15 degrees lit the outer screen, so that layout was never seen.
 - Where the fold line is. It is inferred from screen sizes (the inner screen is two outer-size panels), and the simulator draws no fold line.
 - The screen staying awake while the radio is on. The code asks for it; nobody watched the screen stay on.

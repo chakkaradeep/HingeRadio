@@ -2,10 +2,12 @@ import SwiftUI
 import RadioCore
 
 /// The lid: the badge and the city, the dial glass, then the station window with the frequency
-/// and the power and tuned lamps.
+/// and the power and tuned lamps. A long press on the badge opens "About the dial".
 struct DialView: View {
     let model: RadioModel
     let em: CGFloat
+    /// Opens "About the dial", from a long press on the badge or the VoiceOver action.
+    let about: () -> Void
 
     var body: some View {
         let display = model.display
@@ -28,6 +30,8 @@ struct DialView: View {
             BadgeView(height: 1.3 * em)
                 .accessibilityElement()
                 .accessibilityLabel("Hinge Radio")
+                .accessibilityAction(named: "About the dial", about)
+                .onLongPressGesture(perform: about)
             Spacer(minLength: 0)
             Text(model.city?.name.uppercased() ?? "")
                 .lineLimit(1)

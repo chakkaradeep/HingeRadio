@@ -88,3 +88,29 @@ Lines marked **(my call)** are Claude's and unconfirmed. The research behind thi
 3. **Coverage.** Strict matching and `https`-only will leave some real stations off, mostly independents that publish only an `http` stream.
 4. **Radio Browser has one server** at the moment.
 5. **First search is slow** on a poor connection.
+
+## As built (2026-11-25)
+
+What changed from the text above while it was built. The approved text is left as it was.
+
+### What a dry run showed
+
+The rules were run once against the live sources before building:
+
+| Place | In reach | With a stream | From iHeart | Without iHeart | Answered a probe | Time |
+|---|---|---|---|---|---|---|
+| Seattle | 29 | 25 | 23 | 4 | 24 of 25 | 4.4 s |
+| Fargo | 21 | 15 | 14 | 3 | 15 of 15 | 3.5 s |
+| Denver | 24 | 21 | 21 | 5 | 21 of 21 | 3.3 s |
+
+HERE is, in practice, iHeart. Its lookup is undocumented and no permission for it is held. If it goes, HERE finds 3 to 5 stations.
+
+### Differences
+
+- **Ranking is by distance over reach, not nearest.** Nearest first kept KMIH (30 watts, 9 km) in Seattle and dropped KZOK (73,000 watts, 30 km). The 16 are the stations with the smallest distance divided by their class's reach, then higher power, then lower frequency. Class D reach is 10 km (an assumption).
+- **The position goes to fewer places.** iHeart, NPR and Radio Browser are all asked by call sign, so only the FCC and Apple (for the town's name) get the rounded position. The privacy section above allowed more.
+- **A refresh is shown next visit.** A dial kept over 24 hours is searched for again in the background, and the new list is only kept: the dial being listened to does not move. A refresh never halves a dial: one that finds nothing, or fewer than half as many stations, leaves the old dial in place.
+- **A play is counted once for each start** of a station Radio Browser listed, while HERE is the band; a stall, a retry or a volume change is not a new start.
+- **The About card** opens from a long press on the badge, and from a VoiceOver action on it. The four bundled cities' stations were found with the FCC and Radio Browser, so every build names those two; the HERE build also names iHeart, NPR and Apple.
+- **London, and any position with a 0 in it.** The FCC ignores the position when a degrees field is 0 (London's longitude, the equator's latitude) and returns its whole database, every row at 0.00 km. Rows at 0 km are therefore not taken as licences, and London says "No stations found here". A station within 5 m of the rounded place is skipped too.
+- **A build without HERE still holds the unused addresses.** The addresses of the FCC, iHeart and NPR lookups are in `RadioCore`, which both builds link, and the location usage string stays in `Info.plist`. Nothing calls them and the app never asks for the location, but a reviewer reading the binary will find them.

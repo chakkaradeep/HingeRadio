@@ -8,6 +8,8 @@ import UIKit
 /// the outer screen and kept to the same half or panel on the inner one.
 struct RootView: View {
     let model: RadioModel
+    @State private var aboutShown = false
+    @State private var windowHeight: CGFloat = 0
 
     var body: some View {
         GeometryReader { proxy in
@@ -56,7 +58,7 @@ struct RootView: View {
                 case .flex:
                     let em = Face.em(forWidth: size.width)
                     halves(size: size, insets: insets) {
-                        DialView(model: model, em: em)
+                        DialView(model: model, em: em) { aboutShown = true }
                     } bottom: {
                         PlateView(model: model, em: em)
                     }
@@ -65,12 +67,24 @@ struct RootView: View {
         }
         .ignoresSafeArea()
         .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
+            windowHeight = size.height
             model.window(width: size.width, height: size.height)
         }
         .background(Face.face)
         .preferredColorScheme(.light)
         .statusBarHidden()
         .hingeReadings(into: model)
+        .sheet(isPresented: $aboutShown) {
+            // The sheet's top edge sits a clear band below the fold. A sheet shows taller than its
+            // detent (its margins, the space under the window): 8 pt comes off, measured on the
+            // simulator.
+            AboutCard()
+                .presentationDetents([.height(windowHeight / 2 - Face.foldClearance - 8)])
+        }
+        // The card is for flex, where the dial is: it goes when the phone leaves it.
+        .onChange(of: model.radio.pose) { _, pose in
+            if pose != .flex { aboutShown = false }
+        }
         .onChange(of: model.radio.isLive, initial: true) { _, live in
             UIApplication.shared.isIdleTimerDisabled = live
         }

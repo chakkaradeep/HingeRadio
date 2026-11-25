@@ -13,7 +13,7 @@ import UIKit
     /// What the station player last reported. Views never read it: they get `display`, which
     /// goes through `audiblePlayback` like the sound mix does.
     private var reportedPlayback: Playback = .idle {
-        didSet { if reportedPlayback != oldValue { updateSound() } }
+        didSet { if reportedPlayback != oldValue { updateSound(); countPlay() } }
     }
 
     /// Which screen the window is on; the inner one until the first window size arrives.
@@ -46,6 +46,7 @@ import UIKit
     @ObservationIgnored private var wasInBackground = false
     #if HERE
     @ObservationIgnored private lazy var hereSearch = HereSearch(model: self)
+    @ObservationIgnored private var playCount = PlayCount()
     #endif
     @ObservationIgnored private var sessionObservers: [any NSObjectProtocol] = []
     /// Launch with `-HingeRadioMuted YES` to run silently (for testing). Read once.
@@ -262,6 +263,15 @@ import UIKit
     }
 
     // MARK: - Private
+
+    /// Tells Radio Browser when a station of HERE's that it listed starts playing (see `PlayCount`).
+    private func countPlay() {
+        #if HERE
+        guard let id = playCount.report(reportedPlayback, of: player.connected, onHere: radio.cityID == hereID)
+        else { return }
+        hereSearch.played(radioBrowserID: id)
+        #endif
+    }
 
     private func step(toPosition position: Double, quiet: Bool = false) {
         let before = radio.tuning.locked?.callSign

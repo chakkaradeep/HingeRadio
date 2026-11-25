@@ -33,6 +33,13 @@ import RadioCore
         if wasCancelled || status == .locationOff || status == .empty { start() }
     }
 
+    /// A station Radio Browser listed started playing: tells it, as it asks. Its own task, so no
+    /// band change or cancelled search stops it; a failure is ignored.
+    func played(radioBrowserID: String) {
+        log.notice("HERE PLAY COUNTED")
+        Task { [finder] in await finder.reportPlay(radioBrowserID: radioBrowserID) }
+    }
+
     func cancel() {
         model?.endScan()
         guard let task else { return }
