@@ -152,7 +152,7 @@ struct SideWheels: View {
         guard let station = model.radio.tuning.locked else {
             return String(format: "%.1f megahertz", model.radio.tuning.frequency)
         }
-        return "\(station.name), " + String(format: "%.1f megahertz", station.frequency)
+        return "\(station.shownName), " + String(format: "%.1f megahertz", station.frequency)
     }
 
     /// To the next station up or down the band (see `Radio.stepTarget`).

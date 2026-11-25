@@ -151,12 +151,12 @@ public struct Radio: Sendable {
             return Display(title: "· · ·", subtitle: "Static", lamp: .off, bars: 0)
         }
         if dead.contains(candidate.callSign) {
-            return Display(title: candidate.name, subtitle: "No signal", lamp: .off, bars: 0)
+            return Display(title: candidate.shownName, subtitle: "No signal", lamp: .off, bars: 0)
         }
         if playback != .playing {
-            return Display(title: candidate.name, subtitle: "Tuning in", lamp: .seeking, bars: 0)
+            return Display(title: candidate.shownName, subtitle: "Tuning in", lamp: .seeking, bars: 0)
         }
-        return Display(title: candidate.name, subtitle: candidate.licenceCity, lamp: .locked,
+        return Display(title: candidate.shownName, subtitle: candidate.licenceCity, lamp: .locked,
                        bars: max(1, Int((tuning.strength * 5).rounded())))
     }
 }

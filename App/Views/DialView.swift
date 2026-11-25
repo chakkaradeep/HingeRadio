@@ -1,8 +1,8 @@
 import SwiftUI
 import RadioCore
 
-/// The lid: name and city, the dial glass, then the station window with the frequency and the
-/// power and tuned lamps.
+/// The lid: the badge and the city, the dial glass, then the station window with the frequency
+/// and the power and tuned lamps.
 struct DialView: View {
     let model: RadioModel
     let em: CGFloat
@@ -24,8 +24,10 @@ struct DialView: View {
 
     private func header(_ display: Display) -> some View {
         let size = 0.72 * em
-        return HStack(spacing: 0.6 * size) {
-            Text("HINGE RADIO").lineLimit(1)
+        return HStack(alignment: .firstTextBaseline, spacing: 0.6 * size) {
+            BadgeView(height: 1.3 * em)
+                .accessibilityElement()
+                .accessibilityLabel("Hinge Radio")
             Spacer(minLength: 0)
             Text(model.city?.name.uppercased() ?? "")
                 .lineLimit(1)

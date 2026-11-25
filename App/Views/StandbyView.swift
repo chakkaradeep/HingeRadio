@@ -5,7 +5,8 @@ import RadioCore
 /// Book, tent and shut: the station name, the line under it, the power and tuned lamps and the
 /// frequency, with the side wheels (`SideWheels`) at the right edge, the same as on the flex
 /// plate: volume (which is also power) above tuning. Switched off, the name and the line are
-/// empty. `twoPanels` splits them left and right of a vertical fold, the wheels on the right.
+/// empty; the badge, low on the face, and the speaker grille stay. `twoPanels` splits them left
+/// and right of a vertical fold, the wheels on the right.
 ///
 /// Sizes come from the screen's short side, so the name and the frequency stay the two biggest
 /// things and read from across a room. It lays itself out from the size it is given, so the outer
@@ -34,30 +35,36 @@ struct StandbyView: View {
                     // tops sit on the same line as VOLUME's, so one top line runs across the fold.
                     let wheelsHeight = SideWheels.height(em: wheelsEm, tuning: Self.bookTuningHeight)
                     let top = max(insets.top + margin, (size.height - wheelsHeight) / 2)
+                    // The grille, the badge and the tuning wheel end on one bottom line.
+                    let wheels = min(wheelsHeight, size.height - top - insets.bottom - margin)
+                    let panelBottom = size.height - top - wheels
                     let capLine = top + SideWheels.captionCapInset(em: wheelsEm)
                     HStack(spacing: 0) {
                         VStack(alignment: .leading, spacing: metrics.gap) {
                             name(metrics)
                             subtitleAndLamp(metrics)
+                            grille(em: wheelsEm, height: 0.21 * metrics.short)
                         }
                         .animation(.easeOut(duration: 0.3), value: model.radio.powerOn)
                         .padding(.top, capLine - Self.capInset(nameFont(size: metrics.name)))
                         .padding(EdgeInsets(top: 0, leading: insets.leading + margin,
-                                            bottom: insets.bottom + margin, trailing: Face.foldClearance + margin))
+                                            bottom: panelBottom, trailing: Face.foldClearance + margin))
                         .frame(width: size.width / 2, height: size.height, alignment: .topLeading)
                         HStack(alignment: .top, spacing: margin) {
                             VStack(alignment: .leading, spacing: metrics.gap) {
                                 frequency(metrics)
                                 unit(metrics)
+                                Spacer(minLength: 0)
+                                BadgeView(height: 0.11 * metrics.short)
                             }
                             .animation(.easeOut(duration: 0.3), value: model.radio.powerOn)
                             .padding(.top, capLine - top
                                      - Self.capInset(frequencyFont(size: frequencySize(metrics))))
                             SideWheels(model: model, em: wheelsEm, tuningMaxHeight: Self.bookTuningHeight)
-                                .frame(height: min(wheelsHeight, size.height - top - insets.bottom - margin))
+                                .frame(height: wheels)
                         }
                         .padding(EdgeInsets(top: top, leading: Face.foldClearance + margin,
-                                            bottom: insets.bottom + margin, trailing: insets.trailing + margin))
+                                            bottom: panelBottom, trailing: insets.trailing + margin))
                         .frame(width: size.width / 2, height: size.height, alignment: .top)
                     }
                 } else {
@@ -65,9 +72,18 @@ struct StandbyView: View {
                         VStack(alignment: .leading, spacing: metrics.gap) {
                             name(metrics)
                             subtitleAndLamp(metrics)
-                            Spacer(minLength: 0)
-                            frequency(metrics)
+                            if size.width > size.height {
+                                Spacer(minLength: 0)
+                                frequencyAndGrille(metrics, em: wheelsEm)
+                            } else {
+                                grille(em: wheelsEm, height: 0.11 * metrics.short, fine: true)
+                                frequency(metrics)
+                            }
+                            // An overlay, rising into the clear space under the figures, so the
+                            // badge takes no height from the words.
                             unit(metrics)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .overlay(alignment: .bottomTrailing) { BadgeView(height: 0.12 * metrics.short) }
                         }
                         .animation(.easeOut(duration: 0.3), value: model.radio.powerOn)
                         SideWheels(model: model, em: wheelsEm)
@@ -144,12 +160,41 @@ struct StandbyView: View {
         }
     }
 
+    /// The speaker grille, the same size whatever the name, at the foot of the space left for it.
+    /// Each face gives it the height a two-line name leaves.
+    private func grille(em: CGFloat, height: CGFloat, fine: Bool = false) -> some View {
+        GrilleView(em: em, minimum: Self.grilleMinimum, fine: fine, footed: true)
+            .frame(maxWidth: .infinity, maxHeight: height)
+            .frame(maxHeight: .infinity, alignment: .bottom)
+            .layoutPriority(-1)                 // the words take their height first
+    }
+
+    private static let grilleMinimum: CGFloat = 40
+
+    /// On the long side: the frequency, with the grille as a tall strip in the width its widest
+    /// reading leaves, standing on the figures' feet. An overlay, so it never pushes the words.
+    private func frequencyAndGrille(_ metrics: Metrics, em: CGFloat) -> some View {
+        let size = frequencySize(metrics)
+        let left = frequencySlot - Self.frequencyWidthPerPoint * size - metrics.gap
+        return frequency(metrics)
+            .overlay(alignment: Alignment(horizontal: .trailing, vertical: .lastTextBaseline)) {
+                GrilleView(em: em, minimum: Self.grilleMinimum, fine: true, footed: true)
+                    .frame(width: max(0, left), height: 2 * frequencyFont(size: size).capHeight)
+                    .alignmentGuide(.lastTextBaseline) { $0[.bottom] }
+            }
+    }
+
     /// The locked station's own frequency, else the needle's (flex's dial follows the needle). Its
     /// size is set from the widest reading, so it stays put across 100 MHz and fits beside the
     /// wheels.
     private func frequency(_ metrics: Metrics) -> some View {
-        let size = frequencySize(metrics)
-        return Text(String(format: "%.1f", model.radio.tuning.locked?.frequency ?? model.radio.tuning.frequency))
+        frequencyText(size: frequencySize(metrics))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { frequencySlot = $0 }
+    }
+
+    private func frequencyText(size: CGFloat) -> some View {
+        Text(String(format: "%.1f", model.radio.tuning.locked?.frequency ?? model.radio.tuning.frequency))
             .font(.system(size: size, weight: .medium))
             .monospacedDigit()
             .tracking(-0.02 * size)
@@ -157,8 +202,6 @@ struct StandbyView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.5)
             .opacity(model.radio.powerOn ? 1 : 0.35)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { frequencySlot = $0 }
     }
 
     private func frequencySize(_ metrics: Metrics) -> CGFloat {
@@ -182,6 +225,7 @@ struct StandbyView: View {
         Text("MHz")
             .font(.system(size: metrics.unit, weight: .bold))
             .tracking(0.1 * metrics.unit)
+            .fixedSize()
             .foregroundStyle(Face.muted)
             .opacity(model.radio.powerOn ? 1 : 0.35)
     }

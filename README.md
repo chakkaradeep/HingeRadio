@@ -1,6 +1,6 @@
 # Hinge Radio
 
-Hinge Radio is a small SwiftUI app for the iPhone Duo, a folding iPhone. It is an FM radio with a dial. You pick one of four cities (Seattle, New York, Chicago or Los Angeles) and tune across that city's real FM stations, which play over the internet. The lower half of the inner screen is drawn like a 1960s pocket radio: a speaker grille, a band switch for the city, and two thumbwheels on the right edge, one for volume and power and one for tuning. The hinge does not tune. It only tells the app how the phone is folded, and the app shows a different face for each way of folding. It is a prototype that runs in the iPhone Duo simulator only; it has not been put on a real phone.
+Hinge Radio is a small SwiftUI app for the iPhone Duo, a folding iPhone. It is an FM radio with a dial. You pick one of four cities (Seattle, New York, Chicago or Los Angeles) and tune across that city's real FM stations, which play over the internet. The lower half of the inner screen is drawn like a 1960s pocket radio: a speaker grille, a band switch for the city, and two thumbwheels on the right edge, one for volume and power and one for tuning. The hinge does not tune. It only tells the app how the phone is folded, and the app shows a different face for each way of folding. It is a prototype.
 
 ## How to run it
 
@@ -36,7 +36,7 @@ The phone has five poses. The app works out which one from the hinge angle, whic
 | Pose | How the phone is | What the app shows | Sound |
 |---|---|---|---|
 | Flex | Partly folded, inner screen, upright | The full radio | Plays |
-| Book | Partly folded, inner screen, on its side | Standby face: station name, the line under it, power and tuned lamps, frequency, and the volume and tuning wheels at the right edge | Plays |
+| Book | Partly folded, inner screen, on its side | Standby face: station name, the line under it, power and tuned lamps, frequency, speaker grille, the Hinge Radio badge, and the volume and tuning wheels at the right edge | Plays |
 | Tent | Partly folded, outer screen | The same standby face | Plays |
 | Flat | Fully open | A "Fold me" card | Plays |
 | Shut | Closed | The same standby face | Plays |
@@ -45,7 +45,11 @@ The phone has five poses. The app works out which one from the hinge angle, whic
 
 ### Flex: the radio
 
-The top half is the dial: the city name, the needle, a row of dots for the stations, then the station name with its frequency beside it and two small lamps with their names printed beside them:
+A name that contains the station's own frequency shows without it, because the frequency is already on the face ("94.7 WLS" shows as WLS). Other numbers stay (Hot 97, Z100).
+
+The badge and the app icon are drawn by `tools/build_badge.py`; their letters are adapted from the font Yellowtail (Apache 2.0, see `App/Resources/Yellowtail-LICENSE.txt`).
+
+The top half is the dial: the badge, the city name, the needle, a row of dots for the stations, then the station name with its frequency beside it and two small lamps with their names printed beside them:
 
 - POWER is red while the radio is on and unlit when it is off.
 - TUNED is green while a station plays, glows dimly green while one tunes in, and is unlit off a station.

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Shown for the flat pose: the display's title and line under the app name.
+/// Shown for the flat pose: the display's title and line under the badge.
 struct PoseCard: View {
     let model: RadioModel
     let em: CGFloat
@@ -8,9 +8,9 @@ struct PoseCard: View {
     var body: some View {
         let display = model.display
         VStack(spacing: 0.5 * em) {
-            Text("Hinge Radio")
-                .font(.system(size: 1.6 * em, weight: .heavy))
-                .tracking(-0.02 * 1.6 * em)
+            BadgeView(height: 2.2 * em)
+                .accessibilityElement()
+                .accessibilityLabel("Hinge Radio")
             Text(display.title)
                 .font(.system(size: 1.0 * em, weight: .bold))
                 .padding(.top, 0.6 * em)
