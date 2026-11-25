@@ -211,7 +211,7 @@ On the iPhone Duo simulator (muted, location set to Seattle, no kept dial) HERE 
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 229 tests
+swift test --package-path Packages/RadioCore          # 255 tests
 python3 -m unittest discover -s tools                 # 19 tests
 ```
 

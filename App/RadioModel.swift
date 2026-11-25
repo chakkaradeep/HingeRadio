@@ -215,9 +215,9 @@ import UIKit
     /// A search began: the needle may sweep, and move onto a station at its end, unless a finger
     /// has it or, with the app back from the background, the owner had a hand on it before. Any
     /// sweep of the last search is over.
-    func hereSearchBegan(isReturn: Bool) {
+    func hereSearchBegan(_ start: HerePlan.Start) {
         endScan()
-        needleIsTaken = wheelIsHeld || (isReturn && needleIsTaken)
+        needleIsTaken = HerePlan.needleIsTaken(on: start, wheelIsHeld: wheelIsHeld, wasTaken: needleIsTaken)
     }
 
     /// Sweeps the needle over the dial (see `Sweep`) until `stopGlide`, ticking on the way up.

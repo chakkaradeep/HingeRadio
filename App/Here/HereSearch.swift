@@ -12,23 +12,23 @@ import RadioCore
     private let finder = StationFinder()
     private let cache = HereCache()
     private var task: Task<Void, Never>?
-    /// Whether the last search was cut short.
-    private var wasCancelled = false
-    /// The place of the last dial shown or hunted for.
-    private var lastPlace: Place?
+    /// The rules, and what they remember from one search to the next.
+    private var plan = HerePlan()
     private let log = Logger(subsystem: "HingeRadio", category: "here")
 
     init(model: RadioModel) { self.model = model }
 
     /// HERE was chosen: a search, unless one is already running.
     func chosen() {
-        if task == nil { start(isReturn: false) }
+        let status = model?.radio.hereStatus ?? .idle
+        if plan.searches(on: .chosen, status: status, isSearching: task != nil) { start(.chosen) }
     }
 
     /// The app came back with HERE selected: a search, if the last one did not end with a dial.
     func returned() {
-        guard task == nil, let status = model?.radio.hereStatus else { return }
-        if wasCancelled || status == .locationOff || status == .empty { start(isReturn: true) }
+        guard let status = model?.radio.hereStatus,
+              plan.searches(on: .returned, status: status, isSearching: task != nil) else { return }
+        start(.returned)
     }
 
     /// A station Radio Browser listed started playing: tells it, as it asks. Its own task, so no
@@ -41,22 +41,25 @@ import RadioCore
     /// Ends the search, and drops the part of a dial it had found: nobody should tune it, and the
     /// next search starts afresh. A dial that was kept, or is whole, stays.
     func cancel() {
-        if model?.radio.hereStatus == .finding { clear(.idle) }
+        if let status = plan.cancel(status: model?.radio.hereStatus ?? .idle, isSearching: task != nil) {
+            clear(status)
+        }
         model?.endScan()
         guard let task else { return }
         task.cancel()
         self.task = nil
-        wasCancelled = true
         log.notice("HERE CANCELLED")
     }
 
     // MARK: - Private
 
-    private func start(isReturn: Bool) {
+    private func start(_ start: HerePlan.Start) {
         task?.cancel()
-        wasCancelled = false
-        model?.hereSearchBegan(isReturn: isReturn)
-        if model?.radio.hereStatus != .ready { model?.setHere(status: .finding) }
+        plan.begin()
+        model?.hereSearchBegan(start)
+        if let model, let status = HerePlan.status(onStartFrom: model.radio.hereStatus) {
+            model.setHere(status: status)
+        }
         task = Task {
             await search()
             if !Task.isCancelled { task = nil }
@@ -76,31 +79,21 @@ import RadioCore
             return
         }
         guard isCurrent else { return }
-        let (place, dial) = kept(near: found)
-        lastPlace = place
-        if let dial {
+        let (place, next) = plan.arrive(at: found, at: .now) { cache.load($0) }
+        switch next {
+        case .show(let dial, let lookUpTown):
             show(dial)
-            let dial = dial.town == hereName ? await named(dial, at: place) : dial
+            let dial = lookUpTown ? await named(dial, at: place) : dial
             if isCurrent, dial.needsRefresh(at: .now) { await refresh(dial, at: place) }
-        } else {
+        case .hunt:
             await hunt(at: place)
         }
     }
 
-    /// The kept dial for a place, with the place it belongs to. A rough position wobbles, so a
-    /// neighbouring cell of the last place still counts as it.
-    private func kept(near place: Place) -> (Place, HereDial?) {
-        if let lastPlace, place.isWithinOneCell(of: lastPlace), let dial = cache.load(lastPlace) {
-            return (lastPlace, dial)
-        }
-        return (place, cache.load(place))
-    }
-
     private func showNoPlace(_ error: LocatorError) {
-        if error == .unavailable, let lastPlace, let dial = cache.load(lastPlace) {
-            show(dial)
-        } else {
-            clear(.init(error))
+        switch plan.noPlace(error, at: .now, kept: { cache.load($0) }) {
+        case .show(let dial): show(dial)
+        case .clear(let status): clear(status)
         }
     }
 
@@ -124,11 +117,10 @@ import RadioCore
         let stations = await finder.find(at: place) { [weak self] in await self?.show($0) }
         guard isCurrent else { return }          // whatever ended this search ended its sweep
         model?.endScan()
-        guard !stations.isEmpty else {
+        guard case .found(let dial) = HerePlan.hunted(stations, at: .now) else {
             model?.setHere(status: .empty)
             return
         }
-        let dial = HereDial(town: hereName, stations: stations, savedAt: .now)
         cache.save(dial, for: place)
         log.notice("HERE SAVED")
         model?.setHere(status: .ready)
@@ -138,11 +130,11 @@ import RadioCore
 
     /// The dial on screen with its town looked up, shown and kept; unchanged when no name comes.
     private func named(_ dial: HereDial, at place: Place) async -> HereDial {
-        guard let town = await locator.town(for: place), isCurrent else { return dial }
-        let named = HereDial(town: town, stations: dial.stations, savedAt: dial.savedAt)
+        let town = await locator.town(for: place)
+        guard let named = HerePlan.named(dial, town: town), isCurrent else { return dial }
         cache.save(named, for: place)
         log.notice("HERE NAMED")
-        model?.setHereStations(named.stations, town: town)
+        model?.setHereStations(named.stations, town: named.town)
         return named
     }
 
@@ -154,18 +146,9 @@ import RadioCore
     /// not move. Finding nothing, or far fewer stations, keeps the old one.
     private func refresh(_ dial: HereDial, at place: Place) async {
         let stations = await finder.find(at: place) { _ in }
-        guard isCurrent, dial.mayBeReplaced(by: stations) else { return }
-        cache.save(HereDial(town: dial.town, stations: stations, savedAt: .now), for: place)
+        guard isCurrent, let fresh = HerePlan.refreshed(dial, by: stations, at: .now) else { return }
+        cache.save(fresh, for: place)
         log.notice("HERE REFRESHED \(stations.count) stations")
-    }
-}
-
-private extension HereStatus {
-    init(_ error: LocatorError) {
-        switch error {
-        case .refused: self = .locationOff
-        case .unavailable: self = .empty
-        }
     }
 }
 #endif

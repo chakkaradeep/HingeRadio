@@ -9,12 +9,11 @@ struct HereCache {
     private let folder = URL.cachesDirectory.appending(path: "here", directoryHint: .isDirectory)
     private let log = Logger(subsystem: "HingeRadio", category: "here")
 
-    /// The dial saved for `place`, or nil when there is none, it cannot be read, or it is too old.
+    /// The dial saved for `place`, or nil when there is none or it cannot be read. Whether it is
+    /// young enough to show is `HerePlan`'s to say.
     func load(_ place: Place) -> HereDial? {
-        guard let data = try? Data(contentsOf: file(for: place)),
-              let dial = try? JSONDecoder().decode(HereDial.self, from: data),
-              dial.isUsable(at: .now) else { return nil }
-        return dial
+        guard let data = try? Data(contentsOf: file(for: place)) else { return nil }
+        return try? JSONDecoder().decode(HereDial.self, from: data)
     }
 
     func save(_ dial: HereDial, for place: Place) {

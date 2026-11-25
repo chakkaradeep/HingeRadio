@@ -3,8 +3,6 @@ import CoreLocation
 import MapKit
 import RadioCore
 
-enum LocatorError: Error { case refused, unavailable }
-
 /// Finds roughly where the phone is, and the name of the town there. Location is asked for the
 /// first time `place()` is called, never before, and only roughly. The position is never logged.
 @MainActor final class Locator: NSObject, @MainActor CLLocationManagerDelegate {
