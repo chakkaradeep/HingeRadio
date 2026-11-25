@@ -11,11 +11,13 @@ public enum Feel: Sendable, Equatable {
 /// a new city, then power, then a newly locked station click; a wheel newly at the end of its
 /// travel stops; passing a tuning ridge ticks; passing a volume step ticks only while on.
 /// They come with the radio off too (the wheels are mechanical). Pose, suspension and dead
-/// stations never feel like anything.
+/// stations never feel like anything, nor does HERE's dial changing under the needle. A scan of
+/// HERE ticks but clicks onto no station.
 public func feel(from old: Radio, to new: Radio) -> Feel? {
     if new.cityID != old.cityID { return .bandClick }
+    if new.cityID == hereID, new.cities != old.cities { return nil }
     if new.powerOn != old.powerOn { return .powerClick }
-    if let locked = new.tuning.locked?.callSign, locked != old.tuning.locked?.callSign {
+    if !new.isScanningHere, let locked = new.tuning.locked?.callSign, locked != old.tuning.locked?.callSign {
         return .lockClick(callSign: locked)
     }
     if new.position != old.position, new.position == 0 || new.position == 1 { return .tuningStop }

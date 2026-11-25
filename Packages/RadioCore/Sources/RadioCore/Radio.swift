@@ -19,7 +19,8 @@ public struct Display: Sendable, Equatable {
 /// Volume wheel, pose, city and failed stations, on top of a `Tuner`. The wheel is power and
 /// loudness in one; the pose never affects sound.
 public struct Radio: Sendable {
-    public let cities: [City]
+    /// The bands. Fixed, but for HERE, whose stations and name follow `setHereStations`.
+    public private(set) var cities: [City]
     public private(set) var cityID: String
     /// Where the wheel clicks on.
     public static let wheelOnFrom = 0.15
@@ -36,14 +37,20 @@ public struct Radio: Sendable {
     public private(set) var dead: Set<String> = []
     /// The position (0...1) last tuned to; the needle shows it.
     public private(set) var position = 0.5
+    /// How the search for HERE's stations is going; shown only while HERE is the selected band.
+    public private(set) var hereStatus = HereStatus.idle
+    /// True while the needle sweeps the dial looking for HERE's stations.
+    public private(set) var isScanning = false
 
     private let config: DialConfig
     private let poseConfig: PoseConfig
     private var tuner: Tuner
     private var lastOnWheel = 0.6
 
-    public init(file: StationFile, config: DialConfig = DialConfig(), poseConfig: PoseConfig = PoseConfig()) {
-        cities = file.cities
+    /// `here` adds the HERE band last. The radio never starts on it.
+    public init(file: StationFile, config: DialConfig = DialConfig(), poseConfig: PoseConfig = PoseConfig(),
+                here: Bool = false) {
+        cities = file.cities + (here ? [City(id: hereID, name: "Here", key: "HERE", stations: [])] : [])
         cityID = file.cities.first?.id ?? ""
         self.config = config
         self.poseConfig = poseConfig
@@ -62,8 +69,12 @@ public struct Radio: Sendable {
     }
     public var isLive: Bool { powerOn && !isSuspended }
 
+    /// Whether the scan is what the owner sees and feels: silent, no lock clicks.
+    var isScanningHere: Bool { isScanning && cityID == hereID }
+
     public var station: Station? {
-        guard isLive, let candidate = tuning.candidate, !dead.contains(candidate.callSign) else { return nil }
+        guard isLive, !isScanningHere,
+              let candidate = tuning.candidate, !dead.contains(candidate.callSign) else { return nil }
         return candidate
     }
 
@@ -84,6 +95,23 @@ public struct Radio: Sendable {
         cityID = id
         tuner = Tuner(stations: city.stations, config: config)
         tune(toPosition: position)
+    }
+
+    public mutating func setHere(status: HereStatus) { hereStatus = status }
+
+    public mutating func setScanning(_ on: Bool) { isScanning = on }
+
+    /// Gives HERE its stations, in frequency order as `hereStations` makes them, and the town as its
+    /// name (nil keeps the name). While HERE is selected its dial is rebuilt around a needle that
+    /// stays put. The stations it brings are no longer dead, except any that are also on another
+    /// selected band, so nothing on that dial changes. Does nothing without the HERE band.
+    public mutating func setHereStations(_ stations: [Station], town: String?) {
+        guard let index = cities.firstIndex(where: { $0.id == hereID }) else { return }
+        let old = cities[index]
+        cities[index] = City(id: old.id, name: town ?? old.name, key: old.key, stations: stations)
+        let shownElsewhere = cityID == hereID ? [] : scale.marks.map(\.station.callSign)
+        dead.subtract(Set(stations.map(\.callSign)).subtracting(shownElsewhere))
+        if cityID == hereID { selectCity(hereID) }
     }
 
     /// Moves the needle to `position` (0...1, clamped). Not-a-number is ignored.
@@ -147,8 +175,8 @@ public struct Radio: Sendable {
         }
         // Off says nothing: the unlit power lamp says it.
         if !powerOn { return Display(title: "", subtitle: "", lamp: .off, bars: 0) }
-        guard let candidate = tuning.candidate else {
-            return Display(title: "· · ·", subtitle: "Static", lamp: .off, bars: 0)
+        guard !isScanningHere, let candidate = tuning.candidate else {
+            return Display(title: "· · ·", subtitle: emptySubtitle, lamp: .off, bars: 0)
         }
         if dead.contains(candidate.callSign) {
             return Display(title: candidate.shownName, subtitle: "No signal", lamp: .off, bars: 0)
@@ -158,5 +186,17 @@ public struct Radio: Sendable {
         }
         return Display(title: candidate.shownName, subtitle: candidate.licenceCity, lamp: .locked,
                        bars: max(1, Int((tuning.strength * 5).rounded())))
+    }
+
+    /// The line under the dots where no station shows: static, or on HERE how the search is going.
+    private var emptySubtitle: String {
+        guard cityID == hereID else { return "Static" }
+        if isScanning { return "Finding stations…" }
+        switch hereStatus {
+        case .finding: return "Finding stations…"
+        case .empty: return "No stations found here"
+        case .locationOff: return "Location is off"
+        case .idle, .ready: return "Static"
+        }
     }
 }

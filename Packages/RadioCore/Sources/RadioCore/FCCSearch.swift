@@ -63,6 +63,15 @@ public struct Licence: Hashable, Sendable {
         return reach > 0 ? distance / reach : .infinity
     }
 
+    /// The order for a dial: `rank`, then the stronger signal, then the lower frequency. The call
+    /// sign settles the rest so the order never wobbles.
+    func isMoreLocal(than other: Licence) -> Bool {
+        if rank != other.rank { return rank < other.rank }
+        if kilowatts != other.kilowatts { return kilowatts > other.kilowatts }
+        if frequency != other.frequency { return frequency < other.frequency }
+        return callSign < other.callSign
+    }
+
     /// Kilometres a class is expected to cover. D is a judgement call: class D stations are tiny.
     private static func reach(ofClass stationClass: String) -> Double {
         switch stationClass {
@@ -119,16 +128,10 @@ private func number(_ field: String) -> Double? {
     field.split(separator: " ").first.flatMap { Double($0) }
 }
 
-/// The licences within their class's reach, one per call sign, the most clearly local first.
-/// Ties go to the stronger signal, then the lower frequency. The call sign settles the rest so the
-/// order never wobbles. Not yet cut to the dial's 16.
+/// The licences within their class's reach, one per call sign, the most clearly local first
+/// (`Licence.isMoreLocal`). Not yet cut to the dial's 16.
 public func stationsInReach(_ licences: [Licence]) -> [Licence] {
-    let ordered = licences.filter { $0.rank <= 1 }.sorted {
-        if $0.rank != $1.rank { return $0.rank < $1.rank }
-        if $0.kilowatts != $1.kilowatts { return $0.kilowatts > $1.kilowatts }
-        if $0.frequency != $1.frequency { return $0.frequency < $1.frequency }
-        return $0.callSign < $1.callSign
-    }
+    let ordered = licences.filter { $0.rank <= 1 }.sorted { $0.isMoreLocal(than: $1) }
     var seen = Set<String>()
     return ordered.filter { seen.insert($0.callSign).inserted }
 }
