@@ -6,16 +6,26 @@ import Synchronization
 /// looped noise through a 1.7 kHz band-pass, and a sine that also carries the click and the ticks.
 /// Holds no level rules: levels come from `mix(...)` through `set`.
 ///
-/// It runs whenever the app is active, radio on or off, so the wheels tick while switched off.
+/// It runs while the radio is live. With the radio off it runs only from a touch on a control
+/// (or a feel) until `engineRestDelay` after the last sound, so the wheels tick while switched
+/// off; then `RadioModel` stops it, and it rests until the next touch or power-on.
 @MainActor final class NoiseEngine {
     private var engine = AVAudioEngine()
     private let levels = Levels()
     private var built = false
     private var configurationObserver: (any NSObjectProtocol)?
+    /// Whether the engine is meant to run: from `start()` until `stop()`. An interruption or a
+    /// route change that stops the engine leaves it true, so `restartIfStopped()` brings the
+    /// engine back; a resting engine is not started again by those.
+    private(set) var isStarted = false
+
+    /// Whether the engine is rendering now.
+    var isRunning: Bool { engine.isRunning }
 
     /// Safe to call every time the radio goes live: does nothing while the engine is running.
     func start() throws {
         if !built { try build(); built = true }
+        isStarted = true
         guard !engine.isRunning else { return }
         try engine.start()
     }
@@ -37,8 +47,11 @@ import Synchronization
         levels.ticks.add(1, ordering: .relaxed)
     }
 
-    /// Stops the engine, so no audio runs while the session changes. `start()` resumes it.
+    /// Stops the engine, so no audio runs while the session changes, or to rest it. `start()`
+    /// resumes it. Safe to repeat. A tick or click asked for while stopped waits in its counter
+    /// and sounds when the engine next starts, or not at all; it never fails.
     func stop() {
+        isStarted = false
         if engine.isRunning { engine.stop() }
     }
 
@@ -48,12 +61,14 @@ import Synchronization
         configurationObserver = nil
         engine = AVAudioEngine()
         built = false
+        isStarted = false
     }
 
-    /// After the audio route or session changes the engine may have stopped: start it again.
-    /// Safe to call at any time; failures are thrown, as from `start()`.
+    /// After the audio route or session changes the engine may have stopped: start it again,
+    /// unless it was stopped on purpose (`stop()`). Safe to call at any time; failures are
+    /// thrown, as from `start()`.
     func restartIfStopped() throws {
-        guard built, !engine.isRunning else { return }
+        guard built, isStarted, !engine.isRunning else { return }
         try engine.start()
     }
 

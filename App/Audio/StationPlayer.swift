@@ -4,8 +4,8 @@ import os
 import RadioCore
 
 /// Plays one station at a time through an `AVPlayer`, doing what its `Connection` says.
-/// Holds no timing or retry rules of its own: it ticks the connection every 0.1 s and reports
-/// the player's state and errors to it.
+/// Holds no timing or retry rules of its own: while the connection has work (`!isIdle`) it ticks
+/// it every 0.1 s and reports the player's state and errors to it; idle, nothing runs.
 @MainActor final class StationPlayer {
     var onPlayback: ((Playback) -> Void)?
     var onFailed: ((Station) -> Void)?
@@ -17,20 +17,13 @@ import RadioCore
     private var player = StationPlayer.makePlayer()
     private var connection = Connection()
     private var reportedPlaying = false
+    /// The 0.1 s check, running only while the connection has work; it ends itself once idle.
+    private var checking: Task<Void, Never>?
     private let log = Logger(subsystem: "HingeRadio", category: "sound")
-
-    init() {
-        Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(100))
-                guard let self else { return }
-                self.tick()
-            }
-        }
-    }
 
     func want(_ station: Station?) {
         connection.want(station, at: Self.now)
+        checkWhileBusy()
     }
 
     /// Silences at once and forgets anything pending.
@@ -41,6 +34,22 @@ import RadioCore
     // MARK: - Private
 
     private static var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
+
+    /// Starts the 0.1 s check if the connection has work and it is not already running.
+    private func checkWhileBusy() {
+        guard checking == nil, !connection.isIdle else { return }
+        checking = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard let self else { return }
+                self.tick()
+                if self.connection.isIdle {
+                    self.checking = nil
+                    return
+                }
+            }
+        }
+    }
 
     private func tick() {
         observePlayer()

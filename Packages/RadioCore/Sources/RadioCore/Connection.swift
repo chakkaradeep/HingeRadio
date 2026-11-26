@@ -28,6 +28,10 @@ public struct Connection: Sendable {
         self.failAfter = failAfter
     }
 
+    /// Nothing to do: no station wanted and none connected, so no settle, hold or fail wait is
+    /// running and `tick` can only return `.none` until the next `want`.
+    public var isIdle: Bool { wanted == nil && connected == nil }
+
     public mutating func want(_ station: Station?, at time: TimeInterval) {
         guard station != wanted else { return }   // the settle wait is not restarted
         wanted = station

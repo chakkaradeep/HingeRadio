@@ -84,6 +84,7 @@ struct SideWheels: View {
             scale(top: "ON", bottom: "OFF", fraction: radio.wheel, click: Radio.wheelOnFrom,
                   lit: radio.powerOn, size: size)
             WheelView(value: radio.wheel, gearing: .perHeight(1), ridge: Radio.volumeRidge,
+                      onTouchDown: { model.wake() },
                       onChange: { model.setWheel($0) },
                       onRelease: { _ in },
                       onTap: { _ in model.togglePower() })
@@ -93,6 +94,7 @@ struct SideWheels: View {
                 .accessibilityHint("Double-tap to switch on or off.")
                 .accessibilityAction { model.togglePower() }
                 .accessibilityAdjustableAction { direction in
+                    model.wake()
                     switch direction {
                     // From off, one step up switches on; a step down past the click switches off.
                     case .increment:
@@ -115,7 +117,10 @@ struct SideWheels: View {
                   lit: radio.powerOn, size: size)
             WheelView(value: model.position, gearing: .perPoint(Self.tuningBandPerPoint),
                       ridge: Radio.tuningRidge,
-                      onTouchDown: { model.holdStill() },
+                      onTouchDown: {
+                          model.wake()
+                          model.holdStill()
+                      },
                       onTouchUp: { model.letGo() },
                       onChange: { model.tune(toPosition: $0) },
                       onRelease: { predicted in
@@ -138,6 +143,7 @@ struct SideWheels: View {
                 .accessibilityLabel("Tuning")
                 .accessibilityValue(tuningValue)
                 .accessibilityAdjustableAction { direction in
+                    model.wake()
                     switch direction {
                     case .increment: step(up: true)
                     case .decrement: step(up: false)

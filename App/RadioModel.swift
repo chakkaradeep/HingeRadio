@@ -37,6 +37,12 @@ import UIKit
     @ObservationIgnored private var quietTicks = false
     /// The session's move to `.ambient` after switching off, waiting for the off click to ring out.
     @ObservationIgnored private var offSession: Task<Void, Never>?
+    /// When the last tick, click or stop sounded, or a finger last came down on a control
+    /// (`ProcessInfo.systemUptime`); nil until the first.
+    @ObservationIgnored private var lastSound: TimeInterval?
+    /// With the radio off: waits until `engineRestDelay` after `lastSound`, then rests the session
+    /// and the engine. One at a time; a new sound only moves `lastSound`, which it reads on waking.
+    @ObservationIgnored private var restTimer: Task<Void, Never>?
     /// True while a finger is on the tuning wheel.
     @ObservationIgnored private var wheelIsHeld = false
     /// Whether the owner has had a hand on the tuning since HERE's search began: the needle is
@@ -125,6 +131,14 @@ import UIKit
             if t >= 1 { self?.rememberDial() }                 // the needle has come to rest
             return t < 1
         }
+    }
+
+    /// A finger came down on a wheel or the band switch, or VoiceOver is turning a wheel: with the
+    /// radio off, the session and the engine start if they rest, before the first tick is due,
+    /// and stay up until `engineRestDelay` after the last sound.
+    func wake() {
+        heard()
+        wakeEngineIfResting()
     }
 
     /// A finger came down on a wheel: whatever glide is running, or HERE's sweep, stops under it.
@@ -217,11 +231,11 @@ import UIKit
 
     /// Called with the app's scene phase: while the app is not active the radio is silent,
     /// and on return the station reconnects and the static comes back.
-    /// While active the noise engine runs even with the radio off, so the wheels tick.
+    /// With the radio off the noise engine is not started here: it rests until `wake()` or a feel,
+    /// unless something sounded within `engineRestDelay`.
     func appIsActive(_ active: Bool) {
         radio.setSuspended(!active)
         guard active else { return }
-        if !radio.isLive { startAudio(live: false) }   // going live already started it
         for haptic in [tickHaptic, clickHaptic, stopHaptic] { haptic.prepare() }
         #if HERE
         if wasInBackground, radio.cityID == hereID { hereSearch.returned() }
@@ -231,6 +245,14 @@ import UIKit
         }
         #endif
         wasInBackground = false
+        if !radio.isLive {                              // going live already started the engine
+            if engineMayRest(isLive: false, lastSound: lastSound, now: Self.uptime) {
+                restEngine()
+            } else {
+                wakeEngineIfResting()
+                scheduleRest()
+            }
+        }
     }
 
     /// The app went to the background, not merely inactive as under a system prompt: HERE's search
@@ -344,6 +366,8 @@ import UIKit
     private func radioChanged(from old: Radio) {
         if radio.isLive, !old.isLive {
             offSession?.cancel()
+            restTimer?.cancel()
+            restTimer = nil
             startAudio(live: true)                  // before the click, so the click is not cut
         }
         if let feel = RadioCore.feel(from: old, to: radio), !(quietTicks && feel.isTick) {
@@ -374,23 +398,91 @@ import UIKit
             guard now - lastTick >= Self.tickInterval else { return }
             lastTick = now
             let soft = feel == .volumeTick
-            if !muted { noise.tick(level: soft ? 0.5 : 1) }
+            sound { $0.tick(level: soft ? 0.5 : 1) }
             tickHaptic.impactOccurred(intensity: soft ? 0.4 : 0.7)
             tickHaptic.prepare()
             feelLog.info("FEEL \(name, privacy: .public)")
         case .tuningStop, .volumeStop:
             lastTick = now
-            if !muted { noise.tick(level: 1.8) }
+            sound { $0.tick(level: 1.8) }
             stopHaptic.impactOccurred(intensity: 0.9)
             stopHaptic.prepare()
             feelLog.notice("FEEL \(name, privacy: .public)")
         case .bandClick, .powerClick, .lockClick:
             lastTick = now
-            if !muted { noise.click() }
+            sound { $0.click() }
             clickHaptic.impactOccurred()
             clickHaptic.prepare()
             feelLog.notice("FEEL \(name, privacy: .public)")
         }
+    }
+
+    /// Sounds one feel on the noise engine (unless muted), first waking the engine if it rests:
+    /// that first sound may come late or be lost, never more. Keeps the engine up for
+    /// `engineRestDelay` after it.
+    private func sound(_ make: (NoiseEngine) -> Void) {
+        heard()
+        guard !muted else { return }
+        wakeEngineIfResting()
+        make(noise)
+    }
+
+    // MARK: - Engine rest
+
+    private static var uptime: TimeInterval { ProcessInfo.processInfo.systemUptime }
+
+    /// Something sounded, or a finger came down on a control: with the radio off, the engine rests
+    /// `engineRestDelay` after the last such moment.
+    private func heard() {
+        lastSound = Self.uptime
+        if !radio.isLive { scheduleRest() }
+    }
+
+    /// With the radio off and the app not in the background: starts the `.ambient` session and the
+    /// engine if the engine is not running. Going live has its own path (`startAudio(live: true)`).
+    private func wakeEngineIfResting() {
+        guard !radio.isLive, !wasInBackground, !noise.isRunning else { return }
+        soundLog.notice("ENGINE WAKE")
+        startAudio(live: false)
+    }
+
+    /// Starts the rest timer unless it is already waiting; it reads `lastSound` each time it wakes.
+    private func scheduleRest() {
+        guard restTimer == nil else { return }
+        restTimer = Task { [weak self] in
+            while !Task.isCancelled, let wait = self?.restOrWait() {
+                try? await Task.sleep(for: .seconds(wait))
+            }
+        }
+    }
+
+    /// Rests the engine if `engineMayRest` says so and ends the timer; otherwise the seconds left
+    /// to wait. Nil, ending the timer, once the radio is live.
+    private func restOrWait() -> TimeInterval? {
+        let now = Self.uptime
+        guard !radio.isLive else {
+            restTimer = nil
+            return nil
+        }
+        guard engineMayRest(isLive: false, lastSound: lastSound, now: now) else {
+            return (lastSound ?? now) + engineRestDelay - now
+        }
+        restTimer = nil
+        restEngine()
+        return nil
+    }
+
+    /// With the radio off: stops the engine and lets the session go with notify-others, so other
+    /// apps' audio may resume. Does nothing if the engine is already at rest.
+    private func restEngine() {
+        guard !radio.isLive, noise.isStarted || noise.isRunning else { return }
+        noise.stop()
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        } catch {
+            soundLog.error("AUDIO SESSION release \(error.localizedDescription, privacy: .public)")
+        }
+        soundLog.notice("ENGINE REST")
     }
 
     /// Follows `radio` and the reported playback: the station to connect, and the levels from `mix`.
@@ -423,8 +515,8 @@ import UIKit
         audiblePlayback(reported: reportedPlayback, connected: player.connected, wanted: radio.station)
     }
 
-    /// Each time the radio goes live, and each time the app becomes active while it is off: the
-    /// session and the noise engine, which may have stopped while the app was away. Live, the
+    /// Each time the radio goes live, and with it off each time the engine wakes from rest or the
+    /// off click has rung out: the session and the noise engine. Live, the
     /// session is `.playback`; off, it is `.ambient`, so the wheels' ticks mix with other apps'
     /// sound rather than stopping it. When the category changes the engine is stopped around the
     /// change and started again, so no output runs across it. Going off, the session is first let
@@ -461,13 +553,15 @@ import UIKit
         }
     }
 
-    /// After switching off: once the off click has rung out, back to the `.ambient` session.
+    /// After switching off: once the off click has rung out, back to the `.ambient` session; the
+    /// engine then rests `engineRestDelay` after the last sound.
     private func returnToAmbient() {
         offSession?.cancel()
         offSession = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(150))
             guard let self, !Task.isCancelled, !self.radio.isLive, !self.radio.isSuspended else { return }
             self.startAudio(live: false)
+            self.scheduleRest()
         }
     }
 
@@ -497,23 +591,28 @@ import UIKit
 
     /// The system says an interruption is over: with the app in front, the session and the engine
     /// come back so the wheels tick again and the static returns.
+    /// A resting engine (radio off) stays at rest: the next touch wakes it.
     private func interruptionEnded() {
         soundLog.notice("AUDIO RESUME")
         guard !radio.isSuspended else { return }
-        do {
-            try AVAudioSession.sharedInstance().setActive(true)
-            try noise.restartIfStopped()
-        } catch {
-            soundLog.error("AUDIO RESUME \(error.localizedDescription, privacy: .public)")
+        if radio.isLive || noise.isStarted {
+            do {
+                try AVAudioSession.sharedInstance().setActive(true)
+                try noise.restartIfStopped()
+            } catch {
+                soundLog.error("AUDIO RESUME \(error.localizedDescription, privacy: .public)")
+            }
         }
         updateSound()
     }
 
     private func mediaServicesReset() {
         soundLog.notice("AUDIO RESET")
+        let wasAwake = noise.isStarted
         noise.rebuild()
-        guard !radio.isSuspended else { return }
+        guard !radio.isSuspended, radio.isLive || wasAwake else { return }   // a resting engine stays at rest
         startAudio(live: radio.isLive, force: true)
+        if !radio.isLive { scheduleRest() }
         updateSound()
     }
 

@@ -11,6 +11,8 @@ struct BandSwitch: View {
     let em: CGFloat
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The start of the touch already reported to `model.wake()`.
+    @State private var downAt: CGPoint?
 
     private static let log = Logger(subsystem: "HingeRadio", category: "dial")
 
@@ -87,6 +89,12 @@ struct BandSwitch: View {
                             .onTapGesture { model.selectCity(cities[index].id, animated: !reduceMotion) }
                     }
                 }
+                // A finger coming down wakes the sound engine, so the band's click is not lost.
+                .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { touch in
+                    guard downAt != touch.startLocation else { return }
+                    downAt = touch.startLocation
+                    model.wake()
+                })
             }
             .onGeometryChange(for: CGFloat.self) { _ in slot.rounded() } action: { slot in
                 Self.log.notice("BAND \(cities.count) positions, \(slot, format: .fixed(precision: 0)) pt each")
