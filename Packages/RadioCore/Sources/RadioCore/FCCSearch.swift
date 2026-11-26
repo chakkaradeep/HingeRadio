@@ -137,6 +137,22 @@ public func licences(fromFCC text: String) -> [Licence] {
     return found
 }
 
+/// The FCC's answer read as `licences(fromFCC:)` does, or nil when the text is not an answer
+/// from it at all. A body that is empty or only blank space is its answer for a place with no
+/// station within 100 km: asked for Paris and for the mid-Atlantic (2026-11-25) it gave HTTP 200
+/// and an empty body, so that is no licence (`[]`). A body with at least one row-shaped line is
+/// an answer, even when no row in it is usable (in London every row is at 0 km). Anything else,
+/// such as a captive portal's or a maintenance page, or a body cut off before its first whole
+/// row, is nil: the list was not had.
+public func fccAnswer(fromFCC text: String) -> [Licence]? {
+    if text.allSatisfy(\.isWhitespace) { return [] }
+    let hasRow = text.split(whereSeparator: \.isNewline).contains { line in
+        let fields = line.split(separator: "|", omittingEmptySubsequences: false)
+        return fields.count > 14 && fields[2].trimmingCharacters(in: .whitespaces).hasSuffix("MHz")
+    }
+    return hasRow ? licences(fromFCC: text) : nil
+}
+
 /// The leading number of a field such as "90.3  MHz" or "65.    kW".
 private func number(_ field: String) -> Double? {
     field.split(separator: " ").first.flatMap { Double($0) }

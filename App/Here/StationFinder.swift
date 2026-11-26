@@ -87,11 +87,11 @@ actor StationFinder {
 
     /// The licences the FCC lists near `place`, none when it answered with no usable row (as it
     /// does outside the US); nil when it could not be asked: no connection, no answer within the
-    /// deadline, or an answer other than 200.
+    /// deadline, an answer other than 200, or a 200 that is not the FCC's list (`fccAnswer`).
     private func licences(near place: Place) async -> [Licence]? {
         guard let data = await fetch(fccSearchURL(place)),
               let text = String(data: data, encoding: .isoLatin1) else { return nil }
-        return RadioCore.licences(fromFCC: text)
+        return fccAnswer(fromFCC: text)
     }
 
     /// The first address that answers with a playable stream, asking each source in order.

@@ -364,6 +364,8 @@ private let licence = Licence(callSign: "KAAA", city: "Seattle", stationClass: "
 
 @Test func aHuntThatCouldNotAskTheFCCHasNoConnection() {
     #expect(HuntOutcome(listed: nil, stations: []) == .noConnection)
+    let portal = "<html><body>Sign in to Guest Wi-Fi to continue</body></html>"   // a 200 that is not the FCC's
+    #expect(HuntOutcome(listed: fccAnswer(fromFCC: portal), stations: []) == .noConnection)
     #expect(HuntOutcome.noConnection.status == .noConnection)
 }
 
@@ -375,9 +377,10 @@ private let licence = Licence(callSign: "KAAA", city: "Seattle", stationClass: "
     let london = "|KRUA        |88.1  MHz |FM |201 |ND  |                    |A  |-  |LIC    |ANCHORAGE                |AK |US |"
         + "0000207895          |0.32   kW |0.32   kW |297.0   |297.0   |69007      |N |61 |20 |8.8   |W |149 |30 |56.2  |"
         + "UNIVERSITY OF ALASKA      |   0.00 km |   0.00 mi |  0.00 deg |619.   m|"
-    #expect(HuntOutcome(listed: licences(fromFCC: london), stations: []) == .noLicences)
+    #expect(HuntOutcome(listed: fccAnswer(fromFCC: london), stations: []) == .noLicences)
+    #expect(HuntOutcome(listed: fccAnswer(fromFCC: ""), stations: []) == .noLicences)   // Paris, the Atlantic
     let near = london.replacing("   0.00 km", with: "   0.01 km")
-    #expect(HuntOutcome(listed: licences(fromFCC: near), stations: []) == .noStreams)
+    #expect(HuntOutcome(listed: fccAnswer(fromFCC: near), stations: []) == .noStreams)
 }
 
 @Test func aHuntWithLicencesButNoStreamsFoundNoStationsHere() {

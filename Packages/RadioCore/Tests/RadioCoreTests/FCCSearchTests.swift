@@ -168,3 +168,42 @@ private func licence(_ call: String, class stationClass: String = "C", distance:
     let noDistance = String(line).replacingOccurrences(of: " km ", with: "    ")
     #expect(licences(fromFCC: noDistance).isEmpty)
 }
+
+// MARK: - Whether a 200 is the FCC's answer
+
+private let londonRow = "|KRUA        |88.1  MHz |FM |201 |ND  |                    |A  |-  |LIC    |ANCHORAGE                |AK |US |"
+    + "0000207895          |0.32   kW |0.32   kW |297.0   |297.0   |69007      |N |61 |20 |8.8   |W |149 |30 |56.2  |"
+    + "UNIVERSITY OF ALASKA      |   0.00 km |   0.00 mi |  0.00 deg |619.   m|"
+
+@Test func theFCCsListIsAnAnswer() throws {
+    let text = try fixtureText()
+    #expect(fccAnswer(fromFCC: text) == licences(fromFCC: text))
+    #expect(fccAnswer(fromFCC: text)?.isEmpty == false)
+    #expect(fccAnswer(fromFCC: londonRow.replacing("   0.00 km", with: "   0.01 km"))?.map(\.callSign) == ["KRUA"])
+}
+
+/// Asked for Paris and for the mid-Atlantic, the FCC answered 200 with an empty body.
+@Test func anEmptyAnswerListsNoLicence() {
+    #expect(fccAnswer(fromFCC: "") == [])
+    #expect(fccAnswer(fromFCC: "\n  \r\n") == [])
+}
+
+/// London's rows are all at 0 km: an answer, with no usable licence in it.
+@Test func rowsWithNoUsableLicenceAreAnAnswerWithNone() {
+    #expect(fccAnswer(fromFCC: londonRow) == [])
+    #expect(fccAnswer(fromFCC: londonRow + "\n" + londonRow.replacing("|LIC    |", with: "|CP     |")) == [])
+}
+
+@Test func aPageThatIsNotTheFCCsListIsNoAnswer() throws {
+    #expect(fccAnswer(fromFCC: "<html>busy</html>") == nil)
+    #expect(fccAnswer(fromFCC: """
+        <!DOCTYPE html><html><head><title>Scheduled maintenance</title></head>
+        <body><p>FCC systems are unavailable | please try again later</p></body></html>
+        """) == nil)
+    #expect(fccAnswer(fromFCC: """
+        <html><head><meta http-equiv="refresh" content="0;url=https://wifi.example-hotel.com/login"></head>
+        <body>Sign in to Guest Wi-Fi to continue</body></html>
+        """) == nil)
+    let line = try #require(try fixtureText().split(separator: "\n").first { $0.contains("KEXP-FM") })
+    #expect(fccAnswer(fromFCC: String(line.prefix(120))) == nil)          // cut off before a whole row
+}
