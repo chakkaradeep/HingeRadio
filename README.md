@@ -65,7 +65,7 @@ The phone has five poses. The app works out which one from the hinge angle, whic
 
 With the radio on, it keeps playing in the background and with the phone locked (`UIBackgroundModes` is `audio`). Control Center, alerts and the location prompt do not stop it. Switched off in the background, the app is suspended: the sound engine stops and the audio session is let go at once.
 
-A phone call, Siri or an alarm pauses the radio. It comes back when the system says to resume, when the app is opened again, or with Play on the lock screen. Unplugging headphones switches the radio off, so it does not come back out loud when they are gone.
+A phone call, Siri or an alarm pauses the radio: the power stays on, the line under the name says "Paused" with the TUNED lamp off, and the lock screen shows it paused. It comes back when the system says to resume, when the app is opened again, or with Play on the lock screen. Unplugging headphones switches the radio off, so it does not come back out loud when they are gone; as with Pause on the lock screen, the lock screen keeps its card, paused, so Play there switches the radio back on.
 
 ### Flex: the radio
 
@@ -80,7 +80,7 @@ The top half is the dial: the badge, the city name, the needle, a row of dots fo
 - POWER is red while the radio is on and unlit when it is off.
 - TUNED is green while a station plays, glows dimly green while one tunes in, and is unlit off a station.
 
-Switched off, the space for the station name is empty: the unlit POWER lamp says it is off. The dial and the frequency dim; the grille stays as it is. Switched on, the line under the name says the same thing as the lamps in words ("Static", "Tuning in", "No signal" or the station's city). VoiceOver reads the lamps as "Power, on" or "Power, off" and "Tuned, <station>", "Tuning in, <station>" or "Not tuned". The top half does not respond to touch, except for the long press on the badge.
+Switched off, the space for the station name is empty: the unlit POWER lamp says it is off (on HERE, the line under it still shows HERE's words). The dial and the frequency dim; the grille stays as it is. Switched on, the line under the name says the same thing as the lamps in words ("Static", "Tuning in", "No signal" or the station's city, and "Paused" while a call or an alarm holds the radio). VoiceOver reads the lamps as "Power, on" or "Power, off" and "Tuned, <station>", "Tuning in, <station>" or "Not tuned". The top half does not respond to touch, except for the long press on the badge.
 
 The needle follows the tuning wheel on every move, near a station too, and the frequency under it changes with it. Inside a station's zone the station is locked and its name shows while the needle sits a little either side of the mark. When you let go slowly the needle eases onto the mark in about a fifth of a second, quietly (no ticks). A finger resting on the wheel stops a glide under it.
 
@@ -108,18 +108,19 @@ With the radio off, the tick and static engine and the audio session rest 2 seco
 
 While the radio is on, the lock screen and Control Center show what is playing (Now Playing):
 
-- Title: the locked station's name; "Between stations" off a station; "No signal" for a station marked so.
+- Title: the name of the station playing, also when it plays just short of its mark, where its name shows; "Between stations" off a station; "No signal" for a station marked so.
 - Artist: the frequency and the licence city ("90.3 MHz · Seattle"), or the frequency alone between stations.
 - Album: the band's name (the town's name on HERE). It is marked live, and shows the app's icon as artwork.
+- Playing or paused: playing whenever the radio is on and sounding, static, "Tuning in" and "No signal" included, as a radio plays static, so the button offers Pause. Paused while a call or an alarm holds the radio, so the button offers Play.
 - Buttons: play, pause, next and previous. Play switches the radio on, or, if a call or alarm paused it, connects it afresh. Pause switches it off. Next and previous step to the next station up or down. There is no seek or skip.
 - While the needle moves between stations, the frequency is written at most every 0.25 second.
-- Switched off, it is cleared.
+- Switched off on the radio itself (the volume wheel, a tap on it, or VoiceOver), it is cleared. Switched off by Pause on the lock screen or in Control Center, or by headphones going, the card stays, paused, so Play on it switches the radio back on, in the background too. A band change while off clears it.
 
 With VoiceOver: "Volume" is adjustable in steps of a tenth (from off, one step up switches on at the click; a step down past the click switches off) and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and its frequency ("Finding stations" while HERE's needle sweeps); "Band" reads as a picker of the bands in the switch's order, HERE first, as "Here" with its town once that is known; the badge has an "About the dial" action. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
 
 ### Book, tent and shut: standby
 
-The same face on all three. It is made to be read from across a room, with the station name and the frequency as the two biggest things on it. Under the name are the same POWER and TUNED lamps as in flex; switched off, the name and the line under it are empty. The frequency is the locked station's own; between stations it is the one under the needle. It keeps one size while you tune (it is sized for five figures, so it does not jump at 100 MHz).
+The same face on all three. It is made to be read from across a room, with the station name and the frequency as the two biggest things on it. Under the name are the same POWER and TUNED lamps as in flex; switched off, the name is empty, and so is the line under it except on HERE, where it shows HERE's words. The frequency is the locked station's own; between stations it is the one under the needle. It keeps one size while you tune (it is sized for five figures, so it does not jump at 100 MHz).
 
 At the right edge are the same two wheels as in flex, with the same names, printed scales, ticks, clicks and VoiceOver actions: volume above, tuning below. Volume is also power: roll it up past the click or tap it to switch on, roll it down past the click or tap it again to switch off. Tuning works as in flex, including a tap on its upper or lower half to step a station, and a thumb movement tunes the same amount as in flex; on a taller wheel one wheel height just covers more of the band. In book the wheels sit at the right edge of the right panel, with the frequency to their left; the station name, the frequency and the word VOLUME start on one line across the fold, and the tuning wheel is 300 pt tall. The outer screen's camera sits in one corner, and which corner depends on the way up, so there the wheels keep a thumb's width clear of it: they stay about 104 pt in from each end of the long side, where the text keeps 80 pt. You cannot change city here. Put the phone in flex to do that.
 
@@ -201,7 +202,7 @@ At the end of `build`, the hosts of the plain-`http://` streams are compared wit
 
 HERE is the first position on the band switch, marked with the location arrow and set apart from SEA, NYC, CHI and LA by a printed rule. Choosing it finds the FM stations licensed around the phone that also stream, at most 16, and puts them on the dial as a city's stations are. The dial's name becomes the nearest town, printed in the header after the muted location arrow ("➤ SEATTLE", and "➤ HERE" until the town is known; VoiceOver reads "Here, Seattle"); a long name shrinks to fit rather than run into the badge. While it looks, the line under the name says "Finding stations…" and the needle sweeps up the dial, each station's dot appearing as it is confirmed (with Reduce Motion the dots appear without the sweep). When it ends, the needle eases onto a station and it plays. The other four bands work in each case. It covers the US only, because the list of stations is the FCC's.
 
-HERE's words show even when the radio is switched off, in the space for the station name's line. There are six messages:
+HERE's words show even when the radio is switched off, in the line under the station name. There are six messages:
 
 | Words | When |
 |---|---|
@@ -273,11 +274,11 @@ After the review fixes (same day): the header on HERE reads a small HERE before 
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 338 tests
+swift test --package-path Packages/RadioCore          # 343 tests
 python3 -m unittest discover -s tools                 # 19 tests
 ```
 
-On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. With the pocket radio face, the Swift suite passed 85 of 85 and the Python suite 19 of 19. With the smooth needle, ticks and lamps, the Swift suite passed 95 of 95 and the Python suite 19 of 19; after the review fixes that followed, 110 of 110 and 19 of 19. With the side wheels on the standby faces, 110 of 110 and 19 of 19 (no new tests: the change is in the app's views, and the gearing constant carries no rule for RadioCore); after the review fixes, with five tests for where a slow release eases to, 115 of 115 and 19 of 19. With the quick fixes and background audio (2026-11-25), the Swift suite passed 338 of 338 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
+On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. With the pocket radio face, the Swift suite passed 85 of 85 and the Python suite 19 of 19. With the smooth needle, ticks and lamps, the Swift suite passed 95 of 95 and the Python suite 19 of 19; after the review fixes that followed, 110 of 110 and 19 of 19. With the side wheels on the standby faces, 110 of 110 and 19 of 19 (no new tests: the change is in the app's views, and the gearing constant carries no rule for RadioCore); after the review fixes, with five tests for where a slow release eases to, 115 of 115 and 19 of 19. With the quick fixes and background audio (2026-11-25), the Swift suite passed 338 of 338 and the Python suite 19 of 19. After the final review's fixes, 343 of 343 and 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
 
 ## Side wheels on the standby faces (2026-11-22)
 
@@ -457,7 +458,7 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 - The iOS 27.2 Duo simulator. The app was built and checked on 27.1.
 - Haptics and the tick and click sounds. The simulator has no haptics and every run here was muted, so nobody has felt the taps or heard the ticks and clicks. Their strength and timing are a first guess.
 - The 120 frames a second drawing on a ProMotion screen. The app asks for it; the simulator does not show it.
-- The audio session while off. With the radio off the app holds an ambient session (so ticks can sound without stopping other apps' audio, and the silent switch silences them); it switches to playback when the radio comes on, and back, letting other apps resume, when it goes off. This was not checked with another app playing.
+- The audio session while off. With the radio off the app takes an ambient session only while the wheels or the band switch are in use (so ticks can sound without stopping other apps' audio, and the silent switch silences them), and lets it go 2 seconds after the last tick, click or touch; it switches to playback when the radio comes on, and back, letting other apps resume, when it goes off. This was not checked with another app playing.
 - Background audio, the lock screen and interruptions on a real phone. The radio playing with the phone locked, the Now Playing card and its buttons, and a call, an alarm or Siri pausing it and giving it back (whether the system sends the resume recommendation, and after how long) have been built and tested as rules, but not tried. A media services reset has not been triggered either.
 - The engine rest's saving on a phone. The CPU use was measured only before the change, on the simulator: about 10% of a core while switched off. It was not measured after.
 - Artwork on the lock screen. Three sources are tried in turn (the app icon, its icon files, the badge); which one works has not been seen.
