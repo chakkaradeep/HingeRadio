@@ -23,9 +23,10 @@ import Synchronization
     var isRunning: Bool { engine.isRunning }
 
     /// Safe to call every time the radio goes live: does nothing while the engine is running.
+    /// Sets `isStarted` even when it throws, so a failed start is not retried at once.
     func start() throws {
-        if !built { try build(); built = true }
         isStarted = true
+        if !built { try build(); built = true }
         guard !engine.isRunning else { return }
         try engine.start()
     }

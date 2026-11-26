@@ -368,6 +368,7 @@ import UIKit
             offSession?.cancel()
             restTimer?.cancel()
             restTimer = nil
+            if !noise.isStarted { soundLog.notice("ENGINE WAKE") }
             startAudio(live: true)                  // before the click, so the click is not cut
         }
         if let feel = RadioCore.feel(from: old, to: radio), !(quietTicks && feel.isTick) {
@@ -439,9 +440,11 @@ import UIKit
     }
 
     /// With the radio off and the app not in the background: starts the `.ambient` session and the
-    /// engine if the engine is not running. Going live has its own path (`startAudio(live: true)`).
+    /// engine if they were rested (`!noise.isStarted`). A wake that fails leaves `isStarted` set, so
+    /// it is not tried again on every tick; the rest timer rests it and the next touch tries again.
+    /// Going live has its own path (`startAudio(live: true)`).
     private func wakeEngineIfResting() {
-        guard !radio.isLive, !wasInBackground, !noise.isRunning else { return }
+        guard !radio.isLive, !wasInBackground, !noise.isStarted else { return }
         soundLog.notice("ENGINE WAKE")
         startAudio(live: false)
     }
