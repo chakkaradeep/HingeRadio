@@ -58,8 +58,8 @@ private func station(_ call: String, id: String? = "id-\(UUID().uuidString)") ->
 }
 
 @Test func aStationWithoutAnIdCountsForNothing() {
-    let iheart = station("KIRO", id: nil)
+    let fromNPR = station("KUOW", id: nil)
     var count = PlayCount()
-    #expect(count.report(.playing, of: iheart, onHere: true) == nil)
+    #expect(count.report(.playing, of: fromNPR, onHere: true) == nil)
     #expect(count.report(.playing, of: nil, onHere: true) == nil)
 }

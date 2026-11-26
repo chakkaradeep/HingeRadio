@@ -20,8 +20,6 @@ private func data(_ text: String) -> Data { Data(text.utf8) }
 
 @Test func lookupAddressesUseTheBaseCall() {
     let kexp = licence("KEXP-FM", frequency: 90.3)
-    #expect(lookupURL(.iHeart, for: kexp, radioBrowserHost: "de1.api.radio-browser.info").absoluteString
-            == "https://us.api.iheart.com/api/v2/content/liveStations?callLetters=KEXP")
     #expect(lookupURL(.npr, for: kexp, radioBrowserHost: "de1.api.radio-browser.info").absoluteString
             == "https://station.api.npr.org/v3/stations?q=KEXP")
     #expect(lookupURL(.radioBrowser, for: kexp, radioBrowserHost: "de1.api.radio-browser.info").absoluteString
@@ -35,52 +33,14 @@ private func data(_ text: String) -> Data { Data(text.utf8) }
 }
 
 @Test func sourcesAreTriedInOrder() {
-    #expect(StreamSource.allCases == [.iHeart, .npr, .radioBrowser])
+    #expect(StreamSource.allCases == [.npr, .radioBrowser])
 }
 
-// MARK: - iHeart
-
-@Test func iHeartGivesSecureStreamsHLSFirst() throws {
-    let choice = try #require(streamChoice(.iHeart, from: fixture("iheart-kzok.json"),
-                                           for: licence("KZOK-FM", frequency: 102.5)))
-    #expect(choice.name == "102.5 KZOK")
-    #expect(choice.radioBrowserID == nil)
-    #expect(choice.urls.map(\.absoluteString) == [
-        "https://stream.revma.ihrhls.com/zc7787/hls.m3u8",
-        "https://stream.revma.ihrhls.com/zc7787"
-    ])
-}
-
-@Test func iHeartIgnoresAnotherFrequencyCallSignOrBand() throws {
-    let kzok = try fixture("iheart-kzok.json")
-    #expect(streamChoice(.iHeart, from: kzok, for: licence("KZOK-FM", frequency: 99.9)) == nil)
-    #expect(streamChoice(.iHeart, from: kzok, for: licence("KING-FM", frequency: 102.5)) == nil)
-    let am = data(#"{"hits":[{"name":"102.5 KZOK","callLetters":"KZOK-FM","band":"AM","freq":"102.5","streams":{"secure_hls_stream":"https://a.example/h"}}]}"#)
-    #expect(streamChoice(.iHeart, from: am, for: licence("KZOK-FM", frequency: 102.5)) == nil)
-}
-
-@Test func iHeartWithOnlyHTTPStreamsGivesNothing() {
-    let plain = data(#"{"hits":[{"name":"102.5 KZOK","callLetters":"KZOK-FM","band":"FM","freq":"102.5","streams":{"hls_stream":"http://a.example/h","secure_hls_stream":"http://a.example/s"}}]}"#)
-    #expect(streamChoice(.iHeart, from: plain, for: licence("KZOK-FM", frequency: 102.5)) == nil)
-}
-
-@Test func iHeartKeepsGoodNeighboursOfABadHit() {
-    let mixed = data(#"{"hits":[{"name":7,"callLetters":[]},{"name":"102.5 KZOK","callLetters":"kzok-fm","band":"FM","freq":102.5,"streams":{"secure_shoutcast_stream":"https://a.example/s"}}]}"#)
-    #expect(streamChoice(.iHeart, from: mixed, for: licence("KZOK-FM", frequency: 102.5))?.urls.count == 1)
-}
-
-@Test(arguments: ["null", "7", "true", "[]", #"{"url":"https://a.example/x"}"#])
-func iHeartKeepsTheHitAroundAStreamThatIsNotText(value: String) {
-    func hit(_ streams: String) -> Data {
-        data(#"{"hits":[{"name":"102.5 KZOK","callLetters":"KZOK-FM","band":"FM","freq":"102.5","streams":{\#(streams)}}]}"#)
-    }
-    let kzok = licence("KZOK-FM", frequency: 102.5)
-    // A stream nobody reads, then the better of the two read.
-    let other = hit(#""pls_stream":\#(value),"secure_shoutcast_stream":"https://a.example/s""#)
-    #expect(streamChoice(.iHeart, from: other, for: kzok)?.urls.map(\.absoluteString) == ["https://a.example/s"])
-    let better = hit(#""secure_hls_stream":\#(value),"secure_shoutcast_stream":"https://a.example/s""#)
-    #expect(streamChoice(.iHeart, from: better, for: kzok)?.urls.map(\.absoluteString) == ["https://a.example/s"])
-    #expect(streamChoice(.iHeart, from: hit(#""secure_hls_stream":\#(value)"#), for: kzok) == nil)
+@Test(arguments: StreamSource.allCases)
+func noSourceAsksIHeart(source: StreamSource) {
+    let kexp = licence("KEXP-FM", frequency: 90.3)
+    #expect(lookupURL(source, for: kexp, radioBrowserHost: "de1.api.radio-browser.info").host?
+            .contains("iheart") == false)
 }
 
 // MARK: - NPR

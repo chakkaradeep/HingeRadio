@@ -17,7 +17,7 @@ struct AboutCard: View {
     private static let credits: [Credit] = {
         var credits = [Credit("Stations", "The FCC's public list of licensed stations gives each station and its frequency.")]
         #if HERE
-        credits.append(Credit("Streams", "The streams come from iHeart, NPR and Radio Browser."))
+        credits.append(Credit("Streams", "The streams come from NPR and Radio Browser."))
         credits.append(Credit("Town", "Apple gives the name of the town."))
         #else
         credits.append(Credit("Streams", "The streams come from Radio Browser."))

@@ -17,7 +17,7 @@ public struct StreamChoice: Hashable, Sendable {
 
 /// Where to ask for a station's stream, in the order they are tried.
 public enum StreamSource: CaseIterable, Sendable {
-    case iHeart, npr, radioBrowser
+    case npr, radioBrowser
 }
 
 /// The address to ask `source` about `licence`. `radioBrowserHost` is a bare host,
@@ -26,8 +26,6 @@ public func lookupURL(_ source: StreamSource, for licence: Licence, radioBrowser
     let call = encoded(licence.baseCall)
     let text: String
     switch source {
-    case .iHeart:
-        text = "https://us.api.iheart.com/api/v2/content/liveStations?callLetters=\(call)"
     case .npr:
         text = "https://station.api.npr.org/v3/stations?q=\(call)"
     case .radioBrowser:
@@ -41,7 +39,6 @@ public func lookupURL(_ source: StreamSource, for licence: Licence, radioBrowser
 /// has no https stream, or is not the answer expected (HTML, an empty body, half a response).
 public func streamChoice(_ source: StreamSource, from data: Data, for licence: Licence) -> StreamChoice? {
     switch source {
-    case .iHeart: iHeartChoice(data, licence)
     case .npr: nprChoice(data, licence)
     case .radioBrowser: radioBrowserChoice(data, licence)
     }
@@ -61,37 +58,6 @@ public func isPlayable(status: Int, contentType: String?, finalURL: URL) -> Bool
 private let playableTypes: Set<String> = [
     "audio/mpeg", "audio/aac", "audio/aacp", "application/vnd.apple.mpegurl", "application/x-mpegurl"
 ]
-
-// MARK: - iHeart
-
-private struct IHeartAnswer: Decodable {
-    let hits: [Lenient<IHeartHit>]?
-}
-
-private struct IHeartHit: Decodable {
-    let name: String?
-    let callLetters: String?
-    let band: String?
-    let freq: Number?
-    /// A null or other value that is not text costs only itself.
-    let streams: [String: Lenient<String>]?
-}
-
-private func iHeartChoice(_ data: Data, _ licence: Licence) -> StreamChoice? {
-    guard let answer = try? JSONDecoder().decode(IHeartAnswer.self, from: data) else { return nil }
-    for hit in answer.hits?.compactMap(\.value) ?? [] {
-        guard hit.band == "FM",
-              sameCall(hit.callLetters, licence),
-              sameFrequency(hit.freq?.value, licence),
-              let name = hit.name
-        else { continue }
-        let urls = ["secure_hls_stream", "secure_shoutcast_stream"]
-            .compactMap { hit.streams?[$0]?.value }
-            .compactMap(httpsURL)
-        if !urls.isEmpty { return StreamChoice(name: name, urls: urls, radioBrowserID: nil) }
-    }
-    return nil
-}
 
 // MARK: - NPR
 
