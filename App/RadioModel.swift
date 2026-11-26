@@ -13,7 +13,7 @@ import UIKit
     /// What the station player last reported. Views never read it: they get `display`, which
     /// goes through `audiblePlayback` like the sound mix does.
     private var reportedPlayback: Playback = .idle {
-        didSet { if reportedPlayback != oldValue { updateSound(); countPlay() } }
+        didSet { if reportedPlayback != oldValue { updateSound(); countPlay(); updateNowPlaying() } }
     }
 
     /// Which screen the window is on; the inner one until the first window size arrives.
@@ -28,6 +28,7 @@ import UIKit
     @ObservationIgnored private let soundLog = Logger(subsystem: "HingeRadio", category: "sound")
     @ObservationIgnored private let player = StationPlayer()
     @ObservationIgnored private let noise = NoiseEngine()
+    @ObservationIgnored private let nowPlaying = NowPlayingCenter()
     @ObservationIgnored private let feelLog = Logger(subsystem: "HingeRadio", category: "feel")
     @ObservationIgnored private let tickHaptic = UIImpactFeedbackGenerator(style: .light)
     @ObservationIgnored private let clickHaptic = UIImpactFeedbackGenerator(style: .rigid)
@@ -97,6 +98,7 @@ import UIKit
         player.onFailed = { [weak self] in self?.markDead($0.callSign) }
         logMarks()
         observeSession()
+        observeRemote()
         #if HERE
         // Opening on HERE shows the last place's kept dial at once; the search, and with it any
         // location prompt or sweep, waits until the window is up and the app active.
@@ -162,17 +164,19 @@ import UIKit
     }
 
     /// To the next station up or down the band (see `Radio.stepTarget`): a glide, or a jump when
-    /// `animated` is false. Nothing past either end.
-    func stepStation(up: Bool, animated: Bool) {
+    /// `animated` is false. Nothing past either end; false then.
+    @discardableResult
+    func stepStation(up: Bool, animated: Bool) -> Bool {
         needleIsTaken = true
         endScan()
-        guard let target = radio.stepTarget(up: up) else { return }
+        guard let target = radio.stepTarget(up: up) else { return false }
         if animated {
             glide(toPosition: target)
         } else {
             tune(toPosition: target)
             rememberDial()
         }
+        return true
     }
 
     /// `nil, nil` when the phone has no hinge.
@@ -446,6 +450,7 @@ import UIKit
             play(feel)
         }
         updateSound()
+        updateNowPlaying()
         if old.isLive, !radio.isLive, !radio.isSuspended { returnToAmbient() }
         if radio.isSuspended, !old.isSuspended { restNow() }
     }
@@ -599,6 +604,23 @@ import UIKit
         player.volume = Float(levels.station * loudness)
         noise.set(staticLevel: Float(levels.staticLevel * loudness), whistle: Float(levels.whistle * loudness),
                   whistleHz: Float(levels.whistleHz))
+    }
+
+    /// The lock screen and Control Center follow `Radio.nowPlaying`, from what can be heard; the
+    /// center publishes only a change, and clears it with the power off.
+    private func updateNowPlaying() {
+        nowPlaying.update(radio.nowPlaying(playback: audible))
+    }
+
+    /// The lock screen's and Control Center's buttons: play switches on (at the last volume) and
+    /// pause off, as the power button does; next and previous step a station, as a tap on the
+    /// tuning wheel does, without the glide.
+    private func observeRemote() {
+        nowPlaying.handlers(
+            play: { [weak self] in if self?.radio.powerOn == false { self?.togglePower() } },
+            pause: { [weak self] in if self?.radio.powerOn == true { self?.togglePower() } },
+            next: { [weak self] in self?.stepStation(up: true, animated: false) ?? false },
+            previous: { [weak self] in self?.stepStation(up: false, animated: false) ?? false })
     }
 
     /// What can be heard: the shared rule from RadioCore, for the screen and the mix alike.
