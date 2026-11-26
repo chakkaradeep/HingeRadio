@@ -147,13 +147,13 @@ private func hereCity(_ radio: Radio) -> City? { radio.cities.first { $0.id == h
     #expect(radio.dead == ["KSEA"])
 }
 
-@Test func theHeaderPrintsHEREBeforeTheTownOnlyOnceItIsKnown() {
+@Test func onlyHEREIsMarkedAsHereWithOrWithoutItsTown() {
     var radio = radioOnHere()
-    #expect(hereCity(radio)?.headerKey == nil)              // "Here" alone says it already
+    #expect(hereCity(radio)?.isHere == true)
     radio.setHereStations([], town: "Seattle")
-    #expect(hereCity(radio)?.headerKey == "HERE")
-    #expect(radio.cities.first { $0.id == "seattle" }?.headerKey == nil)
-    #expect(radio.cities.first { $0.id == "chicago" }?.headerKey == nil)
+    #expect(hereCity(radio)?.isHere == true)                // a town named Seattle is still HERE
+    #expect(radio.cities.first { $0.id == "seattle" }?.isHere == false)
+    #expect(radio.cities.first { $0.id == "chicago" }?.isHere == false)
 }
 
 @Test func theBandIsReadAloudWithItsTown() throws {

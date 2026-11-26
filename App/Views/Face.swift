@@ -1,3 +1,4 @@
+import RadioCore
 import SwiftUI
 
 /// Shared colours and sizes for the radio face. Colours are the same in light and dark mode.
@@ -21,6 +22,23 @@ enum Face {
 
     /// Clear band kept on each side of the fold line, in points.
     static let foldClearance: CGFloat = 14
+}
+
+/// A band's key as printed on the plate: the location arrow for HERE, its letters for a city.
+/// VoiceOver reads the band's name from the switch or header around it, not this.
+struct BandKey: View {
+    let city: City
+    let size: CGFloat
+
+    var body: some View {
+        if city.isHere {
+            Image(systemName: "location.fill")
+                .font(.system(size: 0.9 * size, weight: .bold))
+                .accessibilityHidden(true)
+        } else {
+            Text(city.key.uppercased()).printed(size: size)
+        }
+    }
 }
 
 extension Text {

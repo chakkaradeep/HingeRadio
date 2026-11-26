@@ -64,8 +64,7 @@ struct BandSwitch: View {
                     .frame(width: min(slot - 8, 1.6 * track), height: track - 6)
                     .position(x: x(selected), y: track / 2)
                 ForEach(cities.indices, id: \.self) { index in
-                    Text(cities[index].key.uppercased())
-                        .printed(size: size)
+                    BandKey(city: cities[index], size: size)
                         .foregroundStyle(index == selected ? Face.ink : Face.muted)
                         .lineLimit(1)
                         .fixedSize()

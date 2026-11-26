@@ -33,11 +33,10 @@ struct DialView: View {
                 .accessibilityAction(named: "About the dial", about)
                 .onLongPressGesture(perform: about)
             Spacer(minLength: 0)
-            // On HERE, a small printed HERE before the town; the town shrinks before it overlaps.
+            // On HERE, the location arrow before the town; the town shrinks before it overlaps.
             HStack(alignment: .firstTextBaseline, spacing: 0.4 * size) {
-                if let key = model.city?.headerKey {
-                    Text(key.uppercased())
-                        .printed(size: Face.printed(em: em))
+                if let city = model.city, city.isHere {
+                    BandKey(city: city, size: Face.printed(em: em))
                         .foregroundStyle(Face.muted)
                         .fixedSize()
                 }

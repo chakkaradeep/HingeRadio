@@ -16,10 +16,9 @@ extension City {
     /// The band's name read aloud: HERE's goes with its town, so it is not mistaken for a city's.
     public var spokenName: String { id == hereID && name != hereName ? "\(hereName), \(name)" : name }
 
-    /// The key printed small before the band's name in the header: HERE's, once its town is the
-    /// name, so the town is not mistaken for a city's. Nil for the cities, and for HERE while it is
-    /// only "Here".
-    public var headerKey: String? { id == hereID && name != hereName ? key : nil }
+    /// Whether this is the HERE band, which the face marks with the location arrow in place of a
+    /// printed key, and before its name in the header so its town is not mistaken for a city's.
+    public var isHere: Bool { id == hereID }
 }
 
 extension Licence {
