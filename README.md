@@ -61,7 +61,11 @@ The phone has five poses. The app works out which one from the hinge angle, whic
 | Flat | Fully open | A "Fold me" card | Plays |
 | Shut | Closed | The same standby face | Plays |
 
-"Plays" means the radio is switched on and the app is in front. Sound follows the power alone: no pose cuts it. Only switching off or leaving the app cuts the sound.
+"Plays" means the radio is switched on. Sound follows the power alone: no pose cuts it, and neither does leaving the app.
+
+With the radio on, it keeps playing in the background and with the phone locked (`UIBackgroundModes` is `audio`). Control Center, alerts and the location prompt do not stop it. Switched off in the background, the app is suspended: the sound engine stops and the audio session is let go at once.
+
+A phone call, Siri or an alarm pauses the radio. It comes back when the system says to resume, when the app is opened again, or with Play on the lock screen. Unplugging headphones switches the radio off, so it does not come back out loud when they are gone.
 
 ### Flex: the radio
 
@@ -98,6 +102,19 @@ Each control ticks or clicks like a mechanical one, with a small sound and a mat
 
 Running silently (below) silences these sounds too; the taps you feel still happen.
 
+With the radio off, the tick and static engine and the audio session rest 2 seconds after the last tick, click or touch. They wake on the next touch of a wheel or the band switch, or on power-on. The first tick after a wake can come a few milliseconds late or be lost. The player is checked every 0.1 second only while a station is wanted or playing.
+
+### Lock screen and Control Center
+
+While the radio is on, the lock screen and Control Center show what is playing (Now Playing):
+
+- Title: the locked station's name; "Between stations" off a station; "No signal" for a station marked so.
+- Artist: the frequency and the licence city ("90.3 MHz · Seattle"), or the frequency alone between stations.
+- Album: the band's name (the town's name on HERE). It is marked live, and shows the app's icon as artwork.
+- Buttons: play, pause, next and previous. Play switches the radio on, or, if a call or alarm paused it, connects it afresh. Pause switches it off. Next and previous step to the next station up or down. There is no seek or skip.
+- While the needle moves between stations, the frequency is written at most every 0.25 second.
+- Switched off, it is cleared.
+
 With VoiceOver: "Volume" is adjustable in steps of a tenth (from off, one step up switches on at the click; a step down past the click switches off) and a double-tap switches the radio on or off; "Tuning" is adjustable to the next or previous station and reads the station name and its frequency ("Finding stations" while HERE's needle sweeps); "Band" reads as a picker of the bands in the switch's order, HERE first, as "Here" with its town once that is known; the badge has an "About the dial" action. With Reduce Motion on, a flick or a step jumps to the station instead of gliding.
 
 ### Book, tent and shut: standby
@@ -122,9 +139,9 @@ Use the Simulator's hinge controls, or the iOS Simulator tool's `set_posture` an
 - Shut: set the hinge to closed. The outer screen lights.
 - Tent: set the hinge to closed first, then bend it to about 60 degrees. The outer screen stays lit.
 
-The outer screen is only reached through closed. Closing no longer silences the radio, so flex to closed to tent now plays throughout (see the pocket radio pass below).
+The outer screen is only reached through closed. Closing does not silence the radio, so flex to closed to tent plays throughout (see the pocket radio pass below).
 
-Leaving the app (for example with the Home button) pauses the radio. Coming back reconnects to the station you were on.
+Leaving the app (for example with the Home button) does not pause the radio while it is on. Coming back does not reconnect it. With the radio off, leaving the app suspends it.
 
 The measurements behind these rules (the shut line at 20 degrees, the flat line at 175, which screen is lit) are in `docs/pose-measurements.md`. The older measurements are in `docs/hinge-measurements.md`.
 
@@ -151,6 +168,11 @@ xcrun simctl spawn <id> log show --last 3m --style compact --predicate 'subsyste
 - `CONNECT`, `PLAYING`, `RETRY`, `FAILED` and `STOP` from the player.
 - `FEEL click on|off|band|lock <call>` and `FEEL stop tuning|volume` for each click and stop; `FEEL tick tuning|volume` for each tick, at the info level (add `--info` to see them).
 - `HERE ...` lines from HERE's search (`FCC <n> licences`, one line per call sign with the source that gave its stream or `none`, `TOTAL`, `SAVED`, `NAMED`, `CACHED`, `REFRESHED`, `TIME UP`, `CANCELLED`, `PLAY SENT`), and `SCAN` and `SCAN END` for the needle's sweep. The position and the town's name are never logged, but the call signs are, as they are for every band, so someone reading the phone's system log could tell the metro area.
+- `ENGINE REST` and `ENGINE WAKE` when the sound engine rests with the radio off and wakes again.
+- `INTERRUPTED` (or `INTERRUPTED session refused`), `RESUME recommended|not recommended` and `INTERRUPTION END` for a call, Siri or an alarm.
+- `ROUTE gone` when the headphones are unplugged while the radio is on.
+- `NOW PLAYING <title>` (or `cleared`) when the lock screen's title changes, and `REMOTE <command>` for a lock screen or Control Center button.
+- `NETWORK back` when the network returns, and `RETRY DEAD <call>` when a station marked "No signal" is tried again.
 - `WHEELS tuning <height> pt, <fraction> of the band` when the tuning wheel's height changes, at the debug level (add `--debug` to see it).
 
 ## The stations
@@ -177,7 +199,20 @@ At the end of `build`, the hosts of the plain-`http://` streams are compared wit
 
 ## HERE: the stations around the phone
 
-HERE is the first position on the band switch, marked with the location arrow and set apart from SEA, NYC, CHI and LA by a printed rule. Choosing it finds the FM stations licensed around the phone that also stream, at most 16, and puts them on the dial as a city's stations are. The dial's name becomes the nearest town, printed in the header after the muted location arrow ("➤ SEATTLE", and "➤ HERE" until the town is known; VoiceOver reads "Here, Seattle"); a long name shrinks to fit rather than run into the badge. While it looks, the line under the name says "Finding stations…" and the needle sweeps up the dial, each station's dot appearing as it is confirmed (with Reduce Motion the dots appear without the sweep). When it ends, the needle eases onto a station and it plays. With no stations it says "No stations found here"; with location refused, "Location is off". The other four bands work in each case. It covers the US only, because the list of stations is the FCC's.
+HERE is the first position on the band switch, marked with the location arrow and set apart from SEA, NYC, CHI and LA by a printed rule. Choosing it finds the FM stations licensed around the phone that also stream, at most 16, and puts them on the dial as a city's stations are. The dial's name becomes the nearest town, printed in the header after the muted location arrow ("➤ SEATTLE", and "➤ HERE" until the town is known; VoiceOver reads "Here, Seattle"); a long name shrinks to fit rather than run into the badge. While it looks, the line under the name says "Finding stations…" and the needle sweeps up the dial, each station's dot appearing as it is confirmed (with Reduce Motion the dots appear without the sweep). When it ends, the needle eases onto a station and it plays. The other four bands work in each case. It covers the US only, because the list of stations is the FCC's.
+
+HERE's words show even when the radio is switched off, in the space for the station name's line. There are six messages:
+
+| Words | When |
+|---|---|
+| Finding stations… | A search is running |
+| No stations found here | The FCC listed stations, but none has a stream that plays |
+| Location is off | Location is refused (denied or restricted) |
+| Can't find where you are | Location is allowed but gave no position within 10 seconds |
+| No connection | The FCC did not answer (no network, 8 seconds, or an answer that is not 200), or answered with a page that is not its list (a Wi-Fi login page, for example) |
+| HERE covers the US only | The FCC answered with nothing |
+
+For places outside the US the FCC answers with an empty body: checked for Paris and the mid-Atlantic on 2026-11-25 (HTTP 200, 0 bytes). An empty body counts as "HERE covers the US only". A body with no licence row in it counts as "No connection".
 
 How it finds them:
 
@@ -187,7 +222,9 @@ How it finds them:
 4. Each stream is tried (one byte is enough) before its station goes on the dial. At most 3 addresses are tried for one station from one source. A request takes at most 8 seconds and at most 6 run at once. Every request says `User-Agent: HingeRadio/1.0`.
 5. The whole search takes at most 30 seconds. At the limit it ends with the stations found by then, and they are the dial.
 
-Leaving the app or choosing another band ends a search. The stations found so far are dropped; coming back to the app with HERE chosen searches again. The needle is left where it is for that search if you had a hand on the tuning in the one that was cut short. Choosing HERE yourself starts afresh, and choosing it again tries any of its stations marked "No signal" again. Reduce Motion switched on during the sweep stops the needle there; the search goes on.
+Leaving the app or choosing another band ends a search. The stations found so far are dropped, except a part of a dial whose station is playing, which stays while the app is in the background. Coming back to the app with HERE chosen searches again. The needle is left where it is for that search if you had a hand on the tuning in the one that was cut short. Choosing HERE yourself starts afresh, and choosing it again tries any of its stations marked "No signal" again. Reduce Motion switched on during the sweep stops the needle there; the search goes on.
+
+A return to the app searches again only if the last search was cut short, or ended with location refused, no position or no connection. After a search that found nothing (no stations, or the US only) it waits 10 minutes. Choosing HERE yourself always searches.
 
 Left on HERE, the radio opens on HERE with the needle exactly where it was left, on a station or in static. If a dial is kept for the last place it was used (see below) and is under 7 days old, it shows at once. Once the window is up and the app is active, HERE searches as a choice does (the location prompt, if iOS has not asked yet, comes only then), except that the needle is left alone: it neither sweeps nor eases onto a station in that first search. Near the last place the kept dial stays and is refreshed when due; somewhere new, it is searched for and its dots appear without the sweep. With location refused (denied or restricted) no dial shows at all, the last place is forgotten, and HERE says "Location is off". Choosing HERE yourself later gives the needle back as usual. The first time HERE is chosen in a run, the last place is read too, so with no position in time it can still show that place's dial.
 
@@ -209,7 +246,7 @@ The play count goes to Radio Browser only while HERE is the band, once each time
 
 The first time HERE is chosen, iOS asks to use the location while the app is in use, and the app asks for approximate location only. If the answer is no, HERE says "Location is off" and finds its stations when it is allowed again.
 
-Each place's dial is kept on the phone, in the app's cache folder, for 7 days, on a grid of 0.1 degree (about 10 km). A kept dial shows at once. When it is over 24 hours old, or over 10 minutes old with fewer than 8 stations (a poor connection may have cut it short), it is searched for again in the background; the new list is only kept, and shows the next time HERE is chosen, so the station being listened to never moves. A refresh that finds nothing, or fewer than half as many stations, leaves the old dial alone. The last place a dial was shown or looked for is kept in the same folder (`last.json`) as its 0.1 degree cell only, the centre of the square its dial is filed under (for example 47.6, -122.3), so the radio can open on HERE with that dial; it is not kept anywhere else. It is rewritten each time HERE gets a position, deleted as soon as location is found refused (at launch or in a search), and removed with the other files once nothing has written it for 7 days. Each time a dial is kept, files in that folder last written over 7 days ago are removed.
+Each place's dial is kept on the phone, in the app's cache folder, for 7 days, on a grid of 0.1 degree (about 10 km). A kept dial shows at once. A dial with 8 stations or more is searched for again in the background when it is over 24 hours old. A dial with fewer than 8 stations (a poor connection may have cut it short) is searched for again after 10 minutes, then 20, 40 and so on, doubling each time the search finds the same stations, up to 24 hours. A refresh that finds different stations starts the count again, and a dial that reaches 8 stations is due after 24 hours. The new list is only kept, and shows the next time HERE is chosen, so the station being listened to never moves. A refresh that finds nothing leaves the old dial alone and does not move its due time. A refresh that finds fewer than half as many stations keeps the old stations and counts as unchanged. The last place a dial was shown or looked for is kept in the same folder (`last.json`) as its 0.1 degree cell only, the centre of the square its dial is filed under (for example 47.6, -122.3), so the radio can open on HERE with that dial; it is not kept anywhere else. It is rewritten each time HERE gets a position, deleted as soon as location is found refused (at launch or in a search), and removed with the other files once nothing has written it for 7 days. Each time a dial is kept, files in that folder last written over 7 days ago are removed.
 
 ### Building without HERE
 
@@ -236,11 +273,11 @@ After the review fixes (same day): the header on HERE reads a small HERE before 
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 280 tests
+swift test --package-path Packages/RadioCore          # 338 tests
 python3 -m unittest discover -s tools                 # 19 tests
 ```
 
-On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. With the pocket radio face, the Swift suite passed 85 of 85 and the Python suite 19 of 19. With the smooth needle, ticks and lamps, the Swift suite passed 95 of 95 and the Python suite 19 of 19; after the review fixes that followed, 110 of 110 and 19 of 19. With the side wheels on the standby faces, 110 of 110 and 19 of 19 (no new tests: the change is in the app's views, and the gearing constant carries no rule for RadioCore); after the review fixes, with five tests for where a slow release eases to, 115 of 115 and 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
+On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Python suite 19 of 19. After the review fixes the same day, the Swift suite passed 81 of 81 and the Python suite 19 of 19. With the pocket radio face, the Swift suite passed 85 of 85 and the Python suite 19 of 19. With the smooth needle, ticks and lamps, the Swift suite passed 95 of 95 and the Python suite 19 of 19; after the review fixes that followed, 110 of 110 and 19 of 19. With the side wheels on the standby faces, 110 of 110 and 19 of 19 (no new tests: the change is in the app's views, and the gearing constant carries no rule for RadioCore); after the review fixes, with five tests for where a slow release eases to, 115 of 115 and 19 of 19. With the quick fixes and background audio (2026-11-25), the Swift suite passed 338 of 338 and the Python suite 19 of 19. One of the Python tests checks that the plain-http hosts in `Stations.json` and the ones `App/Info.plist` allows are the same set.
 
 ## Side wheels on the standby faces (2026-11-22)
 
@@ -421,13 +458,17 @@ If a rebuild of the station list adds a station on a new plain-`http://` host, a
 - Haptics and the tick and click sounds. The simulator has no haptics and every run here was muted, so nobody has felt the taps or heard the ticks and clicks. Their strength and timing are a first guess.
 - The 120 frames a second drawing on a ProMotion screen. The app asks for it; the simulator does not show it.
 - The audio session while off. With the radio off the app holds an ambient session (so ticks can sound without stopping other apps' audio, and the silent switch silences them); it switches to playback when the radio comes on, and back, letting other apps resume, when it goes off. This was not checked with another app playing.
-- Interruptions (a call, an alarm, Siri) and a media services reset. The app brings the session and the tick engine back when the system recommends resuming, and rebuilds them after a reset; neither has been triggered.
+- Background audio, the lock screen and interruptions on a real phone. The radio playing with the phone locked, the Now Playing card and its buttons, and a call, an alarm or Siri pausing it and giving it back (whether the system sends the resume recommendation, and after how long) have been built and tested as rules, but not tried. A media services reset has not been triggered either.
+- The engine rest's saving on a phone. The CPU use was measured only before the change, on the simulator: about 10% of a core while switched off. It was not measured after.
+- Artwork on the lock screen. Three sources are tried in turn (the app icon, its icon files, the badge); which one works has not been seen.
 - VoiceOver and Switch Control. The two wheels are adjustable on every face that has them, the volume wheel switches on and off with a double-tap, and the band switch reads as a picker. All of it was built but not tried.
 - Reduce Motion. The jump instead of the glide was built but not tried.
 - Shutting the phone while the app is in the background, beyond one simulator run. In that run (flex, radio on and playing KING-FM, HOME, `closed`, three seconds, app opened again on the outer screen) the log showed `POSE tent`, `POSE flex`, `POSE shut` within 1.5 seconds of closing, while the app was still in the background, and nothing on return: no new `POSE` line and no `CONNECT`. The outer screen showed the "Closed" card (that card has since been replaced by the standby face). Whether a real phone delivers the hinge change to a background app the same way is not known.
 
 ## Known rough edges
 
-- When the player reports an error for a station, the app loads it once more; a second error before any sound, or 12 seconds without sound, marks it "No signal" until the app is relaunched. Before this retry existed, KING-FM was marked "No signal" after a player error 1.6 seconds after connecting, and played on the next launch.
+- When the player reports an error for a station, the app loads it once more; a second error before any sound, or 12 seconds without sound, marks it "No signal". It is tried again when the needle comes back onto it 60 seconds or more later, and all of them are tried again when the network comes back. Before the first retry existed, KING-FM was marked "No signal" after a player error 1.6 seconds after connecting, and played on the next launch.
+- A US place with no station within 100 km also reads "HERE covers the US only", because the FCC answers it with the same empty body.
+- Starting Music from Control Center over the radio, then closing Control Center, makes the radio take the sound back.
 - Seattle has only 10 stations.
 - On a phone with no hinge (not the intended device) the Dynamic Island covers part of the title when upright and the left edge of the station name when on its side. The frequency number was cut off in the earlier build; it was not cut off in the final build.
