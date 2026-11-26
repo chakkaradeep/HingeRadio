@@ -317,7 +317,17 @@ func aScanReachesTheEndsOfTheDialWithoutAStop(end: Double) {
 // MARK: - Display
 
 @Test(arguments: [(HereStatus.finding, "Finding stations…"), (.empty, "No stations found here"),
-                  (.locationOff, "Location is off"), (.ready, "Static"), (.idle, "Static")])
+                  (.locationOff, "Location is off"), (.noPosition, "Can't find where you are"),
+                  (.noConnection, "No connection"), (.outsideUS, "HERE covers the US only"),
+                  (.ready, nil), (.idle, nil)] as [(HereStatus, String?)])
+func eachHereStatusHasItsWords(status: HereStatus, words: String?) {
+    #expect(status.words == words)
+}
+
+@Test(arguments: [(HereStatus.finding, "Finding stations…"), (.empty, "No stations found here"),
+                  (.locationOff, "Location is off"), (.noPosition, "Can't find where you are"),
+                  (.noConnection, "No connection"), (.outsideUS, "HERE covers the US only"),
+                  (.ready, "Static"), (.idle, "Static")])
 func hereSaysHowTheSearchIsGoing(status: HereStatus, subtitle: String) {
     var radio = radioOnHere()
     radio.setHere(status: status)
@@ -328,15 +338,46 @@ func hereSaysHowTheSearchIsGoing(status: HereStatus, subtitle: String) {
             == Display(title: "· · ·", subtitle: "Finding stations…", lamp: .off, bars: 0))
     radio.setScanning(false)
 
-    radio.togglePower()
-    #expect(radio.display(playback: .idle) == Display(title: "", subtitle: "", lamp: .off, bars: 0))
-    radio.setScanning(true)
-    #expect(radio.display(playback: .idle) == Display(title: "", subtitle: "", lamp: .off, bars: 0))
-    radio.setScanning(false)
-    radio.togglePower()
-
     radio.selectCity("chicago")                                      // static mid-dial
     #expect(radio.display(playback: .idle) == Display(title: "· · ·", subtitle: "Static", lamp: .off, bars: 0))
+}
+
+/// Switched off, HERE still says how its search is going, with no name and the lamp off; with a
+/// dial ready, or before any search, it says nothing, as off does.
+@Test(arguments: [(HereStatus.finding, "Finding stations…"), (.empty, "No stations found here"),
+                  (.locationOff, "Location is off"), (.noPosition, "Can't find where you are"),
+                  (.noConnection, "No connection"), (.outsideUS, "HERE covers the US only"),
+                  (.ready, ""), (.idle, "")])
+func hereSaysHowTheSearchIsGoingEvenSwitchedOff(status: HereStatus, subtitle: String) {
+    var radio = Radio(file: file, here: true)
+    radio.selectCity(hereID)
+    radio.setHere(status: status)
+    #expect(!radio.powerOn)
+    #expect(radio.display(playback: .idle) == Display(title: "", subtitle: subtitle, lamp: .off, bars: 0))
+
+    radio.setScanning(true)
+    #expect(radio.display(playback: .idle) == Display(title: "", subtitle: "Finding stations…", lamp: .off, bars: 0))
+    radio.setScanning(false)
+
+    radio.setHereStations([station("KHER", 98.0)], town: nil)       // a station under the needle
+    radio.tune(toPosition: radio.scale.marks[0].position)
+    #expect(radio.display(playback: .playing) == Display(title: "", subtitle: subtitle, lamp: .off, bars: 0))
+}
+
+/// Only HERE speaks while off: a bundled city's face stays empty whatever HERE last said.
+@Test(arguments: [HereStatus.idle, .finding, .ready, .empty, .locationOff, .noPosition, .noConnection, .outsideUS])
+func aBundledCityOffSaysNothingWhateverHereSaid(status: HereStatus) {
+    var radio = Radio(file: file, here: true)
+    radio.selectCity(hereID)
+    radio.setHere(status: status)
+    radio.selectCity("seattle")
+    for scanning in [false, true] {
+        radio.setScanning(scanning)
+        for position in [0.0, 0.5, 1.0] {
+            radio.tune(toPosition: position)
+            #expect(radio.display(playback: .idle) == Display(title: "", subtitle: "", lamp: .off, bars: 0))
+        }
+    }
 }
 
 @Test func aStationUnderTheNeedleShowsWhileHereIsStillFinding() {

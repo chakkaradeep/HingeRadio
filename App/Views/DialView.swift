@@ -64,7 +64,7 @@ struct DialView: View {
 
     /// The station name over the line under it; on the right the frequency over the power and
     /// tuned lamps. Switched off, the name and the line are empty (the unlit power lamp says it),
-    /// and keep their height so nothing moves.
+    /// except HERE's line saying how its search went, and keep their height so nothing moves.
     private func window(_ display: Display) -> some View {
         let printed = Face.printed(em: em)
         let on = model.radio.powerOn
@@ -82,7 +82,7 @@ struct DialView: View {
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
-            .accessibilityHidden(display.title.isEmpty)
+            .accessibilityHidden(display.title.isEmpty && display.subtitle.isEmpty)
             VStack(alignment: .trailing, spacing: 0.1 * em) {
                 HStack(alignment: .firstTextBaseline, spacing: 0.25 * em) {
                     Text(String(format: "%.1f", model.radio.tuning.frequency))

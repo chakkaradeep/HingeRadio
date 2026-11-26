@@ -217,8 +217,9 @@ public struct Radio: Sendable {
         if pose == .flat {
             return Display(title: "Fold me", subtitle: "Sit the phone half open to use the radio.", lamp: .off, bars: 0)
         }
-        // Off says nothing: the unlit power lamp says it.
-        if !powerOn { return Display(title: "", subtitle: "", lamp: .off, bars: 0) }
+        // Off says nothing: the unlit power lamp says it. Only HERE still says how its search is
+        // going, so a search that ended without a dial is not mistaken for one still to come.
+        if !powerOn { return Display(title: "", subtitle: hereWords ?? "", lamp: .off, bars: 0) }
         guard !isScanningHere, let candidate = tuning.candidate else {
             return Display(title: "· · ·", subtitle: emptySubtitle, lamp: .off, bars: 0)
         }
@@ -233,14 +234,12 @@ public struct Radio: Sendable {
     }
 
     /// The line under the dots where no station shows: static, or on HERE how the search is going.
-    private var emptySubtitle: String {
-        guard cityID == hereID else { return "Static" }
-        if isScanning { return "Finding stations…" }
-        switch hereStatus {
-        case .finding: return "Finding stations…"
-        case .empty: return "No stations found here"
-        case .locationOff: return "Location is off"
-        case .idle, .ready: return "Static"
-        }
+    private var emptySubtitle: String { hereWords ?? "Static" }
+
+    /// On HERE, what its search says (`HereStatus.words`), "Finding stations…" while the needle
+    /// sweeps; nil on a bundled city, or when HERE has nothing to say.
+    private var hereWords: String? {
+        guard cityID == hereID else { return nil }
+        return isScanning ? HereStatus.finding.words : hereStatus.words
     }
 }

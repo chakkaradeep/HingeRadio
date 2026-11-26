@@ -1,7 +1,33 @@
 import Foundation
 
-/// How the search for stations around the phone is going.
-public enum HereStatus: Sendable, Equatable { case idle, finding, ready, empty, locationOff }
+/// How the search for stations around the phone is going, and why it ended without a dial.
+public enum HereStatus: Sendable, Equatable {
+    case idle, finding, ready
+    /// The FCC listed stations, but none with a stream was found.
+    case empty
+    /// Location is refused, or switched off.
+    case locationOff
+    /// No position came in time.
+    case noPosition
+    /// The FCC's list could not be had.
+    case noConnection
+    /// The FCC answered with no licence at all: what a place outside the US gets.
+    case outsideUS
+
+    /// What HERE says while it is in this state, under the band's name; nil when it says nothing
+    /// of its own (no search yet, or a dial is ready).
+    public var words: String? {
+        switch self {
+        case .finding: "Finding stations…"
+        case .empty: "No stations found here"
+        case .locationOff: "Location is off"
+        case .noPosition: "Can't find where you are"
+        case .noConnection: "No connection"
+        case .outsideUS: "HERE covers the US only"
+        case .idle, .ready: nil
+        }
+    }
+}
 
 /// The id of the HERE band, whose stations are found rather than read from the file.
 public let hereID = "here"

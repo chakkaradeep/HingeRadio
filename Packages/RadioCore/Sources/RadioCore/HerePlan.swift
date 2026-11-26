@@ -3,6 +3,42 @@ import Foundation
 /// Why no position came: location is refused or switched off, or no fix came in time.
 public enum LocatorError: Error, Sendable, Equatable { case refused, unavailable }
 
+/// How a hunt for a place's stations ended, before anything is kept.
+public enum HuntOutcome: Sendable, Equatable {
+    /// The FCC's list could not be had: no connection, no answer in time, or not a proper answer.
+    case noConnection
+    /// The FCC answered, but listed no licence that could be used: what a place outside the US gets.
+    case noLicences
+    /// The FCC listed licences, but no station with a stream was found.
+    case noStreams
+    /// Stations with streams, as `hereStations` makes them (none counts as `noStreams`).
+    case found([Station])
+
+    /// From what the FCC listed, nil when it could not be asked or did not answer properly, and the
+    /// stations confirmed among them. A station confirmed counts even with nothing listed.
+    public init(listed: [Licence]?, stations: [Station]) {
+        if !stations.isEmpty { self = .found(stations) }
+        else if let listed { self = listed.isEmpty ? .noLicences : .noStreams }
+        else { self = .noConnection }
+    }
+
+    /// The stations found; none for every other ending.
+    public var stations: [Station] {
+        if case .found(let stations) = self { stations } else { [] }
+    }
+
+    /// What HERE says after it: ready with stations, otherwise why there are none. `.empty` and
+    /// `.outsideUS` mean the FCC answered; `.noConnection` that it did not.
+    public var status: HereStatus {
+        switch self {
+        case .noConnection: .noConnection
+        case .noLicences: .outsideUS
+        case .noStreams: .empty
+        case .found(let stations): stations.isEmpty ? .empty : .ready
+        }
+    }
+}
+
 /// HERE's search rules, and what they remember from one search to the next: when to search, what
 /// cancelling clears, which kept dial counts as here, what shows without a position, what a hunt,
 /// a town and a refresh keep, and whose the needle is. The app does the waiting, the cancelling and
@@ -37,8 +73,8 @@ public struct HerePlan: Sendable, Equatable {
 
     /// What a hunt found.
     public enum Hunted: Sendable, Equatable {
-        /// Nothing: HERE is empty and nothing is kept.
-        case empty
+        /// Nothing: HERE says why, with this status, and nothing is kept.
+        case nothing(HereStatus)
         /// A dial to keep at once and show.
         case found(HereDial)
     }
@@ -67,9 +103,13 @@ public struct HerePlan: Sendable, Equatable {
         guard !isSearching else { return false }
         switch start {
         case .chosen, .opened: return true
-        case .returned: return wasCancelled || status == .locationOff || status == .empty
+        case .returned: return wasCancelled || Self.endedWithoutADial.contains(status)
         }
     }
+
+    /// The statuses a search ends on when it found no dial.
+    private static let endedWithoutADial: [HereStatus] = [.locationOff, .empty, .noPosition,
+                                                          .noConnection, .outsideUS]
 
     /// A search starts: it is no longer cut short.
     public mutating func begin() { wasCancelled = false }
@@ -108,19 +148,21 @@ public struct HerePlan: Sendable, Equatable {
     }
 
     /// No position came. Without an answer in time the last place's kept dial shows, if any;
-    /// otherwise HERE says why it has nothing. Location refused forgets the last place.
+    /// otherwise HERE says why it has nothing: "Location is off" when refused, else that it cannot
+    /// find where it is. Location refused forgets the last place.
     public mutating func noPlace(_ error: LocatorError, at date: Date, kept: (Place) -> HereDial?) -> NoPlace {
         if error == .refused { lastPlace = nil }
         if error == .unavailable, let lastPlace, let dial = kept(lastPlace), dial.isUsable(at: date) {
             return .show(dial)
         }
-        return .clear(error == .refused ? .locationOff : .empty)
+        return .clear(error == .refused ? .locationOff : .noPosition)
     }
 
     /// A hunt's stations as a dial, named only "Here" for now: its town may be slow to come, or not
-    /// come at all, so it is kept at once.
-    public static func hunted(_ stations: [Station], at date: Date) -> Hunted {
-        stations.isEmpty ? .empty : .found(HereDial(town: hereName, stations: stations, savedAt: date))
+    /// come at all, so it is kept at once. With none, the status that says why (`HuntOutcome.status`).
+    public static func hunted(_ outcome: HuntOutcome, at date: Date) -> Hunted {
+        guard case .found(let stations) = outcome, !stations.isEmpty else { return .nothing(outcome.status) }
+        return .found(HereDial(town: hereName, stations: stations, savedAt: date))
     }
 
     /// The dial with its town, to keep and show; nil when no name came.

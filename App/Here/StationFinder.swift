@@ -24,15 +24,21 @@ actor StationFinder {
 
     deinit { session.finishTasksAndInvalidate() }
 
-    /// The stations around `place`, best ranked 16 at most, sorted by frequency; at `searchLimit`,
-    /// those confirmed by then. `onFound` gets the list so far each time it changes. Cancelled, it
-    /// stops every request, calls `onFound` no more and returns an empty list.
-    func find(at place: Place, onFound: @Sendable ([Station]) async -> Void) async -> [Station] {
+    /// How the hunt around `place` ended (`HuntOutcome`): the stations found, best ranked 16 at
+    /// most, sorted by frequency, or why there are none: the FCC could not be asked, listed no
+    /// licence, or none of its stations streams. At `searchLimit`, those confirmed by then.
+    /// `onFound` gets the list so far each time it changes. Cancelled, it stops every request,
+    /// calls `onFound` no more and returns no stations; the caller drops that outcome.
+    func find(at place: Place, onFound: @Sendable ([Station]) async -> Void) async -> HuntOutcome {
         let began = ContinuousClock.now
         let end = began + Self.searchLimit
         hostPick = nil       // a fresh pick each search, so a host that has gone is not kept
         let listed = await licences(near: place)
-        guard !Task.isCancelled else { return [] }
+        guard !Task.isCancelled else { return HuntOutcome(listed: listed, stations: []) }
+        guard let listed else {
+            log.notice("HERE FCC no answer")
+            return HuntOutcome(listed: nil, stations: [])
+        }
         var hunt = Hunt(stationsInReach(listed))
         log.notice("HERE FCC \(listed.count) licences, \(hunt.licences.count) in reach")
 
@@ -56,11 +62,11 @@ actor StationFinder {
             }
             group.cancelAll()
         }
-        guard !Task.isCancelled else { return [] }
+        guard !Task.isCancelled else { return HuntOutcome(listed: listed, stations: []) }
         if ContinuousClock.now >= end { log.notice("HERE TIME UP") }
         let seconds = (ContinuousClock.now - began) / .seconds(1)
         log.notice("HERE TOTAL \(stations.count) stations in \(seconds, format: .fixed(precision: 1)) s")
-        return stations
+        return HuntOutcome(listed: listed, stations: stations)
     }
 
     /// Tells Radio Browser one of its stations was played, as it asks. The answer does not matter.
@@ -79,9 +85,12 @@ actor StationFinder {
         group.addTask { (index, await self.confirm(licence, until: end)) }
     }
 
-    private func licences(near place: Place) async -> [Licence] {
+    /// The licences the FCC lists near `place`, none when it answered with no usable row (as it
+    /// does outside the US); nil when it could not be asked: no connection, no answer within the
+    /// deadline, or an answer other than 200.
+    private func licences(near place: Place) async -> [Licence]? {
         guard let data = await fetch(fccSearchURL(place)),
-              let text = String(data: data, encoding: .isoLatin1) else { return [] }
+              let text = String(data: data, encoding: .isoLatin1) else { return nil }
         return RadioCore.licences(fromFCC: text)
     }
 

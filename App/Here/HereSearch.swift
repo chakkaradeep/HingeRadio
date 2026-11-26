@@ -153,16 +153,21 @@ import RadioCore
     }
 
     /// Shows stations as they are found, the needle sweeping the dial meanwhile, and keeps the list
-    /// at once: its town may be slow to come, or not come at all.
+    /// at once: its town may be slow to come, or not come at all. Finding none, HERE says why: no
+    /// connection to the FCC, outside the US, or no stations with a stream.
     private func hunt(at place: Place) async {
         clear(.finding)
         model?.beginScan()
-        let stations = await finder.find(at: place) { [weak self] in await self?.show($0) }
+        let outcome = await finder.find(at: place) { [weak self] in await self?.show($0) }
         guard isCurrent else { return }          // whatever ended this search ended its sweep
         model?.endScan()
-        guard case .found(let dial) = HerePlan.hunted(stations, at: .now) else {
-            model?.setHere(status: .empty)
+        let dial: HereDial
+        switch HerePlan.hunted(outcome, at: .now) {
+        case .nothing(let status):
+            model?.setHere(status: status)
             return
+        case .found(let found):
+            dial = found
         }
         cache.save(dial, for: place)
         log.notice("HERE SAVED")
@@ -188,7 +193,7 @@ import RadioCore
     /// Only keeps the new list, for the next time HERE is chosen: the dial being listened to does
     /// not move. Finding nothing, or far fewer stations, keeps the old one.
     private func refresh(_ dial: HereDial, at place: Place) async {
-        let stations = await finder.find(at: place) { _ in }
+        let stations = await finder.find(at: place) { _ in }.stations
         guard isCurrent, let fresh = HerePlan.refreshed(dial, by: stations, at: .now) else { return }
         cache.save(fresh, for: place)
         log.notice("HERE REFRESHED \(stations.count) stations")

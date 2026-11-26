@@ -21,7 +21,10 @@ private let home = Place(latitude: 47.61, longitude: -122.33)
 private let nextCell = Place(latitude: 47.71, longitude: -122.43)       // a neighbouring cell
 private let farAway = Place(latitude: 47.81, longitude: -122.33)        // two cells north
 
-private let allStatuses: [HereStatus] = [.idle, .finding, .ready, .empty, .locationOff]
+private let allStatuses: [HereStatus] = [.idle, .finding, .ready, .empty, .locationOff,
+                                          .noPosition, .noConnection, .outsideUS]
+/// The statuses a search ends on without a dial.
+private let withoutADial: [HereStatus] = [.empty, .locationOff, .noPosition, .noConnection, .outsideUS]
 
 /// A plan whose last search was cut short.
 private func cutShort() -> HerePlan {
@@ -57,8 +60,9 @@ private func noPlace(_ plan: HerePlan, _ error: LocatorError, at date: Date,
 
 @Test func aReturnSearchesOnlyWhenTheLastWasCutShortOrEndedWithoutADial() {
     let plan = HerePlan()
-    #expect(plan.searches(on: .returned, status: .locationOff, isSearching: false))
-    #expect(plan.searches(on: .returned, status: .empty, isSearching: false))
+    for status in withoutADial {
+        #expect(plan.searches(on: .returned, status: status, isSearching: false))
+    }
     #expect(!plan.searches(on: .returned, status: .ready, isSearching: false))
     #expect(!plan.searches(on: .returned, status: .idle, isSearching: false))
     #expect(!plan.searches(on: .returned, status: .finding, isSearching: false))
@@ -84,7 +88,7 @@ private func noPlace(_ plan: HerePlan, _ error: LocatorError, at date: Date,
 
 @Test func aSearchShowsFindingUnlessADialIsReady() {
     #expect(HerePlan.status(onStartFrom: .ready) == nil)
-    for status in [HereStatus.idle, .finding, .empty, .locationOff] {
+    for status in [HereStatus.idle, .finding] + withoutADial {
         #expect(HerePlan.status(onStartFrom: status) == .finding)
     }
 }
@@ -95,7 +99,7 @@ private func noPlace(_ plan: HerePlan, _ error: LocatorError, at date: Date,
     for isSearching in [true, false] {
         var plan = HerePlan()
         #expect(plan.cancel(status: .finding, isSearching: isSearching) == .idle)
-        for status in [HereStatus.idle, .ready, .empty, .locationOff] {
+        for status in [HereStatus.idle, .ready] + withoutADial {
             var plan = HerePlan()
             #expect(plan.cancel(status: status, isSearching: isSearching) == nil)
         }
@@ -221,11 +225,13 @@ private func noPlace(_ plan: HerePlan, _ error: LocatorError, at date: Date,
     #expect(asked == [home])
 }
 
+/// No fix in time (the locator's time limit gives `.unavailable` too) is not "no stations": HERE
+/// says it cannot find where it is.
 @Test func noFixWithoutAKeptDialSaysWhy() {
-    #expect(noPlace(HerePlan(), .unavailable, at: now) { _ in dial() } == .clear(.empty))
+    #expect(noPlace(HerePlan(), .unavailable, at: now) { _ in dial() } == .clear(.noPosition))
     #expect(noPlace(HerePlan(), .refused, at: now) { _ in dial() } == .clear(.locationOff))
-    #expect(noPlace(searched(at: home), .unavailable, at: now) { _ in nil } == .clear(.empty))
-    #expect(noPlace(searched(at: home), .unavailable, at: now) { _ in dial(savedAt: daysAgo(8)) } == .clear(.empty))
+    #expect(noPlace(searched(at: home), .unavailable, at: now) { _ in nil } == .clear(.noPosition))
+    #expect(noPlace(searched(at: home), .unavailable, at: now) { _ in dial(savedAt: daysAgo(8)) } == .clear(.noPosition))
 }
 
 @Test func locationRefusedNeverShowsAKeptDial() {
@@ -245,7 +251,7 @@ private func noPlace(_ plan: HerePlan, _ error: LocatorError, at date: Date,
     var plan = searched(at: home)
     _ = plan.noPlace(.refused, at: now) { _ in dial() }
     #expect(plan.lastPlace == nil)
-    #expect(plan.noPlace(.unavailable, at: now) { _ in dial() } == .clear(.empty))   // nothing left to show
+    #expect(plan.noPlace(.unavailable, at: now) { _ in dial() } == .clear(.noPosition))   // nothing left to show
 }
 
 @Test func noFixInTimeKeepsTheLastPlace() {
@@ -289,7 +295,7 @@ private func noPlace(_ plan: HerePlan, _ error: LocatorError, at date: Date,
     #expect(plan.opening(at: now, refused: true) { asked.append($0); return dial() } == nil)
     #expect(asked.isEmpty)
     #expect(plan.lastPlace == nil)
-    #expect(plan.noPlace(.unavailable, at: now) { asked.append($0); return dial() } == .clear(.empty))
+    #expect(plan.noPlace(.unavailable, at: now) { asked.append($0); return dial() } == .clear(.noPosition))
     #expect(asked.isEmpty)
 }
 
@@ -337,15 +343,67 @@ private let samples = [home, nextCell, farAway, Place(latitude: 47.649, longitud
 
 // MARK: - What a hunt, a name and a refresh keep
 
-@Test func aHuntThatFindsNothingIsEmptyAndKeepsNothing() {
-    #expect(HerePlan.hunted([], at: now) == .empty)
+@Test func aHuntThatFindsNothingSaysWhyAndKeepsNothing() {
+    #expect(HerePlan.hunted(.noStreams, at: now) == .nothing(.empty))
+    #expect(HerePlan.hunted(.noLicences, at: now) == .nothing(.outsideUS))
+    #expect(HerePlan.hunted(.noConnection, at: now) == .nothing(.noConnection))
+    #expect(HerePlan.hunted(.found([]), at: now) == .nothing(.empty))
 }
 
 @Test func aHuntThatFindsStationsKeepsThemAtOnceWithNoTown() {
     for count in [1, 16] {
         let found = HereDial(town: hereName, stations: stations(count), savedAt: now)
-        #expect(HerePlan.hunted(stations(count), at: now) == .found(found))
+        #expect(HerePlan.hunted(.found(stations(count)), at: now) == .found(found))
     }
+}
+
+// MARK: - How a hunt ended
+
+private let licence = Licence(callSign: "KAAA", city: "Seattle", stationClass: "C",
+                              frequency: 90.3, kilowatts: 10, distance: 5)
+
+@Test func aHuntThatCouldNotAskTheFCCHasNoConnection() {
+    #expect(HuntOutcome(listed: nil, stations: []) == .noConnection)
+    #expect(HuntOutcome.noConnection.status == .noConnection)
+}
+
+/// The FCC answered with no usable licence, as it does outside the US (and in London, where its
+/// rows at 0 km are skipped).
+@Test func aHuntWhoseFCCAnswerListedNoLicenceIsOutsideTheUS() {
+    #expect(HuntOutcome(listed: [], stations: []) == .noLicences)
+    #expect(HuntOutcome.noLicences.status == .outsideUS)
+    let london = "|KRUA        |88.1  MHz |FM |201 |ND  |                    |A  |-  |LIC    |ANCHORAGE                |AK |US |"
+        + "0000207895          |0.32   kW |0.32   kW |297.0   |297.0   |69007      |N |61 |20 |8.8   |W |149 |30 |56.2  |"
+        + "UNIVERSITY OF ALASKA      |   0.00 km |   0.00 mi |  0.00 deg |619.   m|"
+    #expect(HuntOutcome(listed: licences(fromFCC: london), stations: []) == .noLicences)
+    let near = london.replacing("   0.00 km", with: "   0.01 km")
+    #expect(HuntOutcome(listed: licences(fromFCC: near), stations: []) == .noStreams)
+}
+
+@Test func aHuntWithLicencesButNoStreamsFoundNoStationsHere() {
+    #expect(HuntOutcome(listed: [licence], stations: []) == .noStreams)
+    #expect(HuntOutcome.noStreams.status == .empty)
+}
+
+@Test func aHuntThatConfirmedStationsFoundThem() {
+    #expect(HuntOutcome(listed: [licence], stations: stations(3)) == .found(stations(3)))
+    #expect(HuntOutcome.found(stations(3)).status == .ready)
+    #expect(HuntOutcome.found([]).status == .empty)
+}
+
+@Test func onlyAFoundHuntHasStations() {
+    #expect(HuntOutcome.found(stations(2)).stations == stations(2))
+    for outcome in [HuntOutcome.noConnection, .noLicences, .noStreams] {
+        #expect(outcome.stations.isEmpty)
+    }
+}
+
+/// Ruling P2: "No stations found here" and "HERE covers the US only" mean the FCC answered;
+/// "No connection" and "Can't find where you are" do not.
+@Test func onlyTheFCCsAnswerEndsInNoStationsOrOutsideTheUS() {
+    #expect(HuntOutcome(listed: [], stations: []).status == .outsideUS)
+    #expect(HuntOutcome(listed: [licence], stations: []).status == .empty)
+    #expect(HuntOutcome(listed: nil, stations: []).status == .noConnection)
 }
 
 @Test func aTownNamesTheDialAndKeepsItsStationsAndAge() {
