@@ -7,7 +7,7 @@ Hinge Radio is a small SwiftUI app for the iPhone Duo, a folding iPhone. It is a
 Hinge Radio is published as a reference for building on the iPhone Duo's hinge with SwiftUI. It is not on the App Store, and it is not meant to be (see "The streams" below). Places worth reading:
 
 - **The pose from the hinge.** `App/HingeSource.swift` feeds each hinge change in; `Packages/RadioCore/Sources/RadioCore/Pose.swift` turns the angle, the lit screen and the way up into one of five poses, with the measurements behind it in `docs/pose-measurements.md`.
-- **A face for each pose.** `App/RootView.swift` picks the face; `App/Views/` holds the flex radio, the standby face used in book, tent and shut, and the flat card. Each keeps clear of the fold and of the outer screen's camera.
+- **A face for each pose.** `App/RootView.swift` picks the face; `App/Views/` holds the flex radio, the standby face used in book, tent and shut, and the flat face with the tall dial. Each keeps clear of the fold and of the outer screen's camera.
 - **Rules apart from views.** Everything that decides something (tuning, locking, the feel of each tick, the station file, HERE's search plan) lives in the `RadioCore` package and is tested without a simulator: `swift test --package-path Packages/RadioCore`.
 - **Real stations from open data.** The FCC's public licence list gives each station's frequency and reach; `HERE` finds the stations around the phone and their streams from NPR and the Radio Browser directory.
 - **The design notes** in `docs/` record each decision, including what changed while it was built.
@@ -58,7 +58,7 @@ The phone has five poses. The app works out which one from the hinge angle, whic
 | Flex | Partly folded, inner screen, upright | The full radio, with the band switch (HERE and four cities) and the badge's "About the dial" card | Plays |
 | Book | Partly folded, inner screen, on its side | Standby face: station name, the line under it, power and tuned lamps, frequency, speaker grille, the Hinge Radio badge, and the volume and tuning wheels at the right edge | Plays |
 | Tent | Partly folded, outer screen | The same standby face | Plays |
-| Flat | Fully open | A "Fold me" card | Plays |
+| Flat | Fully open | The tall dial | Plays |
 | Shut | Closed | The same standby face | Plays |
 
 "Plays" means the radio is switched on. Sound follows the power alone: no pose cuts it, and neither does leaving the app.
@@ -128,7 +128,9 @@ Closing the phone keeps the radio playing and shows the standby face on the oute
 
 ### Flat
 
-Flat shows a card that says "Fold me" and, if the radio was on, it keeps playing.
+Flat shows the tall dial: a dial that runs across the fold, with each station's call sign beside its dot. Upright, the dial is on the left with 88 at the bottom (`docs/check/70-flat-up.png` is the Seattle band, tuned to KZOK at 102.5). On its side, the dial runs along the top with 88 on the left. The same side wheels sit at the edge, so you tune with the wheel, and the station's name, frequency and lamps are beside the dial.
+
+When the names need more room than the glass has, the dial is a tape. It slides under a needle held on the fold, stops at either end so the needle can reach 88 and 108, and fades at the edges where it goes on (`docs/check/71-flat-side.png` is the Seattle band on its side, tuned to KZOK at 102.5, with the tape slid toward 108 and its left edge fading; `docs/check/72-flat-side-off.png` is the same, switched off: the dial and the frequency dim). If the names fit, the tape stands still and the needle moves. A station that is off the air is faded and struck through, as on the half-open dial. A long press on the badge opens the About card.
 
 ### Reaching each pose on the simulator
 
@@ -136,7 +138,7 @@ Use the Simulator's hinge controls, or the iOS Simulator tool's `set_posture` an
 
 - Flex: set the hinge to open (flat), then bend it to about 110 degrees. The inner screen stays lit and upright.
 - Book: from flex, turn the simulator a quarter turn. The inner screen goes wider than tall.
-- Flat: set the hinge to open.
+- Flat: set the hinge to open. The tall dial shows; turn the simulator a quarter turn to see it on its side.
 - Shut: set the hinge to closed. The outer screen lights.
 - Tent: set the hinge to closed first, then bend it to about 60 degrees. The outer screen stays lit.
 
@@ -274,7 +276,7 @@ After the review fixes (same day): the header on HERE reads a small HERE before 
 ## Tests
 
 ```
-swift test --package-path Packages/RadioCore          # 343 tests
+swift test --package-path Packages/RadioCore          # 351 tests
 python3 -m unittest discover -s tools                 # 19 tests
 ```
 
@@ -282,7 +284,7 @@ On 2026-11-22, on commit `8987edd`, the Swift suite passed 74 of 74 and the Pyth
 
 ## Side wheels on the standby faces (2026-11-22)
 
-The owner asked for the same side wheels in standby and the other poses. The volume and tuning wheels, their names, their printed scales and all their touch, feel and VoiceOver wiring now live in one view (`App/Views/SideWheels.swift`), used by the flex plate and by the standby face in book, tent and shut. The standby face's OFF/ON switch is gone: the volume wheel is power there too. Flat still shows "Fold me" with no wheels.
+The owner asked for the same side wheels in standby and the other poses. The volume and tuning wheels, their names, their printed scales and all their touch, feel and VoiceOver wiring now live in one view (`App/Views/SideWheels.swift`), used by the flex plate and by the standby face in book, tent and shut. The standby face's OFF/ON switch is gone: the volume wheel is power there too. Flat has the same wheels too, beside the tall dial.
 
 The tuning wheel is now geared by the point rather than by its height: 1/932 of the band per point, everywhere. That number came from the flex wheel, measured at 233 pt on the inner screen (from a `WHEELS tuning` log line the app now writes when the wheel's height changes), so a quarter of the band per flex wheel height is kept exactly. The volume wheel still covers its whole travel in one wheel height (93 pt on the inner screen, 92 pt on the outer one). Measured tuning wheel heights: flex 233 pt, book 415 pt, outer screen 249 pt (678x466) and 357 pt (466x678).
 

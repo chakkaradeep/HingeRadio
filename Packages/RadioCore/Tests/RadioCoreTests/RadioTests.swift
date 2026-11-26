@@ -175,8 +175,7 @@ private let shut = PoseInput(screen: .outer, landscape: false, angle: 0, status:
     #expect(radio.display(playback: .idle).subtitle == "No signal")
 
     radio.setPose(flat)
-    #expect(radio.display(playback: .playing)
-            == Display(title: "Fold me", subtitle: "Sit the phone half open to use the radio.", lamp: .off, bars: 0))
+    #expect(radio.display(playback: .playing).title == "KSEA Name")   // flat shows the station, as flex does
     radio.setPose(shut)
     #expect(radio.display(playback: .playing).title == "KSEA Name")   // shut shows the station, as tent does
     radio.setPose(book)

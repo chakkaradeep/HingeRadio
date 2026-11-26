@@ -4,8 +4,8 @@ import UIKit
 /// Lays out each pose: in flex the dial on the half above the fold and the plate on the half
 /// below; in book the standby face in two panels either side of the fold; in tent and shut the
 /// standby face on the outer screen, or, shut with the inner screen still lit, on the inner
-/// screen's upper half in portrait or left panel in landscape; in flat the pose card, centred on
-/// the outer screen and kept to the same half or panel on the inner one.
+/// screen's upper half in portrait or left panel in landscape; in flat the tall dial, upright or
+/// on its side.
 struct RootView: View {
     let model: RadioModel
     @State private var aboutShown = false
@@ -22,23 +22,7 @@ struct RootView: View {
             Group {
                 switch model.radio.pose {
                 case .flat:
-                    if model.screen == .outer {
-                        PoseCard(model: model, em: Face.em(forWidth: size.width))
-                            .padding(insets)
-                            .frame(width: size.width, height: size.height)
-                    } else if model.landscape {
-                        panels(size: size, insets: insets) {
-                            PoseCard(model: model, em: Face.em(forWidth: size.width / 2))
-                        } right: {
-                            Spacer(minLength: 0)
-                        }
-                    } else {
-                        halves(size: size, insets: insets) {
-                            PoseCard(model: model, em: Face.em(forWidth: size.width))
-                        } bottom: {
-                            Spacer(minLength: 0)
-                        }
-                    }
+                    FlatView(model: model) { aboutShown = true }
                 case .shut where model.screen == .inner:
                     // Nearly closed with the inner screen still lit: the standby face on the
                     // half or panel clear of the fold.
@@ -79,13 +63,14 @@ struct RootView: View {
         .statusBarHidden()
         .hingeReadings(into: model)
         .sheet(isPresented: $aboutShown) {
-            // The sheet's top edge sits a clear band below the fold.
+            // The height is worked out from the upright fold: half the window less the fold's clear
+            // band. On its side the fold is vertical, so the card simply covers the lower part.
             AboutCard()
                 .presentationDetents([.height(max(windowHeight / 2 - Face.foldClearance - Self.sheetExtra, 0))])
         }
-        // The card is for flex, where the dial is: it goes when the phone leaves it.
+        // The card is for the poses with a dial to ask about: it goes when the phone leaves them.
         .onChange(of: model.radio.pose) { _, pose in
-            if pose != .flex { aboutShown = false }
+            if pose != .flex, pose != .flat { aboutShown = false }
         }
         .onChange(of: model.radio.isLive, initial: true) { _, live in
             UIApplication.shared.isIdleTimerDisabled = live

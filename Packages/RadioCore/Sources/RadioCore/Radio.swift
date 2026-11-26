@@ -251,9 +251,6 @@ public struct Radio: Sendable {
     }
 
     public func display(playback: Playback) -> Display {
-        if pose == .flat {
-            return Display(title: "Fold me", subtitle: "Sit the phone half open to use the radio.", lamp: .off, bars: 0)
-        }
         // Off says nothing: the unlit power lamp says it. Only HERE still says how its search is
         // going, so a search that ended without a dial is not mistaken for one still to come.
         if !powerOn { return Display(title: "", subtitle: hereWords ?? "", lamp: .off, bars: 0) }
