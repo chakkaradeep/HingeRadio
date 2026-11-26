@@ -47,7 +47,12 @@ public struct Radio: Sendable {
     /// holds a radio switched on (`shouldSuspend`); silent, display unchanged.
     public private(set) var isSuspended = false
     public private(set) var tuning: TuningState
+    /// Stations marked "No signal" (`markDead`). Each is tried again when the needle comes back
+    /// onto it `deadRetryDelay` or more after it was marked (`retryDeadUnderNeedle`), and all of
+    /// them when the network comes back (`reviveAllDead`).
     public private(set) var dead: Set<String> = []
+    /// How long a dead station stays dead before the needle coming onto it tries it again.
+    public static let deadRetryDelay: TimeInterval = 60
     /// The position (0...1) last tuned to; the needle shows it.
     public private(set) var position = 0.5
     /// How the search for HERE's stations is going; shown only while HERE is the selected band.
@@ -59,6 +64,8 @@ public struct Radio: Sendable {
     private let poseConfig: PoseConfig
     private var tuner: Tuner
     private var lastOnWheel = 0.6
+    /// When each station in `dead` was marked, on the caller's clock (`markDead`).
+    private var deadSince: [String: TimeInterval] = [:]
 
     /// `here` adds the HERE band first, before the bundled cities. The radio opens switched off, on
     /// `band` at `position` where it was left (see `remembered`), with the needle settled on a
@@ -127,7 +134,7 @@ public struct Radio: Sendable {
     /// Choosing HERE, even while on it, tries its stations afresh: none of them is dead.
     public mutating func selectCity(_ id: String) {
         guard let city = cities.first(where: { $0.id == id }) else { return }
-        if id == hereID { dead.subtract(city.stations.map(\.callSign)) }
+        if id == hereID { revive(city.stations.map(\.callSign)) }
         cityID = id
         tuner = Tuner(stations: city.stations, config: config)
         tune(toPosition: position)
@@ -148,7 +155,7 @@ public struct Radio: Sendable {
         cities[index] = City(id: old.id, name: town ?? old.name, key: old.key, stations: stations)
         guard stations != old.stations else { return }
         let shownElsewhere = cityID == hereID ? [] : scale.marks.map(\.station.callSign)
-        dead.subtract(Set(stations.map(\.callSign)).subtracting(shownElsewhere))
+        revive(Set(stations.map(\.callSign)).subtracting(shownElsewhere))
         if cityID == hereID { selectCity(hereID) }
     }
 
@@ -211,7 +218,37 @@ public struct Radio: Sendable {
         return up ? nextMark(above: from, marks: marks) : nextMark(below: from, marks: marks)
     }
 
-    public mutating func markDead(_ callSign: String) { dead.insert(callSign) }
+    /// Marks a station "No signal" at `now` (the caller's clock, the same one it passes to
+    /// `retryDeadUnderNeedle`). Marked again, its minute starts afresh.
+    public mutating func markDead(_ callSign: String, at now: TimeInterval = 0) {
+        dead.insert(callSign)
+        deadSince[callSign] = now
+    }
+
+    /// The station under the needle (the candidate), when it is dead and was marked
+    /// `deadRetryDelay` or more before `now`, is live again: `station` gives it, so it is tried
+    /// afresh. Returns its call sign, or nil when nothing changed. Cheap enough for every needle
+    /// move; it changes nothing else, power and suspension included.
+    @discardableResult
+    public mutating func retryDeadUnderNeedle(at now: TimeInterval) -> String? {
+        guard let callSign = tuning.candidate?.callSign, dead.contains(callSign),
+              let since = deadSince[callSign], now - since >= Self.deadRetryDelay else { return nil }
+        revive([callSign])
+        return callSign
+    }
+
+    /// The network came back: no station is dead.
+    public mutating func reviveAllDead() {
+        dead.removeAll()
+        deadSince.removeAll()
+    }
+
+    private mutating func revive(_ callSigns: some Sequence<String>) {
+        for callSign in callSigns {
+            dead.remove(callSign)
+            deadSince[callSign] = nil
+        }
+    }
 
     public func display(playback: Playback) -> Display {
         if pose == .flat {

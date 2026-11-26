@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import Network
 import Observation
 import os
 import RadioCore
@@ -67,6 +68,10 @@ import UIKit
     @ObservationIgnored private var searchOnceActive = false
     #endif
     @ObservationIgnored private var sessionObservers: [any NSObjectProtocol] = []
+    /// Watches the network for the app's life, on its own queue (`observeNetwork`).
+    @ObservationIgnored private let pathMonitor = NWPathMonitor()
+    /// Whether the network was last seen satisfied; nil until the monitor's first update.
+    @ObservationIgnored private var networkSatisfied: Bool?
     /// Launch with `-HingeRadioMuted YES` to run silently (for testing). Read once.
     @ObservationIgnored private let muted = UserDefaults.standard.bool(forKey: "HingeRadioMuted")
 
@@ -99,6 +104,7 @@ import UIKit
         logMarks()
         observeSession()
         observeRemote()
+        observeNetwork()
         #if HERE
         // Opening on HERE shows the last place's kept dial at once; the search, and with it any
         // location prompt or sweep, waits until the window is up and the app active.
@@ -280,6 +286,7 @@ import UIKit
         stopGlide()
         if id != radio.cityID { player.stop() }   // the old city's station goes silent at once
         radio.selectCity(id)
+        retryDeadUnderNeedle()
         logMarks()
         logLockChange(from: before)
         settle(animated: animated)
@@ -289,7 +296,7 @@ import UIKit
         #endif
     }
 
-    func markDead(_ callSign: String) { radio.markDead(callSign) }
+    func markDead(_ callSign: String) { radio.markDead(callSign, at: Self.uptime) }
 
     /// Called with the app's scene phase. Of the phases only the background with the radio off
     /// suspends it (`shouldSuspend`): switched on, it plays on under Control Center, an alert or
@@ -430,7 +437,41 @@ import UIKit
         quietTicks = quiet
         radio.tune(toPosition: position)
         quietTicks = false
+        retryDeadUnderNeedle()
         logLockChange(from: before)
+    }
+
+    /// A dead station under the needle, marked `Radio.deadRetryDelay` or more ago, is tried again
+    /// (`Radio.retryDeadUnderNeedle`). Runs on every needle move, so the usual case, nothing dead
+    /// under the needle, costs a set lookup and assigns nothing.
+    private func retryDeadUnderNeedle() {
+        guard let candidate = radio.tuning.candidate, radio.dead.contains(candidate.callSign) else { return }
+        var next = radio
+        guard let callSign = next.retryDeadUnderNeedle(at: Self.uptime) else { return }
+        radio = next
+        soundLog.notice("RETRY DEAD \(callSign, privacy: .public)")
+    }
+
+    /// Follows the network on its own queue, for the app's life. When it comes back after being
+    /// lost, every dead station is tried again (`Radio.reviveAllDead`); the first update, at
+    /// launch, only says where it starts. Updates reach the main actor in order.
+    private func observeNetwork() {
+        // Sendable, not main-actor: the monitor calls it on its own queue.
+        pathMonitor.pathUpdateHandler = { @Sendable [weak self] path in
+            let satisfied = path.status == .satisfied
+            DispatchQueue.main.async { [weak self] in
+                MainActor.assumeIsolated { self?.networkChanged(satisfied: satisfied) }
+            }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "HingeRadio.network"))
+    }
+
+    private func networkChanged(satisfied: Bool) {
+        defer { networkSatisfied = satisfied }
+        guard satisfied, networkSatisfied == false else { return }
+        soundLog.notice("NETWORK back")
+        guard !radio.dead.isEmpty else { return }
+        radio.reviveAllDead()
     }
 
     /// The one place a sweep ends: `isScanning` is on only while its frames run, and every move of
