@@ -612,15 +612,30 @@ import UIKit
         nowPlaying.update(radio.nowPlaying(playback: audible))
     }
 
-    /// The lock screen's and Control Center's buttons: play switches on (at the last volume) and
-    /// pause off, as the power button does; next and previous step a station, as a tap on the
-    /// tuning wheel does, without the glide.
+    /// The lock screen's and Control Center's buttons: play switches on (at the last volume), or
+    /// ends an interruption's hold on a radio switched on, so it resumes after a call; pause
+    /// switches off, held or not; play/pause pauses a radio that plays and otherwise plays. Next
+    /// and previous step a station, as a tap on the tuning wheel does, without the glide.
     private func observeRemote() {
         nowPlaying.handlers(
-            play: { [weak self] in if self?.radio.powerOn == false { self?.togglePower() } },
+            play: { [weak self] in self?.remotePlay() },
             pause: { [weak self] in if self?.radio.powerOn == true { self?.togglePower() } },
+            toggle: { [weak self] in
+                guard let self else { return }
+                if self.radio.powerOn, !self.interrupted { self.togglePower() } else { self.remotePlay() }
+            },
             next: { [weak self] in self?.stepStation(up: true, animated: false) ?? false },
             previous: { [weak self] in self?.stepStation(up: false, animated: false) ?? false })
+    }
+
+    /// Off: switches on. Held by an interruption: ends the hold through the usual path
+    /// (`interruptionEnded`), going live afresh; a session still refused holds it again (`assign`).
+    private func remotePlay() {
+        if !radio.powerOn {
+            togglePower()
+        } else if interrupted {
+            interruptionEnded()
+        }
     }
 
     /// What can be heard: the shared rule from RadioCore, for the screen and the mix alike.

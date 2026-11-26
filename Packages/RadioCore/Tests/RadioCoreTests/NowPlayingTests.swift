@@ -91,3 +91,28 @@ private func radioOn(_ station: Station = kexp, here: Bool = false) -> Radio {
     #expect(radio.nowPlaying(playback: .idle)
         == NowPlaying(title: "Between stations", artist: "101.1 MHz", album: "Fargo", isPlaying: false))
 }
+
+private let shown = NowPlaying(title: "Between stations", artist: "95.1 MHz", album: "Seattle", isPlaying: false)
+
+@Test func nowPlayingWriteIsNeverDueForNoChange() {
+    #expect(!nowPlayingWriteIsDue(last: nil, next: nil, lastWrite: nil, now: 0))
+    #expect(!nowPlayingWriteIsDue(last: shown, next: shown, lastWrite: 0, now: 10))
+}
+
+@Test func nowPlayingWriteIsDueAtOnceForPowerAndTitleAlbumPlaying() {
+    #expect(nowPlayingWriteIsDue(last: nil, next: shown, lastWrite: 5, now: 5))
+    #expect(nowPlayingWriteIsDue(last: shown, next: nil, lastWrite: 5, now: 5))
+    let station = NowPlaying(title: "KEXP", artist: "90.3 MHz · Seattle", album: "Seattle", isPlaying: false)
+    #expect(nowPlayingWriteIsDue(last: shown, next: station, lastWrite: 5, now: 5))
+    let otherBand = NowPlaying(title: shown.title, artist: shown.artist, album: "Fargo", isPlaying: false)
+    #expect(nowPlayingWriteIsDue(last: shown, next: otherBand, lastWrite: 5, now: 5))
+    let playing = NowPlaying(title: shown.title, artist: shown.artist, album: shown.album, isPlaying: true)
+    #expect(nowPlayingWriteIsDue(last: shown, next: playing, lastWrite: 5, now: 5))
+}
+
+@Test func nowPlayingArtistAloneWaitsAQuarterSecond() {
+    let moved = NowPlaying(title: shown.title, artist: "95.2 MHz", album: shown.album, isPlaying: false)
+    #expect(nowPlayingWriteIsDue(last: shown, next: moved, lastWrite: nil, now: 5))
+    #expect(!nowPlayingWriteIsDue(last: shown, next: moved, lastWrite: 5, now: 5.24))
+    #expect(nowPlayingWriteIsDue(last: shown, next: moved, lastWrite: 5, now: 5.25))
+}

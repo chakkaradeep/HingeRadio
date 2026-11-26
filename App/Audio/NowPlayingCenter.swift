@@ -8,22 +8,57 @@ import UIKit
 /// (`Radio.nowPlaying`) and what each button does.
 @MainActor final class NowPlayingCenter {
     private let log = Logger(subsystem: "HingeRadio", category: "nowplaying")
-    /// What was last shown; nil while nothing is (the radio off).
-    private var shown: NowPlaying?
+    /// What was last written; nil while nothing is shown (the radio off).
+    private var written: NowPlaying?
+    /// When it was written (`ProcessInfo.systemUptime`); nil before the first write.
+    private var lastWrite: TimeInterval?
+    /// The newest value asked for, which a held artist-only change writes when it is due.
+    private var latest: NowPlaying?
+    /// Waits to write a held artist-only change (`nowPlayingWriteIsDue`); one at a time.
+    private var trailing: Task<Void, Never>?
     private var play: () -> Void = {}
     private var pause: () -> Void = {}
+    private var toggle: () -> Void = {}
     private var next: () -> Bool = { false }
     private var previous: () -> Bool = { false }
     private var targets: [(MPRemoteCommand, Any)] = []
     /// The app icon (or the badge), made once, the first time something is shown.
     private lazy var artwork: MPMediaItemArtwork? = Self.makeArtwork()
 
-    /// Shows `nowPlaying` as a live stream, with no progress bar, or clears it when nil. Does
-    /// nothing when it is what is already shown; logs `NOW PLAYING` when the title changes.
+    /// Shows `nowPlaying` as a live stream, with no progress bar, or clears it when nil. Nothing
+    /// is written when it is what is already shown. A change of the title, album, playing state or
+    /// power is written at once; a change of the artist (the needle's frequency) alone at most
+    /// every `nowPlayingArtistInterval`, with one write after the last, so the resting value lands.
     func update(_ nowPlaying: NowPlaying?) {
-        guard nowPlaying != shown else { return }
-        let oldTitle = shown?.title
-        shown = nowPlaying
+        latest = nowPlaying
+        guard nowPlaying != written else {
+            trailing?.cancel()
+            trailing = nil
+            return
+        }
+        let now = Self.uptime
+        if nowPlayingWriteIsDue(last: written, next: nowPlaying, lastWrite: lastWrite, now: now) {
+            write(nowPlaying, at: now)
+        } else if trailing == nil {
+            let wait = (lastWrite ?? now) + nowPlayingArtistInterval - now
+            trailing = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(max(0, wait)))
+                guard let self, !Task.isCancelled else { return }
+                self.trailing = nil
+                if self.latest != self.written { self.write(self.latest, at: Self.uptime) }
+            }
+        }
+    }
+
+    private static var uptime: TimeInterval { ProcessInfo.processInfo.systemUptime }
+
+    /// Writes `nowPlaying` (nil clears); logs `NOW PLAYING` when the title changes.
+    private func write(_ nowPlaying: NowPlaying?, at now: TimeInterval) {
+        trailing?.cancel()
+        trailing = nil
+        let oldTitle = written?.title
+        written = nowPlaying
+        lastWrite = now
         if nowPlaying?.title != oldTitle {
             log.notice("NOW PLAYING \(nowPlaying?.title ?? "cleared", privacy: .public)")
         }
@@ -44,13 +79,13 @@ import UIKit
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 
-    /// Wires the buttons, once: play, pause, play/pause (pause while something is shown, that is
-    /// while the radio is on, else play), next and previous (false: no station to step to). Seeking
-    /// and skipping by an interval are off: the radio is live.
-    func handlers(play: @escaping () -> Void, pause: @escaping () -> Void,
+    /// Wires the buttons, once: play, pause, play/pause, next and previous (false: no station to
+    /// step to). Seeking and skipping by an interval are off: the radio is live.
+    func handlers(play: @escaping () -> Void, pause: @escaping () -> Void, toggle: @escaping () -> Void,
                   next: @escaping () -> Bool, previous: @escaping () -> Bool) {
         self.play = play
         self.pause = pause
+        self.toggle = toggle
         self.next = next
         self.previous = previous
         guard targets.isEmpty else { return }
@@ -81,7 +116,7 @@ import UIKit
         switch name {
         case "play": play()
         case "pause": pause()
-        case "togglePlayPause": shown == nil ? play() : pause()
+        case "togglePlayPause": toggle()
         case "next": return next() ? .success : .noActionableNowPlayingItem
         case "previous": return previous() ? .success : .noActionableNowPlayingItem
         default: return .commandFailed

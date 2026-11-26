@@ -37,3 +37,20 @@ public extension Radio {
                           album: album, isPlaying: isPlaying)
     }
 }
+
+/// The least time between two Now Playing writes that change only the artist line (the needle's
+/// frequency while it moves between stations).
+public let nowPlayingArtistInterval: TimeInterval = 0.25
+
+/// Whether `next` should be written now, `last` being what was last written at `lastWrite`
+/// (seconds on any steady clock; nil before the first write). Never for no change. At once when
+/// the power goes on or off (either is nil) or the title, album or playing state changes;
+/// a change of the artist alone only once `nowPlayingArtistInterval` has passed since the last
+/// write. The caller writes a held change later, so the last value always lands.
+public func nowPlayingWriteIsDue(last: NowPlaying?, next: NowPlaying?, lastWrite: TimeInterval?,
+                                 now: TimeInterval) -> Bool {
+    guard next != last else { return false }
+    guard let last, let next, let lastWrite else { return true }
+    if next.title != last.title || next.album != last.album || next.isPlaying != last.isPlaying { return true }
+    return now - lastWrite >= nowPlayingArtistInterval
+}
