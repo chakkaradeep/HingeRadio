@@ -101,12 +101,17 @@ import UIKit
         }
     }
 
-    /// The handler runs on the main thread but is not typed for it: it hops with `assumeIsolated`,
-    /// as the session observers do.
+    /// The handler is called on the main thread but is not typed for it. On main it runs at once
+    /// (`assumeIsolated`, as the session observers do); should it ever come on another thread, it
+    /// waits for the main thread rather than trap.
     private func wire(_ command: MPRemoteCommand, _ name: String) {
         command.isEnabled = true
         let target = command.addTarget { @Sendable [weak self] _ in
-            MainActor.assumeIsolated { self?.handle(name) ?? .commandFailed }
+            let center = self
+            let run: @Sendable () -> MPRemoteCommandHandlerStatus = {
+                MainActor.assumeIsolated { center?.handle(name) ?? .commandFailed }
+            }
+            return Thread.isMainThread ? run() : DispatchQueue.main.sync(execute: run)
         }
         targets.append((command, target))
     }

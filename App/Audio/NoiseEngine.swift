@@ -23,11 +23,14 @@ import Synchronization
     var isRunning: Bool { engine.isRunning }
 
     /// Safe to call every time the radio goes live: does nothing while the engine is running.
-    /// Sets `isStarted` even when it throws, so a failed start is not retried at once.
+    /// Sets `isStarted` even when it throws, so a failed start is not retried at once. Starting
+    /// from stopped drops any tick or click asked for while it was stopped (an off click in the
+    /// background, say), so it does not sound late; one asked for after this call sounds.
     func start() throws {
         isStarted = true
         if !built { try build(); built = true }
         guard !engine.isRunning else { return }
+        levels.dropPending()
         try engine.start()
     }
 
@@ -49,8 +52,8 @@ import Synchronization
     }
 
     /// Stops the engine, so no audio runs while the session changes, or to rest it. `start()`
-    /// resumes it. Safe to repeat. A tick or click asked for while stopped waits in its counter
-    /// and sounds when the engine next starts, or not at all; it never fails.
+    /// resumes it. Safe to repeat. A tick or click asked for while stopped never fails: `start()`
+    /// drops it; a restart after a route or session change (`restartIfStopped`) still plays it.
     func stop() {
         isStarted = false
         if engine.isRunning { engine.stop() }
@@ -119,6 +122,18 @@ import Synchronization
         let clicks = Atomic<UInt32>(0)
         let ticks = Atomic<UInt32>(0)
         let tickLevel = Atomic<UInt32>(Float(1).bitPattern)
+        /// The counts when the engine last started from stopped, and a flag the render thread
+        /// takes once to treat them as already heard (`dropPending`).
+        let startClicks = Atomic<UInt32>(0)
+        let startTicks = Atomic<UInt32>(0)
+        let resync = Atomic<UInt32>(0)
+
+        /// Main actor, with the engine stopped: what is pending now is not to sound.
+        func dropPending() {
+            startClicks.store(clicks.load(ordering: .relaxed), ordering: .relaxed)
+            startTicks.store(ticks.load(ordering: .relaxed), ordering: .relaxed)
+            resync.store(1, ordering: .releasing)
+        }
     }
 
     /// One-pole smoothing coefficient reaching ~63 % of a change in `seconds`.
@@ -197,6 +212,12 @@ import Synchronization
         { _, _, frameCount, bufferList in
             let targetGain = Float(bitPattern: levels.whistle.load(ordering: .relaxed))
             let targetHz = Float(bitPattern: levels.whistleHz.load(ordering: .relaxed))
+            if levels.resync.exchange(0, ordering: .acquiring) != 0 {
+                state.seenClicks = levels.startClicks.load(ordering: .relaxed)
+                state.seenTicks = levels.startTicks.load(ordering: .relaxed)
+                state.clickLeft = 0                             // no tail of a sound from before
+                state.tickLeft = 0
+            }
             let clicks = levels.clicks.load(ordering: .relaxed)
             if clicks != state.seenClicks {
                 state.seenClicks = clicks

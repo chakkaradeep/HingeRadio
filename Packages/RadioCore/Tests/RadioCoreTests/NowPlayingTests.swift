@@ -24,48 +24,57 @@ private func radioOn(_ station: Station = kexp, here: Bool = false) -> Radio {
 @Test func nowPlayingIsNilWhileOff() {
     let radio = Radio(file: file)
     #expect(!radio.powerOn)
-    #expect(radio.nowPlaying(playback: .idle) == nil)
-    #expect(radio.nowPlaying(playback: .playing) == nil)
+    #expect(radio.nowPlaying == nil)
 }
 
 @Test func nowPlayingClearsWhenSwitchedOff() {
     var radio = radioOn()
-    #expect(radio.nowPlaying(playback: .playing) != nil)
+    #expect(radio.nowPlaying != nil)
     radio.togglePower()
-    #expect(radio.nowPlaying(playback: .idle) == nil)
+    #expect(radio.nowPlaying == nil)
 }
 
 @Test func nowPlayingShowsTheLockedStation() {
     let radio = radioOn()
     #expect(radio.tuning.locked == kexp)
-    #expect(radio.nowPlaying(playback: .playing)
+    #expect(radio.nowPlaying
         == NowPlaying(title: "KEXP", artist: "90.3 MHz · Seattle", album: "Seattle", isPlaying: true))
 }
 
-@Test func nowPlayingWhileConnectingIsNotPlaying() {
+/// Live is playing, whatever the stream does: static and a station tuning in sound, as on a
+/// radio, so the lock screen offers pause, which switches off.
+@Test func nowPlayingIsPlayingWhileLive() {
     let radio = radioOn()
-    let shown = radio.nowPlaying(playback: .connecting)
-    #expect(shown?.title == "KEXP")
-    #expect(shown?.isPlaying == false)
-    #expect(radio.nowPlaying(playback: .idle)?.isPlaying == false)
+    #expect(radio.isLive)
+    #expect(radio.nowPlaying?.title == "KEXP")
+    #expect(radio.nowPlaying?.isPlaying == true)
+}
+
+/// Held by an interruption (on, suspended): paused, so the lock screen offers play, which resumes.
+@Test func nowPlayingIsPausedWhileHeld() {
+    var radio = radioOn()
+    radio.setSuspended(true)
+    #expect(radio.powerOn && !radio.isLive)
+    #expect(radio.nowPlaying
+        == NowPlaying(title: "KEXP", artist: "90.3 MHz · Seattle", album: "Seattle", isPlaying: false))
 }
 
 @Test func nowPlayingBetweenStationsShowsTheNeedle() {
     var radio = radioOn()
     radio.tune(toPosition: 1)
     #expect(radio.tuning.locked == nil)
-    #expect(radio.nowPlaying(playback: .idle)
-        == NowPlaying(title: "Between stations", artist: "108.5 MHz", album: "Seattle", isPlaying: false))
+    #expect(radio.nowPlaying
+        == NowPlaying(title: "Between stations", artist: "108.5 MHz", album: "Seattle", isPlaying: true))
     radio.tune(toPosition: 0.8)
     let expected = String(format: "%.1f MHz", radio.tuning.frequency)
-    #expect(radio.nowPlaying(playback: .idle)?.artist == expected)
+    #expect(radio.nowPlaying?.artist == expected)
 }
 
 @Test func nowPlayingSaysNoSignalForADeadStation() {
     var radio = radioOn()
     radio.markDead(kexp.callSign)
-    #expect(radio.nowPlaying(playback: .idle)
-        == NowPlaying(title: "No signal", artist: "90.3 MHz · Seattle", album: "Seattle", isPlaying: false))
+    #expect(radio.nowPlaying
+        == NowPlaying(title: "No signal", artist: "90.3 MHz · Seattle", album: "Seattle", isPlaying: true))
 }
 
 @Test func nowPlayingOnHereShowsTheTown() throws {
@@ -75,7 +84,7 @@ private func radioOn(_ station: Station = kexp, here: Bool = false) -> Radio {
     radio.setHereStations([kpls], town: "Fargo")
     let mark = try #require(radio.scale.marks.first)
     radio.tune(toPosition: mark.position)
-    #expect(radio.nowPlaying(playback: .playing)
+    #expect(radio.nowPlaying
         == NowPlaying(title: "KPLS Radio", artist: "101.1 MHz · West Fargo", album: "Fargo", isPlaying: true))
 }
 
@@ -88,8 +97,31 @@ private func radioOn(_ station: Station = kexp, here: Bool = false) -> Radio {
     radio.tune(toPosition: mark.position)
     radio.setScanning(true)
     #expect(radio.isScanningHere)
-    #expect(radio.nowPlaying(playback: .idle)
-        == NowPlaying(title: "Between stations", artist: "101.1 MHz", album: "Fargo", isPlaying: false))
+    #expect(radio.nowPlaying
+        == NowPlaying(title: "Between stations", artist: "101.1 MHz", album: "Fargo", isPlaying: true))
+}
+
+// MARK: - The lock screen
+
+@Test func lockScreenIsNowPlayingWhileOn() {
+    var radio = radioOn()
+    let stale = NowPlaying(title: "Old", artist: "", album: "", isPlaying: true)
+    #expect(radio.lockScreen(kept: nil) == radio.nowPlaying)
+    #expect(radio.lockScreen(kept: stale) == radio.nowPlaying)
+    radio.setSuspended(true)
+    #expect(radio.lockScreen(kept: stale) == radio.nowPlaying)
+}
+
+/// Switched off from afar the card stays, paused, so play can switch the radio back on; switched
+/// off on the radio itself nothing is kept, and nothing shows.
+@Test func lockScreenKeepsAPausedCardWhenOff() throws {
+    var radio = radioOn()
+    let last = try #require(radio.nowPlaying)
+    radio.togglePower()
+    #expect(radio.lockScreen(kept: last)
+        == NowPlaying(title: "KEXP", artist: "90.3 MHz · Seattle", album: "Seattle", isPlaying: false))
+    #expect(radio.lockScreen(kept: last.paused) == last.paused)
+    #expect(radio.lockScreen(kept: nil) == nil)
 }
 
 private let shown = NowPlaying(title: "Between stations", artist: "95.1 MHz", album: "Seattle", isPlaying: false)

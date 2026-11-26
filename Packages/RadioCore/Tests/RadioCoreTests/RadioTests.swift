@@ -354,6 +354,37 @@ private func aboveKSEA(_ radio: Radio, units: Double) -> Double {
     (radio.scale.marks[0].angle + units - 70) / 80
 }
 
+/// The lock screen names the station being played, also in its fade zone, as the face does.
+@Test func nowPlayingNamesAStationPlayedInItsFadeZone() {
+    var radio = Radio(file: file)
+    radio.togglePower()
+    radio.tune(toPosition: 0.625)                             // static, so nothing is held
+    radio.tune(toPosition: aboveKSEA(radio, units: 1.9))      // in the fade, not locked
+    #expect(radio.tuning.locked == nil)
+    #expect(radio.station?.callSign == "KSEA")
+    #expect(radio.nowPlaying?.title == "KSEA Name")
+    #expect(radio.nowPlaying?.artist == "98.0 MHz · KSEA City")
+}
+
+/// Held by an interruption (on, suspended), the face says "Paused", unlit, under the name.
+@Test func aHeldRadioSaysPaused() {
+    var radio = Radio(file: file)
+    radio.togglePower()
+    #expect(radio.tuning.locked?.callSign == "KSEA")
+    radio.setSuspended(true)
+    for playback in [Playback.idle, .connecting, .playing] {
+        #expect(radio.display(playback: playback)
+            == Display(title: "KSEA Name", subtitle: "Paused", lamp: .off, bars: 0))
+    }
+    radio.tune(toPosition: 0.625)                             // static
+    #expect(radio.display(playback: .idle) == Display(title: "· · ·", subtitle: "Paused", lamp: .off, bars: 0))
+    radio.setSuspended(false)
+    #expect(radio.display(playback: .idle).subtitle == "Static")
+    radio.togglePower()
+    radio.setSuspended(true)                                  // off in the background: off says nothing
+    #expect(radio.display(playback: .idle).subtitle == "")
+}
+
 @Test func releaseTargetIsTheLockedMark() {
     var radio = Radio(file: file)
     radio.tune(toPosition: 0.5175)                            // inside KSEA's zone, off the mark

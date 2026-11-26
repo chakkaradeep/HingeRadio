@@ -257,6 +257,12 @@ public struct Radio: Sendable {
         // Off says nothing: the unlit power lamp says it. Only HERE still says how its search is
         // going, so a search that ended without a dial is not mistaken for one still to come.
         if !powerOn { return Display(title: "", subtitle: hereWords ?? "", lamp: .off, bars: 0) }
+        // Switched on but suspended: held while an interruption has the sound. Nothing plays, so
+        // the line says so rather than "Tuning in".
+        if isSuspended {
+            let title = isScanningHere ? nil : tuning.candidate?.shownName
+            return Display(title: title ?? "· · ·", subtitle: "Paused", lamp: .off, bars: 0)
+        }
         guard !isScanningHere, let candidate = tuning.candidate else {
             return Display(title: "· · ·", subtitle: emptySubtitle, lamp: .off, bars: 0)
         }

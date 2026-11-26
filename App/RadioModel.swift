@@ -14,7 +14,7 @@ import UIKit
     /// What the station player last reported. Views never read it: they get `display`, which
     /// goes through `audiblePlayback` like the sound mix does.
     private var reportedPlayback: Playback = .idle {
-        didSet { if reportedPlayback != oldValue { updateSound(); countPlay(); updateNowPlaying() } }
+        didSet { if reportedPlayback != oldValue { updateSound(); countPlay() } }
     }
 
     /// Which screen the window is on; the inner one until the first window size arrives.
@@ -58,6 +58,10 @@ import UIKit
     /// resuming, the app is active again, or the radio is switched off. It suspends the radio, so
     /// the station stops cleanly and connects afresh when the interruption is over.
     @ObservationIgnored private var interrupted = false
+    /// The lock screen's card as it was when the radio was last switched off from afar (the lock
+    /// screen's pause, or the headphones going), kept paused so its play can switch the radio back
+    /// on (`Radio.lockScreen`). Nil once the radio is switched on again, or the band changes.
+    @ObservationIgnored private var keptCard: NowPlaying?
     /// Where the radio was left, kept for next time, and what was last written there.
     @ObservationIgnored private let memory: BandMemory
     @ObservationIgnored private var lastRemembered: Remembered?
@@ -230,6 +234,7 @@ import UIKit
     private func changePower(_ change: (inout Radio) -> Void) {
         var next = radio
         change(&next)
+        if next.powerOn { keptCard = nil }
         if !next.powerOn, interrupted {
             interrupted = false
             soundLog.notice("INTERRUPTION END")
@@ -284,7 +289,10 @@ import UIKit
         if radio.isScanning, id == radio.cityID { return }
         let before = radio.tuning.locked?.callSign
         stopGlide()
-        if id != radio.cityID { player.stop() }   // the old city's station goes silent at once
+        if id != radio.cityID {
+            player.stop()                           // the old city's station goes silent at once
+            keptCard = nil                          // a paused card is of the old band
+        }
         radio.selectCity(id)
         retryDeadUnderNeedle()
         logMarks()
@@ -647,23 +655,35 @@ import UIKit
                   whistleHz: Float(levels.whistleHz))
     }
 
-    /// The lock screen and Control Center follow `Radio.nowPlaying`, from what can be heard; the
-    /// center publishes only a change, and clears it with the power off.
+    /// The lock screen and Control Center follow `Radio.lockScreen`: the radio's card while it is
+    /// on, playing while live; off, the card kept by a switch-off from afar, paused, else nothing.
+    /// The center publishes only a change.
     private func updateNowPlaying() {
-        nowPlaying.update(radio.nowPlaying(playback: audible))
+        nowPlaying.update(radio.lockScreen(kept: keptCard))
+    }
+
+    /// Switches off from afar (the lock screen's pause or play/pause, or the headphones going),
+    /// keeping the lock screen's card, paused, so its play can switch the radio back on. A switch-off
+    /// on the radio itself keeps nothing.
+    private func switchOffFromAfar() {
+        guard radio.powerOn else { return }
+        keptCard = radio.nowPlaying
+        togglePower()
     }
 
     /// The lock screen's and Control Center's buttons: play switches on (at the last volume), or
     /// ends an interruption's hold on a radio switched on, so it resumes after a call; pause
-    /// switches off, held or not; play/pause pauses a radio that plays and otherwise plays. Next
+    /// switches off, held or not, keeping the card paused (`switchOffFromAfar`), so play from it
+    /// switches back on, in the background too; play/pause pauses a live radio and otherwise
+    /// plays. Next
     /// and previous step a station, as a tap on the tuning wheel does, without the glide.
     private func observeRemote() {
         nowPlaying.handlers(
             play: { [weak self] in self?.remotePlay() },
-            pause: { [weak self] in if self?.radio.powerOn == true { self?.togglePower() } },
+            pause: { [weak self] in self?.switchOffFromAfar() },
             toggle: { [weak self] in
                 guard let self else { return }
-                if self.radio.powerOn, !self.interrupted { self.togglePower() } else { self.remotePlay() }
+                if self.radio.powerOn, !self.interrupted { self.switchOffFromAfar() } else { self.remotePlay() }
             },
             next: { [weak self] in self?.stepStation(up: true, animated: false) ?? false },
             previous: { [weak self] in self?.stepStation(up: false, animated: false) ?? false })
@@ -779,13 +799,13 @@ import UIKit
     }
 
     /// The headphones the radio played through went away: it switches off rather than carry on out
-    /// loud, as music apps pause. The volume is kept for next time; in the background, switching
-    /// off suspends it (`changePower`). Unplugged during an interruption, it is off when that ends,
+    /// loud, as music apps pause, and like them keeps the lock screen's card, paused. The volume is
+    /// kept for next time; in the background, switching off suspends it (`changePower`). Unplugged during an interruption, it is off when that ends,
     /// rather than come back out loud.
     private func routeChanged(_ reason: AVAudioSession.RouteChangeReason?) {
         guard reason == .oldDeviceUnavailable, radio.powerOn else { return }
         soundLog.notice("ROUTE gone")
-        togglePower()
+        switchOffFromAfar()
     }
 
     /// The session became inactive. The system doing it with the radio on is an interruption

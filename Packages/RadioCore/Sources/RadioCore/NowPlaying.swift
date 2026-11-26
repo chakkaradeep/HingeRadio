@@ -15,26 +15,41 @@ public struct NowPlaying: Equatable, Sendable {
     }
 }
 
+public extension NowPlaying {
+    /// The same card, paused (playback rate 0).
+    var paused: NowPlaying { NowPlaying(title: title, artist: artist, album: album, isPlaying: false) }
+}
+
 public extension Radio {
-    /// Nil while the power is off. Title: "No signal" when the station under the needle is dead,
-    /// else the locked station's shown name, else "Between stations" (also throughout HERE's sweep,
-    /// which shows no station). Artist: the station's frequency and licence city, or between
-    /// stations the needle's frequency. Album: the band's name, HERE's town on HERE. Playing only
-    /// when `playback`, what can be heard, is `.playing`.
-    func nowPlaying(playback: Playback) -> NowPlaying? {
+    /// Nil while the power is off. Title: the shown name of the station being played (`station`,
+    /// the candidate, so a station whose name shows in its fade zone is named too); else "No
+    /// signal" when the station under the needle is dead; else the locked station's shown name;
+    /// else "Between stations" (also throughout HERE's sweep, which shows no station). Artist: that
+    /// station's frequency and licence city, or between stations the needle's frequency. Album: the
+    /// band's name, HERE's town on HERE. Playing whenever the radio is live, as a radio plays
+    /// static and a station tuning in; paused only while held (switched on but suspended, by an
+    /// interruption), so the lock screen's play resumes it and its pause switches off.
+    var nowPlaying: NowPlaying? {
         guard powerOn else { return nil }
         let album = cities.first { $0.id == cityID }?.name ?? ""
-        let isPlaying = playback == .playing
-        func station(_ title: String, _ station: Station) -> NowPlaying {
+        func card(_ title: String, _ station: Station) -> NowPlaying {
             NowPlaying(title: title, artist: String(format: "%.1f MHz · %@", station.frequency, station.licenceCity),
-                       album: album, isPlaying: isPlaying)
+                       album: album, isPlaying: isLive)
         }
+        if let station { return card(station.shownName, station) }
         if !isScanningHere, let candidate = tuning.candidate, dead.contains(candidate.callSign) {
-            return station("No signal", candidate)
+            return card("No signal", candidate)
         }
-        if let locked = lockToShow { return station(locked.shownName, locked) }
+        if let locked = lockToShow { return card(locked.shownName, locked) }
         return NowPlaying(title: "Between stations", artist: String(format: "%.1f MHz", tuning.frequency),
-                          album: album, isPlaying: isPlaying)
+                          album: album, isPlaying: isLive)
+    }
+
+    /// What the lock screen and Control Center show: `nowPlaying` while the power is on. Off, the
+    /// card `kept` when the radio was switched off from afar (the lock screen's pause, or the
+    /// headphones going), paused, so its play can switch the radio back on; else nothing.
+    func lockScreen(kept: NowPlaying?) -> NowPlaying? {
+        powerOn ? nowPlaying : kept?.paused
     }
 }
 

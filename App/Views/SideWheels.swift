@@ -84,7 +84,9 @@ struct SideWheels: View {
             scale(top: "ON", bottom: "OFF", fraction: radio.wheel, click: Radio.wheelOnFrom,
                   lit: radio.powerOn, size: size)
             WheelView(value: radio.wheel, gearing: .perHeight(1), ridge: Radio.volumeRidge,
-                      onTouchDown: { model.wake() },
+                      // No wake on touch-down: off, this wheel does not tick until it switches on,
+                      // and switching on starts the sound itself (a stop at the bottom wakes the
+                      // engine as any feel does).
                       onChange: { model.setWheel($0) },
                       onRelease: { _ in },
                       onTap: { _ in model.togglePower() })
