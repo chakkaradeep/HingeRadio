@@ -65,9 +65,11 @@ import RadioCore
     }
 
     /// Ends the search, and drops the part of a dial it had found: nobody should tune it, and the
-    /// next search starts afresh. A dial that was kept, or is whole, stays.
-    func cancel() {
-        if let status = plan.cancel(status: model?.radio.hereStatus ?? .idle, isSearching: task != nil) {
+    /// next search starts afresh. A dial that was kept, or is whole, stays, and so does a part of
+    /// one while one of its stations is `playing` (`HerePlan.cancel`).
+    func cancel(playing: Bool = false) {
+        if let status = plan.cancel(status: model?.radio.hereStatus ?? .idle, isSearching: task != nil,
+                                    playing: playing) {
             clear(status)
         }
         model?.endScan()

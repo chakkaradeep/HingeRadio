@@ -102,6 +102,17 @@ private func noPlace(_ plan: HerePlan, _ error: LocatorError, at date: Date,
     }
 }
 
+/// Going to the background while one of the stations found so far plays: the part of the dial
+/// stays, so the listener keeps the station; the search still counts as cut short.
+@Test func cancellingKeepsAPartOfADialWhoseStationPlays() {
+    var plan = HerePlan()
+    #expect(plan.cancel(status: .finding, isSearching: true, playing: true) == nil)
+    #expect(plan.wasCancelled)
+    #expect(plan.searches(on: .returned, status: .finding, isSearching: false))
+    var notPlaying = HerePlan()
+    #expect(notPlaying.cancel(status: .finding, isSearching: true, playing: false) == .idle)
+}
+
 @Test func cancellingMarksTheSearchCutShortOnlyIfOneRan() {
     var idle = HerePlan()
     _ = idle.cancel(status: .finding, isSearching: false)

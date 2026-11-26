@@ -52,6 +52,10 @@ import UIKit
     @ObservationIgnored private var wasInBackground = false
     /// The app's phase, last told by `phaseChanged`; with the power, it decides suspension.
     @ObservationIgnored private var phase = AppPhase.inactive
+    /// True from an audio interruption beginning with the radio on until the system recommends
+    /// resuming, the app is active again, or the radio is switched off. It suspends the radio, so
+    /// the station stops cleanly and connects afresh when the interruption is over.
+    @ObservationIgnored private var interrupted = false
     /// Where the radio was left, kept for next time, and what was last written there.
     @ObservationIgnored private let memory: BandMemory
     @ObservationIgnored private var lastRemembered: Remembered?
@@ -212,12 +216,25 @@ import UIKit
 
     /// Changes the wheel and, in the same assignment, the suspension that follows from the power
     /// (`shouldSuspend`): switched off in the background the radio is suspended, as an off
-    /// background is; switched on there, it plays.
+    /// background is; switched on there, it plays. Switching off ends an interruption's hold.
     private func changePower(_ change: (inout Radio) -> Void) {
         var next = radio
         change(&next)
-        next.setSuspended(shouldSuspend(phase: phase, powerOn: next.powerOn))
+        if !next.powerOn, interrupted {
+            interrupted = false
+            soundLog.notice("INTERRUPTION END")
+        }
+        next.setSuspended(shouldSuspend(phase: phase, powerOn: next.powerOn, interrupted: interrupted))
         radio = next
+    }
+
+    /// Sets the suspension `shouldSuspend` gives for the phase, the power and an interruption,
+    /// assigning `radio` only when it changes. Going suspended stops the station and rests the
+    /// engine; coming back live starts the session and the engine and connects afresh
+    /// (`radioChanged`).
+    private func applySuspension() {
+        let suspend = shouldSuspend(phase: phase, powerOn: radio.powerOn, interrupted: interrupted)
+        if suspend != radio.isSuspended { radio.setSuspended(suspend) }
     }
 
     /// Changes city; if a station of the new city is locked under the needle, the needle then
@@ -241,15 +258,20 @@ import UIKit
 
     func markDead(_ callSign: String) { radio.markDead(callSign) }
 
-    /// Called with the app's scene phase. Only the background with the radio off suspends it
-    /// (`shouldSuspend`): switched on, it plays on under Control Center, an alert or the location
-    /// prompt, with the phone locked and behind another app, and nothing reconnects on return.
-    /// Every background ends HERE's search; being inactive does not.
+    /// Called with the app's scene phase. Of the phases only the background with the radio off
+    /// suspends it (`shouldSuspend`): switched on, it plays on under Control Center, an alert or
+    /// the location prompt, with the phone locked and behind another app, and nothing reconnects
+    /// on return. Coming back active ends an interruption the system never said was over, so a
+    /// radio left silent by one connects afresh. Every background ends HERE's search; being
+    /// inactive does not.
     func phaseChanged(_ phase: AppPhase) {
         self.phase = phase
         if phase == .background { wasInBackground = true }      // first: no wake from here on
-        let suspend = shouldSuspend(phase: phase, powerOn: radio.powerOn)
-        if suspend != radio.isSuspended { radio.setSuspended(suspend) }
+        if phase == .active, interrupted, radio.powerOn {
+            interrupted = false
+            soundLog.notice("INTERRUPTION END")
+        }
+        applySuspension()
         switch phase {
         case .background: enteredBackground()   // after suspending: a cleared dial is not animated
         case .active: becameActive()
@@ -281,12 +303,12 @@ import UIKit
     }
 
     /// The app went to the background, not merely inactive as under a system prompt: HERE's search
-    /// ends, whether the radio plays on or not. It starts again on return.
+    /// ends, whether the radio plays on or not. It starts again on return. A station of a part
+    /// of HERE's dial that is playing keeps that part, so the listener keeps the station.
     private func enteredBackground() {
-        wasInBackground = true
         rememberDial()                  // before the search ends: a sweep's needle is not kept
         #if HERE
-        hereSearch.cancel()
+        hereSearch.cancel(playing: radio.cityID == hereID && radio.station != nil)
         #endif
     }
 
@@ -468,9 +490,10 @@ import UIKit
     /// With the radio off and the app not in the background: starts the `.ambient` session and the
     /// engine if they were rested (`!noise.isStarted`). A wake that fails leaves `isStarted` set, so
     /// it is not tried again on every tick; the rest timer rests it and the next touch tries again.
-    /// Going live has its own path (`startAudio(live: true)`).
+    /// Going live has its own path (`startAudio(live: true)`), and a radio switched on but held
+    /// by an interruption does not wake into `.ambient`: it waits for that path.
     private func wakeEngineIfResting() {
-        guard !radio.isLive, !wasInBackground, !noise.isStarted else { return }
+        guard !radio.powerOn, !wasInBackground, !noise.isStarted else { return }
         soundLog.notice("ENGINE WAKE")
         startAudio(live: false)
     }
@@ -501,9 +524,10 @@ import UIKit
         return nil
     }
 
-    /// Suspended (off in the background, gone there or switched off there): the engine and the
-    /// session rest at once, without waiting `engineRestDelay`, and with no move to `.ambient`
-    /// first: nothing there can be heard, and nothing wakes them until the app is active again.
+    /// Suspended (off in the background, gone there or switched off there, or held by an
+    /// interruption): the engine and the session rest at once, without waiting `engineRestDelay`,
+    /// and with no move to `.ambient` first: nothing can be heard, and only the app coming back
+    /// active, the interruption ending or the power wakes them.
     private func restNow() {
         offSession?.cancel()
         restTimer?.cancel()
@@ -604,23 +628,29 @@ import UIKit
         }
     }
 
-    /// An interruption (a call, an alarm, Siri) makes the session inactive and stops the engine;
-    /// when the system recommends resuming, unless the radio is suspended, the session and the
-    /// engine come back. A media services reset loses both, so the noise graph is built anew and
-    /// the session set up again. The old route going away (headphones unplugged) switches the
-    /// radio off.
+    /// An interruption (a call, an alarm, Siri) makes the session inactive, by the system's hand,
+    /// and stops the engine. With the radio on it suspends the radio (`interrupted`) until the
+    /// system recommends resuming or the app is active again; with it off, an awake engine comes
+    /// back on the recommendation. (iOS 27 tells an interruption by these two notifications; the
+    /// older interruption notification is deprecated.) A media services reset loses both, so the
+    /// noise graph is built anew and the session set up again. The old route going away
+    /// (headphones unplugged) switches the radio off.
     private func observeSession() {
         let center = NotificationCenter.default
         let session = AVAudioSession.sharedInstance()
         sessionObservers.append(center.addObserver(
             forName: AVAudioSession.didBecomeInactiveNotification, object: session, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.soundLog.notice("SESSION inactive") }
+        ) { [weak self] note in
+            let context = note.userInfo?[AVAudioSession.deactivationContextKey] as? AVAudioSession.DeactivationContext
+            let bySystem = context?.source == .system
+            MainActor.assumeIsolated { self?.sessionBecameInactive(bySystem: bySystem) }
         })
         sessionObservers.append(center.addObserver(
             forName: AVAudioSession.resumptionRecommendationNotification, object: session, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.interruptionEnded() }
+        ) { [weak self] note in
+            let context = note.userInfo?[AVAudioSession.resumptionContextKey] as? AVAudioSession.ResumptionContext
+            let shouldResume = context.map { $0.recommendation == .shouldResume } ?? true
+            MainActor.assumeIsolated { self?.resumptionRecommended(shouldResume) }
         })
         sessionObservers.append(center.addObserver(
             forName: AVAudioSession.mediaServicesWereResetNotification, object: session, queue: .main
@@ -638,29 +668,51 @@ import UIKit
 
     /// The headphones the radio played through went away: it switches off rather than carry on out
     /// loud, as music apps pause. The volume is kept for next time; in the background, switching
-    /// off suspends it (`changePower`).
+    /// off suspends it (`changePower`). Unplugged during an interruption, it is off when that ends,
+    /// rather than come back out loud.
     private func routeChanged(_ reason: AVAudioSession.RouteChangeReason?) {
-        guard reason == .oldDeviceUnavailable, radio.isLive else { return }
+        guard reason == .oldDeviceUnavailable, radio.powerOn else { return }
         soundLog.notice("ROUTE gone")
         togglePower()
     }
 
-    /// The system says an interruption is over: unless the radio is suspended (off in the
-    /// background), the session and the engine come back so the wheels tick again and the static
-    /// returns; switched on, that is in the background too.
-    /// A resting engine (radio off) stays at rest: the next touch wakes it.
+    /// The session became inactive. The system doing it with the radio on is an interruption
+    /// beginning: it suspends the radio, so the station stops cleanly rather than stall and be
+    /// marked "No signal". The app's own release (the radio off, `restEngine`, `startAudio`) is not.
+    private func sessionBecameInactive(bySystem: Bool) {
+        soundLog.notice("SESSION inactive")
+        guard bySystem, radio.powerOn, !interrupted else { return }
+        interrupted = true
+        soundLog.notice("INTERRUPTED")
+        applySuspension()
+    }
+
+    /// The system's word at the end of an interruption: resuming ends it (`interruptionEnded`);
+    /// otherwise a radio held by it waits for the app to be active again, or the power.
+    private func resumptionRecommended(_ shouldResume: Bool) {
+        soundLog.notice("RESUME \(shouldResume ? "recommended" : "not recommended", privacy: .public)")
+        if shouldResume { interruptionEnded() }
+    }
+
+    /// The interruption is over and the system recommends resuming. A radio held by it comes back
+    /// live through the usual path: the session, the engine and a fresh connection to the
+    /// station, in the background too. Off, an engine that was awake comes back so the wheels tick
+    /// again; a resting one stays at rest until the next touch.
     private func interruptionEnded() {
-        soundLog.notice("AUDIO RESUME")
-        guard !radio.isSuspended else { return }
-        if radio.isLive || noise.isStarted {
-            do {
-                try AVAudioSession.sharedInstance().setActive(true)
-                try noise.restartIfStopped()
-            } catch {
-                soundLog.error("AUDIO RESUME \(error.localizedDescription, privacy: .public)")
-            }
+        if interrupted {
+            interrupted = false
+            soundLog.notice("INTERRUPTION END")
+            applySuspension()
+            return
         }
-        updateSound()
+        guard !radio.powerOn, !radio.isSuspended, noise.isStarted, !noise.isRunning else { return }
+        soundLog.notice("AUDIO RESUME")
+        do {
+            try AVAudioSession.sharedInstance().setActive(true)
+            try noise.restartIfStopped()
+        } catch {
+            soundLog.error("AUDIO RESUME \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private func mediaServicesReset() {

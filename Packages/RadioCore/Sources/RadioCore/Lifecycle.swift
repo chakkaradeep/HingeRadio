@@ -3,9 +3,10 @@
 /// (locked, or another app in front).
 public enum AppPhase: Sendable, Equatable { case active, inactive, background }
 
-/// Whether the radio is suspended (silent, see `Radio.setSuspended`): only in the background with
-/// the power off. Switched on, the radio plays on in the background, and being merely inactive
-/// never stops it.
-public func shouldSuspend(phase: AppPhase, powerOn: Bool) -> Bool {
-    phase == .background && !powerOn
+/// Whether the radio is suspended (silent, see `Radio.setSuspended`): in the background with the
+/// power off, or switched on while an audio interruption (a call, an alarm, Siri) has the sound,
+/// in any phase. Switched on and not interrupted, the radio plays on in the background, and being
+/// merely inactive never stops it.
+public func shouldSuspend(phase: AppPhase, powerOn: Bool, interrupted: Bool) -> Bool {
+    powerOn ? interrupted : phase == .background
 }

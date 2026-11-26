@@ -80,11 +80,13 @@ public struct HerePlan: Sendable, Equatable {
     }
 
     /// The search is called off. Returns the status to clear HERE's stations to, only while they are
-    /// being found: nobody should tune a part of a dial. A kept or whole dial stays (nil). The search
+    /// being found: nobody should tune a part of a dial. A kept or whole dial stays (nil), and so
+    /// does a part of one while one of its stations is `playing` (the app went to the background
+    /// with it on): the listener keeps it, and the search on return starts afresh. The search
     /// counts as cut short only if one was running.
-    public mutating func cancel(status: HereStatus, isSearching: Bool) -> HereStatus? {
+    public mutating func cancel(status: HereStatus, isSearching: Bool, playing: Bool = false) -> HereStatus? {
         if isSearching { wasCancelled = true }
-        return status == .finding ? .idle : nil
+        return status == .finding && !playing ? .idle : nil
     }
 
     /// The place a fix counts as, and what to do there. A rough position wobbles, so a fix within one

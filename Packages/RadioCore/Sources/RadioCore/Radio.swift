@@ -43,8 +43,8 @@ public struct Radio: Sendable {
     /// The side volume wheel, 0...1: off below `wheelOnFrom`.
     public private(set) var wheel = 0.0
     public private(set) var pose: Pose = .flex
-    /// True while the app is in the background with the power off (`shouldSuspend`); silent,
-    /// display unchanged.
+    /// True while the app is in the background with the power off, or while an audio interruption
+    /// holds a radio switched on (`shouldSuspend`); silent, display unchanged.
     public private(set) var isSuspended = false
     public private(set) var tuning: TuningState
     public private(set) var dead: Set<String> = []
