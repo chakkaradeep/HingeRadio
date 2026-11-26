@@ -225,16 +225,45 @@ import UIKit
             soundLog.notice("INTERRUPTION END")
         }
         next.setSuspended(shouldSuspend(phase: phase, powerOn: next.powerOn, interrupted: interrupted))
-        radio = next
+        assign(next)
     }
 
     /// Sets the suspension `shouldSuspend` gives for the phase, the power and an interruption,
     /// assigning `radio` only when it changes. Going suspended stops the station and rests the
     /// engine; coming back live starts the session and the engine and connects afresh
-    /// (`radioChanged`).
+    /// (`assign`, `radioChanged`).
     private func applySuspension() {
         let suspend = shouldSuspend(phase: phase, powerOn: radio.powerOn, interrupted: interrupted)
-        if suspend != radio.isSuspended { radio.setSuspended(suspend) }
+        guard suspend != radio.isSuspended else { return }
+        var next = radio
+        next.setSuspended(suspend)
+        assign(next)
+    }
+
+    /// Assigns a power or suspension change. Going live, the `.playback` session and the engine
+    /// start first (`goLive`), before the on click and before the station is asked for. If the
+    /// session cannot be activated (a call still holds the sound, say, with the app opened in
+    /// it), the radio is held as interrupted instead: no player against the call, no station
+    /// timed out as "No signal". The next resumption recommendation or return to active tries
+    /// again.
+    private func assign(_ next: Radio) {
+        var next = next
+        if next.isLive, !radio.isLive, !goLive() {
+            interrupted = true
+            soundLog.notice("INTERRUPTED session refused")
+            next.setSuspended(true)
+        }
+        radio = next
+    }
+
+    /// The live edge's sound: no rest pending, the `.playback` session and the engine. False when
+    /// the session could not be activated; the engine is then not started.
+    private func goLive() -> Bool {
+        offSession?.cancel()
+        restTimer?.cancel()
+        restTimer = nil
+        if !noise.isStarted { soundLog.notice("ENGINE WAKE") }
+        return startAudio(live: true)
     }
 
     /// Changes city; if a station of the new city is locked under the needle, the needle then
@@ -410,14 +439,9 @@ import UIKit
         logLockChange(from: nil)
     }
 
+    /// Going live, the session and the engine have already started (`assign`), so the on click
+    /// is not cut.
     private func radioChanged(from old: Radio) {
-        if radio.isLive, !old.isLive {
-            offSession?.cancel()
-            restTimer?.cancel()
-            restTimer = nil
-            if !noise.isStarted { soundLog.notice("ENGINE WAKE") }
-            startAudio(live: true)                  // before the click, so the click is not cut
-        }
         if let feel = RadioCore.feel(from: old, to: radio), !(quietTicks && feel.isTick) {
             play(feel)
         }
@@ -490,7 +514,7 @@ import UIKit
     /// With the radio off and the app not in the background: starts the `.ambient` session and the
     /// engine if they were rested (`!noise.isStarted`). A wake that fails leaves `isStarted` set, so
     /// it is not tried again on every tick; the rest timer rests it and the next touch tries again.
-    /// Going live has its own path (`startAudio(live: true)`), and a radio switched on but held
+    /// Going live has its own path (`assign`, `goLive`), and a radio switched on but held
     /// by an interruption does not wake into `.ambient`: it waits for that path.
     private func wakeEngineIfResting() {
         guard !radio.powerOn, !wasInBackground, !noise.isStarted else { return }
@@ -536,14 +560,18 @@ import UIKit
     }
 
     /// With the radio off: stops the engine and lets the session go with notify-others, so other
-    /// apps' audio may resume. Does nothing if the engine is already at rest.
+    /// apps' audio may resume. Does nothing if the engine is already at rest. While interrupted
+    /// only the engine stops: the system already made the session inactive, and the app leaves
+    /// it alone so the resumption recommendation still comes.
     private func restEngine() {
         guard !radio.isLive, noise.isStarted || noise.isRunning else { return }
         noise.stop()
-        do {
-            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        } catch {
-            soundLog.error("AUDIO SESSION release \(error.localizedDescription, privacy: .public)")
+        if !interrupted {
+            do {
+                try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            } catch {
+                soundLog.error("AUDIO SESSION release \(error.localizedDescription, privacy: .public)")
+            }
         }
         soundLog.notice("ENGINE REST")
     }
@@ -584,8 +612,10 @@ import UIKit
     /// sound rather than stopping it. When the category changes the engine is stopped around the
     /// change and started again, so no output runs across it. Going off, the session is first let
     /// go with notify-others, so audio the radio interrupted may resume. Failures are logged and
-    /// leave station playback working.
-    private func startAudio(live: Bool, force: Bool = false) {
+    /// leave station playback working. Returns whether the session was activated; live, a session
+    /// that was not leaves the engine stopped (`assign` then holds the radio as interrupted).
+    @discardableResult
+    private func startAudio(live: Bool, force: Bool = false) -> Bool {
         let session = AVAudioSession.sharedInstance()
         let category: AVAudioSession.Category = live ? .playback : .ambient
         if force || session.category != category {
@@ -604,16 +634,20 @@ import UIKit
                 soundLog.error("AUDIO SESSION category \(error.localizedDescription, privacy: .public)")
             }
         }
+        var activated = true
         do {
             try session.setActive(true)
         } catch {
+            activated = false
             soundLog.error("AUDIO SESSION \(error.localizedDescription, privacy: .public)")
         }
+        guard activated || !live else { return false }
         do {
             try noise.start()
         } catch {
             soundLog.error("NOISE ENGINE \(error.localizedDescription, privacy: .public)")
         }
+        return activated
     }
 
     /// After switching off: once the off click has rung out, back to the `.ambient` session; the
