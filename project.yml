@@ -31,6 +31,9 @@ targets:
         CADisableMinimumFrameDurationOnPhone: true
         NSLocationWhenInUseUsageDescription: "Hinge Radio uses your approximate location to find the FM stations around you."
         NSLocationDefaultAccuracyReduced: true
+        # Switched on, the radio plays on with the phone locked or another app in front.
+        UIBackgroundModes:
+          - audio
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
