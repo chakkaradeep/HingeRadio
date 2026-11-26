@@ -520,6 +520,66 @@ private func minutesLater(_ minutes: Double) -> Date { hoursLater(minutes / 60) 
     #expect(again == dial(8))
 }
 
+private func dial(_ count: Int, unchanged: Int) -> HereDial {
+    HereDial(town: "Ballard", stations: stations(count), savedAt: savedAt, unchangedRefreshes: unchanged)
+}
+
+@Test func aThinDialWaitsTwiceAsLongAfterEachUnchangedRefresh() {
+    for (unchanged, minutes) in [(0, 10.0), (1, 20), (2, 40), (3, 80)] {
+        #expect(!dial(7, unchanged: unchanged).needsRefresh(at: minutesLater(minutes - 1)))
+        #expect(!dial(7, unchanged: unchanged).needsRefresh(at: minutesLater(minutes)))
+        #expect(dial(7, unchanged: unchanged).needsRefresh(at: minutesLater(minutes + 1)))
+        #expect(dial(7, unchanged: unchanged).refreshAfter == minutes * 60)
+    }
+    #expect(dial(3, unchanged: 1).refreshAfter == 20 * 60)
+}
+
+@Test func aThinDialWaitsAtMostADay() {
+    for unchanged in [8, 9, 20, 64, Int.max] {
+        #expect(!dial(7, unchanged: unchanged).needsRefresh(at: hoursLater(23)))
+        #expect(!dial(7, unchanged: unchanged).needsRefresh(at: hoursLater(24)))
+        #expect(dial(7, unchanged: unchanged).needsRefresh(at: hoursLater(25)))
+        #expect(dial(7, unchanged: unchanged).refreshAfter == 24 * 3600)
+    }
+    #expect(dial(7, unchanged: 7).refreshAfter == 10 * 60 * 128)       // 21 h 20 min, under a day
+    #expect(dial(7, unchanged: -1).refreshAfter == 10 * 60)
+}
+
+@Test func aFullDialWaitsADayHoweverOftenItWasUnchanged() {
+    for unchanged in [0, 1, 5] {
+        #expect(!dial(8, unchanged: unchanged).needsRefresh(at: hoursLater(24)))
+        #expect(dial(8, unchanged: unchanged).needsRefresh(at: hoursLater(25)))
+    }
+}
+
+@Test func aBackedOffDialSavedInTheFutureIsStillDue() {
+    for count in [3, 16] {
+        #expect(dial(count, unchanged: 5).needsRefresh(at: hoursLater(-1)))
+    }
+}
+
+@Test func aDialFileFromAnOlderBuildLoadsWithNoUnchangedRefreshes() throws {
+    let data = try JSONEncoder().encode(dial(5, unchanged: 3))
+    var object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(object["unchangedRefreshes"] as? Int == 3)
+    object["unchangedRefreshes"] = nil
+    let old = try JSONSerialization.data(withJSONObject: object)
+    let loaded = try JSONDecoder().decode(HereDial.self, from: old)
+    #expect(loaded == dial(5))
+    #expect(loaded.unchangedRefreshes == 0)
+    let again = try JSONDecoder().decode(HereDial.self, from: data)
+    #expect(again == dial(5, unchanged: 3))
+}
+
+@Test func theSameStationsAreTheSameCallSigns() {
+    #expect(dial(3).hasSameStations(as: stations(3)))
+    #expect(dial(3).hasSameStations(as: stations(3).reversed()))
+    #expect(dial(3).hasSameStations(as: [station("K0", 99.9), station("K1", 90.1), station("K2", 90.1)]))
+    #expect(!dial(3).hasSameStations(as: stations(2)))
+    #expect(!dial(3).hasSameStations(as: stations(4)))
+    #expect(!dial(3).hasSameStations(as: [station("K0", 90.1), station("K1", 91.1), station("KX", 92.1)]))
+}
+
 // MARK: - Arriving on a station
 
 @Test func withNothingLockedTheNeedleArrivesOnTheNearestLiveStation() {

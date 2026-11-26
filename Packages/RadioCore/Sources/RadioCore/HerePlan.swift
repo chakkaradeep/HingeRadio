@@ -83,6 +83,12 @@ public struct HerePlan: Sendable, Equatable {
     public private(set) var wasCancelled = false
     /// The place of the last dial shown or hunted for.
     public private(set) var lastPlace: Place?
+    /// When the last search ended with the FCC's answer but no dial ("No stations found here" or
+    /// "HERE covers the US only"); nil once another search begins. Kept for this run only.
+    public private(set) var foundNothingAt: Date?
+
+    /// Seconds within which a search that found nothing is not repeated on a return: 10 minutes.
+    public static let nothingFoundRestsFor: TimeInterval = 10 * 60
 
     /// `lastPlace` is the place (its cell) of the last dial shown or hunted for in an earlier run,
     /// if kept.
@@ -98,12 +104,18 @@ public struct HerePlan: Sendable, Equatable {
     }
 
     /// Whether to start a search: never while one runs. A choice always does; a return only when the
-    /// last search was cut short or ended without a dial.
-    public func searches(on start: Start, status: HereStatus, isSearching: Bool) -> Bool {
+    /// last search was cut short or ended without a dial, and not within 10 minutes of one that found
+    /// nothing where the FCC answered (`foundNothing`): the same search would find the same nothing.
+    /// No connection or no position is tried again on every return.
+    public func searches(on start: Start, status: HereStatus, isSearching: Bool, at date: Date = .now) -> Bool {
         guard !isSearching else { return false }
         switch start {
         case .chosen, .opened: return true
-        case .returned: return wasCancelled || Self.endedWithoutADial.contains(status)
+        case .returned:
+            if let foundNothingAt, (0..<Self.nothingFoundRestsFor).contains(date.timeIntervalSince(foundNothingAt)) {
+                return false
+            }
+            return wasCancelled || Self.endedWithoutADial.contains(status)
         }
     }
 
@@ -111,8 +123,17 @@ public struct HerePlan: Sendable, Equatable {
     private static let endedWithoutADial: [HereStatus] = [.locationOff, .empty, .noPosition,
                                                           .noConnection, .outsideUS]
 
-    /// A search starts: it is no longer cut short.
-    public mutating func begin() { wasCancelled = false }
+    /// A search starts: it is no longer cut short, nor one that found nothing.
+    public mutating func begin() {
+        wasCancelled = false
+        foundNothingAt = nil
+    }
+
+    /// A hunt ended without a dial, on `status`. Remembered when the FCC answered ("No stations found
+    /// here", "HERE covers the US only"), so a return within 10 minutes does not search again.
+    public mutating func foundNothing(_ status: HereStatus, at date: Date) {
+        if status == .empty || status == .outsideUS { foundNothingAt = date }
+    }
 
     /// The status a starting search shows: finding, unless a dial is ready (nil keeps it).
     public static func status(onStartFrom status: HereStatus) -> HereStatus? {
@@ -167,16 +188,27 @@ public struct HerePlan: Sendable, Equatable {
 
     /// The dial with its town, to keep and show; nil when no name came.
     public static func named(_ dial: HereDial, town: String?) -> HereDial? {
-        town.map { HereDial(town: $0, stations: dial.stations, savedAt: dial.savedAt) }
+        town.map { HereDial(town: $0, stations: dial.stations, savedAt: dial.savedAt,
+                            unchangedRefreshes: dial.unchangedRefreshes) }
     }
 
     /// Whether a shown dial is looked for again: when it is due (see `HereDial.needsRefresh`).
     public static func refreshes(_ dial: HereDial, at date: Date) -> Bool { dial.needsRefresh(at: date) }
 
-    /// A refresh's stations as the dial to keep for next time, under the kept dial's town; nil when
-    /// they may not replace it (see `HereDial.mayBeReplaced`).
+    /// What a refresh that found `stations` keeps for next time, under the kept dial's town, saved
+    /// `date`. Other stations that may replace the dial (`HereDial.mayBeReplaced`) do, and its count
+    /// of unchanged refreshes starts again at 0. The same stations (call signs), or too few to
+    /// replace it, count as unchanged: the dial keeps them, one more unchanged refresh, so a thin
+    /// dial waits twice as long before the next (`HereDial.refreshAfter`). Finding nothing (no
+    /// connection, say) keeps nothing new: nil, the old dial left alone.
     public static func refreshed(_ dial: HereDial, by stations: [Station], at date: Date) -> HereDial? {
-        dial.mayBeReplaced(by: stations) ? HereDial(town: dial.town, stations: stations, savedAt: date) : nil
+        guard !stations.isEmpty else { return nil }
+        if dial.mayBeReplaced(by: stations), !dial.hasSameStations(as: stations) {
+            return HereDial(town: dial.town, stations: stations, savedAt: date)
+        }
+        let kept = dial.mayBeReplaced(by: stations) ? stations : dial.stations
+        return HereDial(town: dial.town, stations: kept, savedAt: date,
+                        unchangedRefreshes: dial.unchangedRefreshes + 1)
     }
 
     /// Whether the needle is the owner's as a search begins, so it neither sweeps nor moves onto a

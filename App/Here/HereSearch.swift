@@ -50,10 +50,11 @@ import RadioCore
         if plan.searches(on: .chosen, status: status, isSearching: task != nil) { start(.chosen) }
     }
 
-    /// The app came back with HERE selected: a search, if the last one did not end with a dial.
+    /// The app came back with HERE selected: a search, if the last one did not end with a dial, and
+    /// not within 10 minutes of one that found nothing (`HerePlan.searches`).
     func returned() {
         guard let status = model?.radio.hereStatus,
-              plan.searches(on: .returned, status: status, isSearching: task != nil) else { return }
+              plan.searches(on: .returned, status: status, isSearching: task != nil, at: .now) else { return }
         start(.returned)
     }
 
@@ -164,6 +165,7 @@ import RadioCore
         let dial: HereDial
         switch HerePlan.hunted(outcome, at: .now) {
         case .nothing(let status):
+            plan.foundNothing(status, at: .now)
             model?.setHere(status: status)
             return
         case .found(let found):
@@ -191,12 +193,17 @@ import RadioCore
     }
 
     /// Only keeps the new list, for the next time HERE is chosen: the dial being listened to does
-    /// not move. Finding nothing, or far fewer stations, keeps the old one.
+    /// not move. Finding nothing keeps the old one as it was; the same stations, or far fewer, keep
+    /// the old ones and make a short dial wait longer before the next refresh (`HerePlan.refreshed`).
     private func refresh(_ dial: HereDial, at place: Place) async {
         let stations = await finder.find(at: place) { _ in }.stations
         guard isCurrent, let fresh = HerePlan.refreshed(dial, by: stations, at: .now) else { return }
         cache.save(fresh, for: place)
-        log.notice("HERE REFRESHED \(stations.count) stations")
+        if fresh.unchangedRefreshes == 0 {
+            log.notice("HERE REFRESHED \(stations.count) stations")
+        } else {
+            log.notice("HERE UNCHANGED \(fresh.unchangedRefreshes) times, next in \(Int(fresh.refreshAfter / 60)) min")
+        }
     }
 }
 #endif

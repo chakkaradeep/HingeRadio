@@ -71,6 +71,64 @@ private func noPlace(_ plan: HerePlan, _ error: LocatorError, at date: Date,
     }
 }
 
+private func minutesLater(_ minutes: Double) -> Date { now.addingTimeInterval(minutes * 60) }
+
+/// A plan whose last search found nothing, with this status, at `now`.
+private func foundNothing(_ status: HereStatus) -> HerePlan {
+    var plan = HerePlan()
+    plan.begin()
+    plan.foundNothing(status, at: now)
+    return plan
+}
+
+/// Ruling P2: the FCC answered, so the same search would find the same nothing.
+@Test func aReturnWithinTenMinutesOfASearchThatFoundNothingDoesNotSearch() {
+    for status in [HereStatus.empty, .outsideUS] {
+        let plan = foundNothing(status)
+        #expect(plan.foundNothingAt == now)
+        #expect(!plan.searches(on: .returned, status: status, isSearching: false, at: now))
+        #expect(!plan.searches(on: .returned, status: status, isSearching: false, at: minutesLater(9)))
+        #expect(!plan.searches(on: .returned, status: status, isSearching: false, at: minutesLater(9.99)))
+        #expect(plan.searches(on: .returned, status: status, isSearching: false, at: minutesLater(10)))
+        #expect(plan.searches(on: .returned, status: status, isSearching: false, at: minutesLater(60)))
+        #expect(plan.searches(on: .returned, status: status, isSearching: false, at: minutesLater(-1)))  // clock put back
+        #expect(!plan.searches(on: .returned, status: status, isSearching: true, at: minutesLater(10)))
+    }
+    #expect(HerePlan.nothingFoundRestsFor == 10 * 60)
+}
+
+@Test func choosingHereSearchesEvenJustAfterASearchFoundNothing() {
+    for status in [HereStatus.empty, .outsideUS] {
+        let plan = foundNothing(status)
+        #expect(plan.searches(on: .chosen, status: status, isSearching: false, at: minutesLater(1)))
+        #expect(plan.searches(on: .opened, status: status, isSearching: false, at: minutesLater(1)))
+        #expect(!plan.searches(on: .chosen, status: status, isSearching: true, at: minutesLater(1)))
+    }
+}
+
+/// Ruling P2: with no connection or no position, trying again on return is the point.
+@Test func noConnectionOrNoPositionIsTriedAgainOnEveryReturn() {
+    for status in [HereStatus.noConnection, .noPosition, .locationOff, .ready, .idle, .finding] {
+        let plan = foundNothing(status)
+        #expect(plan.foundNothingAt == nil)
+    }
+    for status in [HereStatus.noConnection, .noPosition] {
+        #expect(foundNothing(status).searches(on: .returned, status: status, isSearching: false, at: now))
+    }
+}
+
+@Test func aNewSearchForgetsTheOneThatFoundNothing() {
+    var plan = foundNothing(.empty)
+    plan.begin()
+    #expect(plan.foundNothingAt == nil)
+    #expect(plan.searches(on: .returned, status: .empty, isSearching: false, at: minutesLater(1)))
+    // Cut short by going to the background: resumed on return, however recent the empty one was.
+    var cut = foundNothing(.empty)
+    cut.begin()
+    _ = cut.cancel(status: .finding, isSearching: true)
+    #expect(cut.searches(on: .returned, status: .finding, isSearching: false, at: minutesLater(1)))
+}
+
 @Test func aReturnNeverSearchesWhileOneRuns() {
     for status in allStatuses {
         #expect(!HerePlan().searches(on: .returned, status: status, isSearching: true))
@@ -414,18 +472,62 @@ private let licence = Licence(callSign: "KAAA", city: "Seattle", stationClass: "
     #expect(HerePlan.named(unnamed, town: nil) == nil)
     let named = HereDial(town: "Ballard", stations: stations(5), savedAt: daysAgo(3))
     #expect(HerePlan.named(unnamed, town: "Ballard") == named)
+    let backedOff = HereDial(town: hereName, stations: stations(5), savedAt: daysAgo(3), unchangedRefreshes: 2)
+    #expect(HerePlan.named(backedOff, town: "Ballard")?.unchangedRefreshes == 2)
 }
 
-@Test func aRefreshKeepsItsStationsOnlyIfTheyMayReplaceTheDial() {
-    let kept = dial("Ballard", count: 16, savedAt: daysAgo(2))
-    #expect(HerePlan.refreshed(kept, by: [], at: now) == nil)
-    #expect(HerePlan.refreshed(kept, by: stations(7), at: now) == nil)
-    for count in [8, 16] {
+@Test func aRefreshWithOtherStationsReplacesTheDialAndStartsCountingAgain() {
+    let kept = HereDial(town: "Ballard", stations: stations(16), savedAt: daysAgo(2), unchangedRefreshes: 3)
+    for count in [8, 15] {
         let fresh = HereDial(town: "Ballard", stations: stations(count), savedAt: now)
         #expect(HerePlan.refreshed(kept, by: stations(count), at: now) == fresh)
     }
     #expect(HerePlan.refreshed(dial(hereName, count: 2), by: stations(1), at: now)
             == HereDial(town: hereName, stations: stations(1), savedAt: now))
+}
+
+@Test func aRefreshThatFindsTheSameStationsCountsOneMoreUnchanged() {
+    for (count, unchanged) in [(3, 0), (5, 2), (16, 0)] {
+        let kept = HereDial(town: "Ballard", stations: stations(count), savedAt: daysAgo(2),
+                            unchangedRefreshes: unchanged)
+        let again = stations(count).reversed().map {
+            Station(callSign: $0.callSign, name: $0.name, licenceCity: $0.licenceCity, frequency: $0.frequency,
+                    streamURL: URL(string: "https://example.com/new/\($0.callSign)")!)
+        }
+        let refreshed = HerePlan.refreshed(kept, by: again, at: now)
+        #expect(refreshed == HereDial(town: "Ballard", stations: again, savedAt: now,
+                                      unchangedRefreshes: unchanged + 1))
+    }
+}
+
+/// A flaky place, finding fewer each time, would otherwise be searched every 10 minutes.
+@Test func aRefreshWithTooFewStationsKeepsTheDialAndCountsAsUnchanged() {
+    let kept = HereDial(town: "Ballard", stations: stations(5), savedAt: daysAgo(2), unchangedRefreshes: 1)
+    #expect(HerePlan.refreshed(kept, by: stations(2), at: now)
+            == HereDial(town: "Ballard", stations: stations(5), savedAt: now, unchangedRefreshes: 2))
+    let full = dial("Ballard", count: 16, savedAt: daysAgo(2))
+    #expect(HerePlan.refreshed(full, by: stations(7), at: now)
+            == HereDial(town: "Ballard", stations: stations(16), savedAt: now, unchangedRefreshes: 1))
+}
+
+@Test func aRefreshThatFindsNothingLeavesTheDialAlone() {
+    #expect(HerePlan.refreshed(dial("Ballard", count: 16, savedAt: daysAgo(2)), by: [], at: now) == nil)
+    #expect(HerePlan.refreshed(dial("Ballard", count: 3, savedAt: daysAgo(2)), by: [], at: now) == nil)
+}
+
+@Test func aShortDialBacksOffAsRefreshesFindTheSameStations() {
+    var shown = dial(count: 4, savedAt: now)
+    var clock = now
+    for minutes in [10.0, 20, 40, 80, 160, 320, 640, 1280, 1440, 1440] {
+        #expect(!HerePlan.refreshes(shown, at: clock.addingTimeInterval(minutes * 60)))
+        clock = clock.addingTimeInterval(minutes * 60 + 1)
+        #expect(HerePlan.refreshes(shown, at: clock))
+        shown = HerePlan.refreshed(shown, by: stations(4), at: clock)!
+    }
+    #expect(shown.unchangedRefreshes == 10)
+    shown = HerePlan.refreshed(shown, by: stations(5), at: clock)!
+    #expect(shown.unchangedRefreshes == 0)
+    #expect(HerePlan.refreshes(shown, at: clock.addingTimeInterval(10 * 60 + 1)))
 }
 
 @Test func aShownDialIsRefreshedWhenItIsDue() {

@@ -10,7 +10,8 @@ struct HereCache {
     private let log = Logger(subsystem: "HingeRadio", category: "here")
 
     /// The dial saved for `place`, or nil when there is none or it cannot be read. Whether it is
-    /// young enough to show is `HerePlan`'s to say.
+    /// young enough to show is `HerePlan`'s to say. A file written before unchanged refreshes were
+    /// counted still loads, with none (`HereDial.unchangedRefreshes`).
     func load(_ place: Place) -> HereDial? {
         guard let data = try? Data(contentsOf: file(for: place)) else { return nil }
         return try? JSONDecoder().decode(HereDial.self, from: data)

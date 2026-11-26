@@ -80,7 +80,8 @@ public struct HereDial: Codable, Sendable, Equatable {
     public static let lifetime: TimeInterval = 7 * 24 * 3600
 
     /// Seconds until a dial is looked for again: a day, or 10 minutes for a thin one, which a poor
-    /// connection may have cut short.
+    /// connection may have cut short, doubled for each refresh of it that found the same stations,
+    /// up to a day.
     private static let freshFor: TimeInterval = 24 * 3600
     private static let thinFreshFor: TimeInterval = 10 * 60
     /// A dial with fewer stations than this is thin.
@@ -89,11 +90,26 @@ public struct HereDial: Codable, Sendable, Equatable {
     public let town: String
     public let stations: [Station]
     public let savedAt: Date
+    /// How many refreshes in a row found the same stations (or too few to replace them) since the
+    /// stations last changed: each doubles the wait before a thin dial is looked for again.
+    public let unchangedRefreshes: Int
 
-    public init(town: String, stations: [Station], savedAt: Date) {
+    public init(town: String, stations: [Station], savedAt: Date, unchangedRefreshes: Int = 0) {
         self.town = town
         self.stations = stations
         self.savedAt = savedAt
+        self.unchangedRefreshes = unchangedRefreshes
+    }
+
+    private enum CodingKeys: String, CodingKey { case town, stations, savedAt, unchangedRefreshes }
+
+    /// A dial file written before refreshes were counted has none: 0.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        town = try container.decode(String.self, forKey: .town)
+        stations = try container.decode([Station].self, forKey: .stations)
+        savedAt = try container.decode(Date.self, forKey: .savedAt)
+        unchangedRefreshes = try container.decodeIfPresent(Int.self, forKey: .unchangedRefreshes) ?? 0
     }
 
     /// Under 7 days old.
@@ -105,10 +121,24 @@ public struct HereDial: Codable, Sendable, Equatable {
         !stations.isEmpty && stations.count * 2 >= self.stations.count
     }
 
-    /// Over 24 hours old, or over 10 minutes with fewer than 8 stations. So is one saved in the
+    /// Whether `stations` are this dial's stations: the same call signs.
+    public func hasSameStations(as stations: [Station]) -> Bool {
+        Set(stations.map(\.callSign)) == Set(self.stations.map(\.callSign))
+    }
+
+    /// Seconds after saving that the dial is looked for again: 24 hours, or for a thin one 10
+    /// minutes doubled for each unchanged refresh, at most 24 hours.
+    public var refreshAfter: TimeInterval {
+        guard stations.count < Self.thinLimit else { return Self.freshFor }
+        let doublings = min(max(unchangedRefreshes, 0), 16)    // 10 min × 2^8 is already over a day
+        return min(Self.thinFreshFor * Double(1 << doublings), Self.freshFor)
+    }
+
+    /// Over `refreshAfter` old: 24 hours, or for a thin dial (fewer than 8 stations) 10 minutes,
+    /// 20, 40, … up to 24 hours as refreshes keep finding the same stations. So is one saved in the
     /// future, by a clock since put back.
     public func needsRefresh(at date: Date) -> Bool {
         let age = date.timeIntervalSince(savedAt)
-        return age < 0 || age > (stations.count < Self.thinLimit ? Self.thinFreshFor : Self.freshFor)
+        return age < 0 || age > refreshAfter
     }
 }
