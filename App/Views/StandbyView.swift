@@ -53,7 +53,6 @@ struct StandbyView: View {
                         HStack(alignment: .top, spacing: margin) {
                             VStack(alignment: .leading, spacing: metrics.gap) {
                                 frequency(metrics)
-                                unit(metrics)
                                 Spacer(minLength: 0)
                                 BadgeView(height: 0.11 * metrics.short)
                             }
@@ -72,17 +71,15 @@ struct StandbyView: View {
                         VStack(alignment: .leading, spacing: metrics.gap) {
                             name(metrics)
                             subtitleAndLamp(metrics)
-                            if size.width > size.height {
-                                Spacer(minLength: 0)
-                                frequencyAndGrille(metrics, em: wheelsEm)
-                            } else {
-                                grille(em: wheelsEm, height: 0.11 * metrics.short, fine: true)
-                                frequency(metrics)
-                            }
-                            // An overlay, rising into the clear space under the figures, so the
-                            // badge takes no height from the words.
-                            unit(metrics)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            // Either way up, the grille takes the space left above the figures,
+                            // which keep the room beside them for MHz.
+                            grille(em: wheelsEm, height: 0.11 * metrics.short, fine: true)
+                            frequency(metrics)
+                            // An overlay on a line of the unit's height, rising into the clear
+                            // space under the figures, so the badge takes no height from the words.
+                            Color.clear
+                                .frame(maxWidth: .infinity)
+                                .frame(height: Self.unitFont(size: metrics.unit).lineHeight)
                                 .overlay(alignment: .bottomTrailing) { BadgeView(height: 0.12 * metrics.short) }
                         }
                         .animation(.easeOut(duration: 0.3), value: model.radio.powerOn)
@@ -171,26 +168,29 @@ struct StandbyView: View {
 
     private static let grilleMinimum: CGFloat = 40
 
-    /// On the long side: the frequency, with the grille as a tall strip in the width its widest
-    /// reading leaves, standing on the figures' feet. An overlay, so it never pushes the words.
-    private func frequencyAndGrille(_ metrics: Metrics, em: CGFloat) -> some View {
-        let size = frequencySize(metrics)
-        let left = frequencySlot - Self.frequencyWidthPerPoint * size - metrics.gap
-        return frequency(metrics)
-            .overlay(alignment: Alignment(horizontal: .trailing, vertical: .lastTextBaseline)) {
-                GrilleView(em: em, minimum: Self.grilleMinimum, fine: true, footed: true)
-                    .frame(width: max(0, left), height: 2 * frequencyFont(size: size).capHeight)
-                    .alignmentGuide(.lastTextBaseline) { $0[.bottom] }
-            }
+    /// The reading with MHz beside it on the same baseline, as on the flex window, at a size set
+    /// from the widest reading so it stays put across 100 MHz and fits beside the wheels.
+    private func frequency(_ metrics: Metrics) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: unitGap(metrics)) {
+            frequencyText(size: frequencySize(metrics))
+            unit(metrics)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { frequencySlot = $0 }
     }
 
-    /// The reading at a size set from the widest one, so it stays put across 100 MHz and fits
-    /// beside the wheels.
-    private func frequency(_ metrics: Metrics) -> some View {
-        frequencyText(size: frequencySize(metrics))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { frequencySlot = $0 }
+    /// Between the figures and MHz.
+    private func unitGap(_ metrics: Metrics) -> CGFloat { 0.4 * metrics.unit }
+
+    /// The width MHz and its gap take beside the figures.
+    private func unitRoom(_ metrics: Metrics) -> CGFloat {
+        let width = ("MHz" as NSString).size(withAttributes: [
+            .font: Self.unitFont(size: metrics.unit), .kern: 0.1 * metrics.unit,
+        ]).width
+        return ceil(width) + unitGap(metrics)
     }
+
+    private static func unitFont(size: CGFloat) -> UIFont { .systemFont(ofSize: size, weight: .bold) }
 
     /// The locked station's own frequency, else the needle's (flex's dial follows the needle).
     private func frequencyText(size: CGFloat) -> some View {
@@ -206,7 +206,9 @@ struct StandbyView: View {
     }
 
     private func frequencySize(_ metrics: Metrics) -> CGFloat {
-        let fitted = frequencySlot > 0 ? frequencySlot / Self.frequencyWidthPerPoint : metrics.frequency
+        let fitted = frequencySlot > 0
+            ? max(frequencySlot - unitRoom(metrics), 0) / Self.frequencyWidthPerPoint
+            : metrics.frequency
         return min(metrics.frequency, fitted)
     }
 
